@@ -3,7 +3,7 @@
 本目录对应 A 模块：Python 前端与参数穿透。
 负责人：华师。
 
-这个目录就是 A 模块的主要开发目录。A 的公共接口在这里定义，A 的实现入口在 `third_party/FlagTree_Tools/Debugger/lib/Frontend/`。
+这个目录就是 A 模块的主要开发目录。A 的公共接口在这里定义，A 的实现入口在 `third_party/FlagTree_DevTools/Debugger/lib/Frontend/`。
 
 核心文件：
 

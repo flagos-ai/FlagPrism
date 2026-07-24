@@ -31,7 +31,7 @@ python -m pip install -e . --no-build-isolation
 FLAGTREE_COMPONENT_BUILD_DIR=/tmp/flagtree-profiler-build \
 TRITON_CUPTI_INCLUDE_PATH=/path/to/cupti/include \
 TRITON_ROCTRACER_INCLUDE_PATH=/path/to/roctracer/include \
-python -m pip install ./third_party/FlagTree_Tools/proton --no-build-isolation
+python -m pip install ./third_party/FlagTree_DevTools/proton --no-build-isolation
 ```
 
 The CUPTI and ROC-tracer variables may be omitted when their headers are

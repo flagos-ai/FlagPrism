@@ -28,7 +28,7 @@ TrackedOpEntry makeOp(uint32_t opId, std::string name) {
   entry.resultIndex = 0;
   entry.statementId = 1;
   entry.mlirOpName = opId == 1 ? "arith.addf" : "flagtree.debug.operand_capture";
-  entry.sourceLoc = "loc(\"third_party/FlagTree_Tools/Debugger/test/lit/statement-operand-capture-example.mlir\":4:10)";
+  entry.sourceLoc = "loc(\"third_party/FlagTree_DevTools/Debugger/test/lit/statement-operand-capture-example.mlir\":4:10)";
   entry.tritonStatement = "y = a + b";
   entry.statementResultName = std::move(name);
   entry.result = scalarF32();

@@ -5,7 +5,7 @@
 
     source /usr/local/Ascend/cann-8.5.0/set_env.sh
     cd /workspace/FlagTree
-    python3 third_party/FlagTree_Tools/proton/flagtree_profiler/examples/simple_vector_add_profile.py
+    python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/examples/simple_vector_add_profile.py
 
 预期输出文件：
 

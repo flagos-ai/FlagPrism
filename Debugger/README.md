@@ -1,8 +1,8 @@
 # FlagTree Debugger
 
-`third_party/FlagTree_Tools/Debugger` 是 FlagTree debugger 的独立可选模块，包含编译期插桩、
+`third_party/FlagTree_DevTools/Debugger` 是 FlagTree debugger 的独立可选模块，包含编译期插桩、
 运行期导出、record 解码和报告生成等实现。跨模块接口和协议定义以
-`third_party/FlagTree_Tools/Debugger/include/Debugger` 为准。
+`third_party/FlagTree_DevTools/Debugger/include/Debugger` 为准。
 
 本文面向 debugger 使用者和维护者，说明功能目的、用户接口、输出格式、可采集
 指标、运行示例以及简要设计架构。
@@ -32,7 +32,7 @@ TRITON_BUILD_DIR="$FLAGTREE_BUILD_DIR" MAX_JOBS=16 \
 python -m pip install -e . --no-build-isolation
 
 FLAGTREE_COMPONENT_BUILD_DIR=/tmp/flagtree-debugger-build \
-python -m pip install ./third_party/FlagTree_Tools/Debugger --no-build-isolation
+python -m pip install ./third_party/FlagTree_DevTools/Debugger --no-build-isolation
 ```
 
 未安装该 wheel 时，普通 `import triton` 和非 debugger kernel 保持可用；
@@ -43,8 +43,8 @@ dialect/编译/statement 转发接口和 `triton.debugger` 门面；Debugger dia
 公开 API 固定为 `triton.debugger`。`flagtree_debugger` 是 wheel 内部实现包，供
 组件注册和维护测试使用，不作为用户 API 兼容边界。
 
-可运行示例位于 `third_party/FlagTree_Tools/Debugger/examples/`，精简的 FlagGems 回归样例位于
-`third_party/FlagTree_Tools/Debugger/samples/`。生成的 kernel、报告、cache 和复制的第三方源码
+可运行示例位于 `third_party/FlagTree_DevTools/Debugger/examples/`，精简的 FlagGems 回归样例位于
+`third_party/FlagTree_DevTools/Debugger/samples/`。生成的 kernel、报告、cache 和复制的第三方源码
 不进入仓库。
 
 ## 目的

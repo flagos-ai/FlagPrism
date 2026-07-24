@@ -12,8 +12,8 @@ logs, and machine-specific command paths are intentionally excluded.
 Replay the curated baseline with:
 
 ```bash
-python3 third_party/FlagTree_Tools/Debugger/tools/flaggems_regression_from_samples.py \
-  --samples-root third_party/FlagTree_Tools/Debugger/samples \
+python3 third_party/FlagTree_DevTools/Debugger/tools/flaggems_regression_from_samples.py \
+  --samples-root third_party/FlagTree_DevTools/Debugger/samples \
   --sample-index stable_index.json \
   --flaggems-root /path/to/FlagGems
 ```

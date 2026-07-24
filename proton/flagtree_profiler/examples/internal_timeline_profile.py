@@ -4,7 +4,7 @@
 Run:
 
     cd /workspace/FlagTree
-    python3 third_party/FlagTree_Tools/proton/flagtree_profiler/examples/internal_timeline_profile.py
+    python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/examples/internal_timeline_profile.py
 
 Outputs:
 

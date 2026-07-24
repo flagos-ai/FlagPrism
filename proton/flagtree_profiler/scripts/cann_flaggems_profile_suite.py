@@ -8,7 +8,7 @@ the FlagGems checkout untouched and imports it from source.
 
 Example:
 
-    python third_party/FlagTree_Tools/proton/flagtree_profiler/scripts/cann_flaggems_profile_suite.py \
+    python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_flaggems_profile_suite.py \
       --out /tmp/proton_cann_flaggems_full \
       --clean
 """

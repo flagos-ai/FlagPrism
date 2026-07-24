@@ -96,7 +96,7 @@ Even when `vendor_metrics` is requested, the first version must guarantee:
 
 File:
 
-- `third_party/FlagTree_Tools/proton/csrc/include/Data/Artifacts.h`
+- `third_party/FlagTree_DevTools/proton/csrc/include/Data/Artifacts.h`
 
 This file defines the output model Proton will need for the new runtime backend flow:
 
@@ -123,8 +123,8 @@ These structures are designed around the target outputs:
 
 Files:
 
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/include/Profiler/Vendor/Mode.h`
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/Mode.cpp`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/include/Profiler/Vendor/Mode.h`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/Mode.cpp`
 
 This adds a common parser for runtime vendor profiling mode strings such as:
 
@@ -145,8 +145,8 @@ The parser is intentionally generic so later adapters can reuse the same syntax.
 
 Files:
 
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/include/Profiler/Vendor/Adapter.h`
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/Adapter.cpp`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/include/Profiler/Vendor/Adapter.h`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/Adapter.cpp`
 
 This adds the base extension points:
 
@@ -160,11 +160,11 @@ This is the minimal framework needed to avoid baking `cann` logic directly into 
 
 Files:
 
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/include/Driver/Ascend/AscendApi.h`
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/include/Profiler/Vendor/CannProfiler.h`
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/CannAdapter.cpp`
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/lib/Driver/Ascend/AscendApi.cpp`
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/CannProfiler.cpp`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/include/Driver/Ascend/AscendApi.h`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/include/Profiler/Vendor/CannProfiler.h`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/CannAdapter.cpp`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/lib/Driver/Ascend/AscendApi.cpp`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/CannProfiler.cpp`
 
 This adapter currently provides:
 
@@ -186,7 +186,7 @@ When those inputs are missing, the implementation must still complete the sessio
 
 File:
 
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/test/test_cann_smoke.py`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/test/test_cann_smoke.py`
 
 This test validates the public API and artifact/degradation contract. It intentionally uses a host-timing fallback operation instead of requiring a real Ascend kernel. Passing this test proves the minimal acceptance path, not full real-device profiling.
 
@@ -203,8 +203,8 @@ The repository now has a CANN profiler path. The remaining work is to validate a
 
 Relevant files:
 
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/include/Profiler/Vendor/CannProfiler.h`
-- `third_party/FlagTree_Tools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/CannProfiler.cpp`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/include/Profiler/Vendor/CannProfiler.h`
+- `third_party/FlagTree_DevTools/proton/flagtree_profiler/csrc/lib/Profiler/Vendor/CannProfiler.cpp`
 
 Requirements:
 
@@ -226,8 +226,8 @@ Current implementation note:
 
 Files to keep aligned:
 
-- `third_party/FlagTree_Tools/proton/common/include/Device.h`
-- `third_party/FlagTree_Tools/proton/csrc/lib/Driver/Device.cpp`
+- `third_party/FlagTree_DevTools/proton/common/include/Device.h`
+- `third_party/FlagTree_DevTools/proton/csrc/lib/Driver/Device.cpp`
 
 If device property queries are needed, add a matching driver helper implementation.
 
@@ -256,10 +256,10 @@ Recommended implementation approach:
 
 Files likely to change:
 
-- `third_party/FlagTree_Tools/proton/csrc/include/Session/Session.h`
-- `third_party/FlagTree_Tools/proton/csrc/lib/Session/Session.cpp`
-- `third_party/FlagTree_Tools/proton/csrc/include/Data/Data.h`
-- `third_party/FlagTree_Tools/proton/csrc/lib/Data/Data.cpp`
+- `third_party/FlagTree_DevTools/proton/csrc/include/Session/Session.h`
+- `third_party/FlagTree_DevTools/proton/csrc/lib/Session/Session.cpp`
+- `third_party/FlagTree_DevTools/proton/csrc/include/Data/Data.h`
+- `third_party/FlagTree_DevTools/proton/csrc/lib/Data/Data.cpp`
 
 ### Step 4. Wire Python API to the new adapter path
 
@@ -267,8 +267,8 @@ After the runtime side exists, update Python entry points.
 
 Files:
 
-- `third_party/FlagTree_Tools/proton/proton/profile.py`
-- `third_party/FlagTree_Tools/proton/proton/proton.py`
+- `third_party/FlagTree_DevTools/proton/proton/profile.py`
+- `third_party/FlagTree_DevTools/proton/proton/proton.py`
 
 Required changes:
 
@@ -375,7 +375,7 @@ python -c "import triton.profiler as proton; print(proton.start)"
 Minimal CANN acceptance:
 
 ```bash
-python -m pytest -q third_party/FlagTree_Tools/proton/flagtree_profiler/test/test_cann_smoke.py -s
+python -m pytest -q third_party/FlagTree_DevTools/proton/flagtree_profiler/test/test_cann_smoke.py -s
 ```
 
 Expected result:
@@ -483,7 +483,7 @@ Important caveat:
 
 - Degradation messages such as `Failed to load libacl.so/libacl_prof.so` mean the fallback path was validated, not real CANN profiling.
 - Real CANN profiling validation requires the process to load Ascend/CANN profiling libraries and/or consume real `msprof/aclprof` exported summary CSV files.
-- `third_party/FlagTree_Tools/proton/test/test_api.py` imports `torch` during collection through Triton's internal test helpers, so it requires a PyTorch installation even when running only a CANN-specific `-k` selection.
+- `third_party/FlagTree_DevTools/proton/test/test_api.py` imports `torch` during collection through Triton's internal test helpers, so it requires a PyTorch installation even when running only a CANN-specific `-k` selection.
 
 ## Testing Plan
 

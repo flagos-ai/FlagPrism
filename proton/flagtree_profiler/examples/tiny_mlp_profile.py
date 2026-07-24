@@ -7,7 +7,7 @@
 运行：
 
     cd /workspace/FlagTree
-    python3 third_party/FlagTree_Tools/proton/flagtree_profiler/examples/tiny_mlp_profile.py
+    python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/examples/tiny_mlp_profile.py
 
 输出文件：
 

@@ -38,7 +38,7 @@ Run with the script-managed Liger checkout:
 
 ```bash
 source /usr/local/Ascend/cann-8.5.0/set_env.sh
-python third_party/FlagTree_Tools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_liger_full \
   --with-liger \
   --clean
@@ -52,7 +52,7 @@ The explicit clone option is still accepted:
 
 ```bash
 source /usr/local/Ascend/cann-8.5.0/set_env.sh
-python third_party/FlagTree_Tools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_liger_full \
   --with-liger \
   --clean

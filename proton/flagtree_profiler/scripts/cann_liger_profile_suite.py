@@ -8,7 +8,7 @@ required.
 
 Example:
 
-    python third_party/FlagTree_Tools/proton/flagtree_profiler/scripts/cann_liger_profile_suite.py \
+    python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_liger_profile_suite.py \
       --out /tmp/proton_cann_liger_full --clean
 """
 

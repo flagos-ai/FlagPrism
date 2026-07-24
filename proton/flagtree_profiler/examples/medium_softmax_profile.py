@@ -8,7 +8,7 @@
 
     source /usr/local/Ascend/cann-8.5.0/set_env.sh
     cd /workspace/FlagTree
-    python3 third_party/FlagTree_Tools/proton/flagtree_profiler/examples/medium_softmax_profile.py
+    python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/examples/medium_softmax_profile.py
 
 预期输出文件：
 

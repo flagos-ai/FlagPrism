@@ -3,7 +3,7 @@
 
 Default mode is a driver:
 
-    python third_party/FlagTree_Tools/proton/flagtree_profiler/scripts/cann_operator_profile_suite.py \
+    python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_operator_profile_suite.py \
       --out /tmp/proton_cann_triton_operator_suite --clean
 
 It launches this file again under external msprof, runs a fixed set of

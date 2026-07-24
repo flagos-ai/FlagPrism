@@ -1,6 +1,6 @@
 # Debugger Include Tree
 
-`third_party/FlagTree_Tools/Debugger/include/Debugger` 目录保存 debugger 的公共契约。这里定义的是跨模块都要遵守的接口，而不是某个人的临时实现。
+`third_party/FlagTree_DevTools/Debugger/include/Debugger` 目录保存 debugger 的公共契约。这里定义的是跨模块都要遵守的接口，而不是某个人的临时实现。
 
 这些头文件随 `flagtree-debugger` 源码和原生 wheel 构建使用，不再编译进 FlagTree
 主 wheel；主仓库仅通过 `triton._components` 的稳定组件接口调用该模块。
@@ -85,7 +85,7 @@ FLAGTREE_BACKEND=ascend TRITON_BUILD_PROTON=OFF MAX_JOBS=16 \
 TRITON_BUILD_DIR="$FLAGTREE_BUILD_DIR" \
 python3 -m pip install -e . --no-build-isolation
 FLAGTREE_COMPONENT_BUILD_DIR=/tmp/flagtree-debugger-build \
-python3 -m pip install ./third_party/FlagTree_Tools/Debugger --no-build-isolation
+python3 -m pip install ./third_party/FlagTree_DevTools/Debugger --no-build-isolation
 '
 ```
 
@@ -101,7 +101,7 @@ FLAGTREE_BACKEND=ascend TRITON_BUILD_PROTON=OFF MAX_JOBS=16 \
 TRITON_BUILD_DIR="$FLAGTREE_BUILD_DIR" \
 python3 -m pip install -e . --no-build-isolation
 FLAGTREE_COMPONENT_BUILD_DIR=/tmp/flagtree-debugger-build \
-python3 -m pip install ./third_party/FlagTree_Tools/Debugger --no-build-isolation
+python3 -m pip install ./third_party/FlagTree_DevTools/Debugger --no-build-isolation
 ```
 
 常用接口：

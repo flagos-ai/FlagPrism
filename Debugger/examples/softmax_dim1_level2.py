@@ -55,7 +55,7 @@ def main():
     ok = torch.allclose(y.cpu(), expected.cpu(), rtol=1e-4, atol=1e-4)
     runs = debugger.take_exported_runs()
 
-    print("sample=third_party/FlagTree_Tools/Debugger/samples/295_softmax")
+    print("sample=third_party/FlagTree_DevTools/Debugger/samples/295_softmax")
     print(f"output_allclose={ok}")
     print(f"exported_runs={len(runs)}")
     for run in runs:

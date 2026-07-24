@@ -3,7 +3,7 @@ Minimal smoke test for Proton's CANN vendor backend.
 
 Run on the server with:
 
-    python -m pytest -q third_party/FlagTree_Tools/proton/flagtree_profiler/test/test_cann_smoke.py -s
+    python -m pytest -q third_party/FlagTree_DevTools/proton/flagtree_profiler/test/test_cann_smoke.py -s
 
 This test intentionally uses a host-timing fallback op instead of declaring a
 GPU kernel. It validates the public API and artifact/degradation contract before
@@ -184,7 +184,7 @@ def real_cann_direct_run(tmp_path_factory):
     env.setdefault("PROTON_CANN_TRITON_HOOK_LEGACY", "1")
     cmd = [
         sys.executable,
-        str(repo / "third_party/FlagTree_Tools/proton/flagtree_profiler/scripts/cann_operator_profile_suite.py"),
+        str(repo / "third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_operator_profile_suite.py"),
         "--workload",
         "--name",
         str(profile_base),

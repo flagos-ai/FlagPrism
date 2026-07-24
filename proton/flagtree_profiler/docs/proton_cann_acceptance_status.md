@@ -84,7 +84,7 @@ python -c "import triton.profiler as proton; print(proton.start)"
 The CANN smoke test passed:
 
 ```bash
-python -m pytest -q third_party/FlagTree_Tools/proton/flagtree_profiler/test/test_cann_smoke.py -s
+python -m pytest -q third_party/FlagTree_DevTools/proton/flagtree_profiler/test/test_cann_smoke.py -s
 ```
 
 Observed result:
@@ -162,7 +162,7 @@ memory, launches the program under external `msprof`, and post-imports the
 exported CSV files through Proton:
 
 ```bash
-python third_party/FlagTree_Tools/proton/flagtree_profiler/scripts/cann_native_acl_mstx_validate.py \
+python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_native_acl_mstx_validate.py \
   --clean \
   --out /tmp/proton_cann_native_aclnn_add \
   --cann /usr/local/Ascend/cann-8.5.0 \
@@ -295,7 +295,7 @@ export LDFLAGS="-L$CONDA_PREFIX/lib -Wl,-rpath,$CONDA_PREFIX/lib"
 export MAX_JOBS=16
 
 python -m pip install -e . --no-build-isolation
-python -m pytest -q third_party/FlagTree_Tools/proton/flagtree_profiler/test/test_cann_smoke.py -s
+python -m pytest -q third_party/FlagTree_DevTools/proton/flagtree_profiler/test/test_cann_smoke.py -s
 ```
 
 For a manual artifact check:
@@ -450,7 +450,7 @@ building the editable install on the Ascend server:
 cd /home/secure/zhaoguoxiang/FlagTree
 source /usr/local/Ascend/cann-8.5.0/set_env.sh
 
-python third_party/FlagTree_Tools/proton/flagtree_profiler/scripts/cann_real_msprof_validate.py \
+python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_real_msprof_validate.py \
   --clean \
   --out /tmp/proton_cann_real \
   --device 0 \
@@ -477,7 +477,7 @@ program, runs real ACLNN Add compute under external `msprof`, and post-imports
 the exported CSV files:
 
 ```bash
-python third_party/FlagTree_Tools/proton/flagtree_profiler/scripts/cann_native_acl_mstx_validate.py \
+python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_native_acl_mstx_validate.py \
   --clean \
   --out /tmp/proton_cann_native_aclnn_add \
   --cann /usr/local/Ascend/cann-8.5.0 \

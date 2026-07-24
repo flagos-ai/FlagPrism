@@ -4,7 +4,7 @@
 这个例子专门用于演示 `profile.timeline.json`。它会直接运行，不需要传参：
 
     cd /workspace/FlagTree
-    python3 third_party/FlagTree_Tools/proton/flagtree_profiler/examples/timeline_showcase_profile.py
+    python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/examples/timeline_showcase_profile.py
 
 输出文件：
 

@@ -1,7 +1,7 @@
 # C 模块实现说明
 
 **负责人**：颜臻
-**模块路径**：`third_party/FlagTree_Tools/Debugger/lib/Instrumentation/` + `third_party/FlagTree_Tools/Debugger/include/Debugger/Instrumentation/`
+**模块路径**：`third_party/FlagTree_DevTools/Debugger/lib/Instrumentation/` + `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/`
 **参考文档**：`debugger分工.md` §3.3、§6.2
 
 ---
@@ -26,15 +26,15 @@
 
 | 文件 | 性质 | 说明 |
 |------|------|------|
-| `third_party/FlagTree_Tools/Debugger/include/Debugger/Instrumentation/Passes.h` | 接口 | Pass 入口声明 |
-| `third_party/FlagTree_Tools/Debugger/include/Debugger/Instrumentation/Collectors.h` | 接口 | collector 规格 + `SummaryStats` + 计算函数声明 |
-| `third_party/FlagTree_Tools/Debugger/include/Debugger/Instrumentation/RecordBuilder.h` | 接口 | host-side record 构造辅助函数声明 |
-| `third_party/FlagTree_Tools/Debugger/include/Debugger/Instrumentation/Writer.h` | 接口 | ring buffer 操作 + `RecordSink` 抽象类 + 工厂函数 |
-| `third_party/FlagTree_Tools/Debugger/lib/Instrumentation/Passes.cpp` | 实现 | `InsertInstrumentationPass` |
-| `third_party/FlagTree_Tools/Debugger/lib/Instrumentation/Collectors.cpp` | 实现 | collector 规格表 + host-side 统计计算 |
-| `third_party/FlagTree_Tools/Debugger/lib/Instrumentation/RecordBuilder.cpp` | 实现 | record 构造辅助函数 |
-| `third_party/FlagTree_Tools/Debugger/lib/Instrumentation/Writer.cpp` | 实现 | ring buffer 操作 + `LinearAppendSink` + `RingBufferSink` |
-| `third_party/FlagTree_Tools/Debugger/test/unittest/InstrumentationTest.cpp` | 测试 | 14 个单元测试 |
+| `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/Passes.h` | 接口 | Pass 入口声明 |
+| `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/Collectors.h` | 接口 | collector 规格 + `SummaryStats` + 计算函数声明 |
+| `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/RecordBuilder.h` | 接口 | host-side record 构造辅助函数声明 |
+| `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/Writer.h` | 接口 | ring buffer 操作 + `RecordSink` 抽象类 + 工厂函数 |
+| `third_party/FlagTree_DevTools/Debugger/lib/Instrumentation/Passes.cpp` | 实现 | `InsertInstrumentationPass` |
+| `third_party/FlagTree_DevTools/Debugger/lib/Instrumentation/Collectors.cpp` | 实现 | collector 规格表 + host-side 统计计算 |
+| `third_party/FlagTree_DevTools/Debugger/lib/Instrumentation/RecordBuilder.cpp` | 实现 | record 构造辅助函数 |
+| `third_party/FlagTree_DevTools/Debugger/lib/Instrumentation/Writer.cpp` | 实现 | ring buffer 操作 + `LinearAppendSink` + `RingBufferSink` |
+| `third_party/FlagTree_DevTools/Debugger/test/unittest/InstrumentationTest.cpp` | 测试 | 14 个单元测试 |
 
 ---
 
@@ -107,7 +107,7 @@ runOnOperation()
 #### 3.2.1 接口定义
 
 ```cpp
-// third_party/FlagTree_Tools/Debugger/include/Debugger/Instrumentation/Writer.h
+// third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/Writer.h
 class RecordSink {
 public:
   virtual ~RecordSink() = default;
@@ -122,7 +122,7 @@ public:
 
 #### 3.2.2 `LinearAppendSink`（线性 append sink）
 
-**实现文件**：`third_party/FlagTree_Tools/Debugger/lib/Instrumentation/Writer.cpp`，匿名 namespace 内的 `LinearAppendSink` 类。
+**实现文件**：`third_party/FlagTree_DevTools/Debugger/lib/Instrumentation/Writer.cpp`，匿名 namespace 内的 `LinearAppendSink` 类。
 
 **存储布局**：
 
@@ -259,7 +259,7 @@ NAN_COUNT → INF_COUNT → ZERO_COUNT → MEAN_FINITE → MIN_FINITE → MAX_FI
 
 ## 4. 单元测试覆盖（14 个 test case）
 
-测试文件：`third_party/FlagTree_Tools/Debugger/test/unittest/InstrumentationTest.cpp`
+测试文件：`third_party/FlagTree_DevTools/Debugger/test/unittest/InstrumentationTest.cpp`
 
 | 测试名 | 对应测试矩阵 | 验证内容 |
 |--------|------------|---------|

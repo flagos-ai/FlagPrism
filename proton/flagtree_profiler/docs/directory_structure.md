@@ -1,11 +1,11 @@
 # FlagTree Profiler 目录结构
 
-FlagTree Profiler 的主体代码集中在 `third_party/FlagTree_Tools/proton/flagtree_profiler/`。因为它复用 Proton 的用户 API 和生命周期，仍有少量接入点保留在 `third_party/FlagTree_Tools/proton/` 原有位置。
+FlagTree Profiler 的主体代码集中在 `third_party/FlagTree_DevTools/proton/flagtree_profiler/`。因为它复用 Proton 的用户 API 和生命周期，仍有少量接入点保留在 `third_party/FlagTree_DevTools/proton/` 原有位置。
 
 ## 主体目录
 
 ```text
-third_party/FlagTree_Tools/proton/flagtree_profiler/
+third_party/FlagTree_DevTools/proton/flagtree_profiler/
   README.md
   __init__.py
 
@@ -66,59 +66,59 @@ third_party/FlagTree_Tools/proton/flagtree_profiler/
 这些文件仍在 Proton 原目录中，因为它们是 Proton 的公共 API、生命周期或数据模型，不适合完全移入 `flagtree_profiler`。
 
 ```text
-third_party/FlagTree_Tools/proton/CMakeLists.txt
+third_party/FlagTree_DevTools/proton/CMakeLists.txt
 ```
 
 把 `flagtree_profiler/csrc/lib/*.cpp` 编进 `libproton.so`，并加入 `flagtree_profiler/csrc/include` include path。
 
 ```text
-third_party/FlagTree_Tools/proton/proton/hook.py
+third_party/FlagTree_DevTools/proton/proton/hook.py
 ```
 
 `hook="triton"` 的 Python 接入点。它兼容 Triton/FlagTree Ascend launcher 的 hook 参数，并在 kernel launch 前后进入/退出 Proton scope。
 
 ```text
-third_party/FlagTree_Tools/proton/proton/proton.py
-third_party/FlagTree_Tools/proton/proton/profile.py
+third_party/FlagTree_DevTools/proton/proton/proton.py
+third_party/FlagTree_DevTools/proton/proton/profile.py
 ```
 
 Proton Python API 层，负责把 `backend`、`mode`、`hook` 等参数传到 C++ session。
 
 ```text
-third_party/FlagTree_Tools/proton/csrc/include/Session/Session.h
-third_party/FlagTree_Tools/proton/csrc/lib/Session/Session.cpp
+third_party/FlagTree_DevTools/proton/csrc/include/Session/Session.h
+third_party/FlagTree_DevTools/proton/csrc/lib/Session/Session.cpp
 ```
 
 `proton.start()` / `proton.finalize()` 生命周期。这里创建 vendor profiler，停止 profiling，并触发 vendor artifact 导入。
 
 ```text
-third_party/FlagTree_Tools/proton/csrc/include/Data/
-third_party/FlagTree_Tools/proton/csrc/lib/Data/
+third_party/FlagTree_DevTools/proton/csrc/include/Data/
+third_party/FlagTree_DevTools/proton/csrc/lib/Data/
 ```
 
 Proton 数据模型和序列化。FlagTree Profiler 复用这里输出 `meta.json`、`timeline.json`、`vendor.json` 和 `hatchet`。
 
 ```text
-third_party/FlagTree_Tools/proton/csrc/include/Profiler/Profiler.h
+third_party/FlagTree_DevTools/proton/csrc/include/Profiler/Profiler.h
 ```
 
 Profiler 基类接口。CANN backend 通过这个接口接入 Proton profiler 生命周期。
 
 ```text
-third_party/FlagTree_Tools/proton/csrc/include/Driver/Device.h
-third_party/FlagTree_Tools/proton/csrc/lib/Driver/Device.cpp
+third_party/FlagTree_DevTools/proton/csrc/include/Driver/Device.h
+third_party/FlagTree_DevTools/proton/csrc/lib/Driver/Device.cpp
 ```
 
 设备枚举/发现接入点。昇腾 device discovery 通过 `flagtree_profiler/csrc/include/Driver/Ascend/AscendApi.h` 和对应实现提供。
 
 ```text
-third_party/FlagTree_Tools/proton/test/test_cann_smoke.py
+third_party/FlagTree_DevTools/proton/test/test_cann_smoke.py
 ```
 
 兼容旧测试路径的 shim，实际测试实现已经移动到：
 
 ```text
-third_party/FlagTree_Tools/proton/flagtree_profiler/test/test_cann_smoke.py
+third_party/FlagTree_DevTools/proton/flagtree_profiler/test/test_cann_smoke.py
 ```
 
 ## 顶层 docs 中的变更
@@ -126,7 +126,7 @@ third_party/FlagTree_Tools/proton/flagtree_profiler/test/test_cann_smoke.py
 原先放在仓库顶层 `docs/` 下的 Proton/CANN 文档已经移动到：
 
 ```text
-third_party/FlagTree_Tools/proton/flagtree_profiler/docs/
+third_party/FlagTree_DevTools/proton/flagtree_profiler/docs/
 ```
 
 这样顶层 `docs/` 保持为 FlagTree 项目级文档，Profiler 专项文档集中在 `flagtree_profiler/docs/`。
