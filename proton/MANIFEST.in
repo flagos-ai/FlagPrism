@@ -1,0 +1,5 @@
+include CMakeLists.txt
+recursive-include common *.cpp *.h *.hpp CMakeLists.txt
+recursive-include csrc *.cpp *.h *.hpp CMakeLists.txt
+recursive-include Dialect *.cc *.cpp *.h *.td CMakeLists.txt
+recursive-include flagtree_profiler/csrc *.cpp *.h *.hpp CMakeLists.txt
