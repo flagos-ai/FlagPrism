@@ -1,11 +1,11 @@
-"""Minimal FlagTree debugger level 1 abs example for Ascend."""
+"""Minimal FlagPrism debugger level 1 abs example for Ascend."""
 
 from pathlib import Path
 
 import torch
 import torch_npu
 import triton
-import triton.debugger as debugger
+import flagtree.debugger as debugger
 import triton.language as tl
 
 

@@ -8,7 +8,7 @@ required.
 
 Example:
 
-    python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_liger_profile_suite.py \
+    python third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_liger_profile_suite.py \
       --out /tmp/proton_cann_liger_full --clean
 """
 
@@ -28,8 +28,8 @@ from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Callable
 
-import triton.profiler as proton
-from flagtree_profiler.native import runtime_binding
+import flagtree.profiler as proton
+from flagtree.profiler.native import runtime_binding
 libproton = runtime_binding()
 
 

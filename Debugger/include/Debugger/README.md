@@ -1,9 +1,10 @@
 # Debugger Include Tree
 
-`third_party/FlagTree_DevTools/Debugger/include/Debugger` 目录保存 debugger 的公共契约。这里定义的是跨模块都要遵守的接口，而不是某个人的临时实现。
+`third_party/FlagPrism/Debugger/include/Debugger` 目录保存 debugger 的公共契约。这里定义的是跨模块都要遵守的接口，而不是某个人的临时实现。
 
-这些头文件随 `flagtree-debugger` 源码和原生 wheel 构建使用，不再编译进 FlagTree
-主 wheel；主仓库仅通过 `triton._components` 的稳定组件接口调用该模块。
+这些头文件由 FlagTree 主 CMake graph 从 FlagPrism submodule 编译。Debugger native
+extension 与 `libtriton` 一起写入同一个 FlagTree wheel；主仓库通过
+`triton._flagprism` 的稳定组件接口调用该模块。
 
 目录划分：
 
@@ -39,7 +40,7 @@ mode，运行期会为 kernel launch 准备 `__debug_ctrl_ptr` hidden arg，并�
 ```python
 import triton
 import triton.language as tl
-import triton.debugger as debugger
+import flagtree.debugger as debugger
 
 # 通常在 import 后配置并开启一次。后续哪些 Triton IR op 被记录，
 # 由 @triton.jit 内部的 tl.debug_collect_start/end 控制。
@@ -68,24 +69,19 @@ kernel[(grid,)](...)
 
 容器内构建命令：
 
-先构建不含 Debugger 实现的 FlagTree core，再使用同一 LLVM/MLIR 工具链构建
-`flagtree-debugger` wheel。Debugger 的 Python、dialect、passes 和 runtime native
-binding 都归该 wheel 所有。
+先初始化 FlagPrism submodule，再直接构建 FlagTree。Debugger 的 Python、dialect、
+passes 和 runtime native binding 会由同一次构建统一打包。编译期 binding 位于
+`triton._C.libtriton.debugger`，runtime binding 位于
+`flagtree.debugger._native`，后者不链接 `libtriton`。
 
 从 host 侧触发容器内完整 rebuild：
 
 ```bash
 docker exec flagtree-cann9-quan /bin/sh -c '
 cd "${FLAGTREE_SOURCE_DIR:-/workspace/FlagTree}"
-export FLAGTREE_SOURCE_DIR="${FLAGTREE_SOURCE_DIR:-/workspace/FlagTree}"
-export LLVM_SYSPATH=/path/to/llvm
-export PATH="$LLVM_SYSPATH/bin:$PATH"
-export FLAGTREE_BUILD_DIR=/tmp/flagtree-core-build
-FLAGTREE_BACKEND=ascend TRITON_BUILD_PROTON=OFF MAX_JOBS=16 \
-TRITON_BUILD_DIR="$FLAGTREE_BUILD_DIR" \
-python3 -m pip install -e . --no-build-isolation
-FLAGTREE_COMPONENT_BUILD_DIR=/tmp/flagtree-debugger-build \
-python3 -m pip install ./third_party/FlagTree_DevTools/Debugger --no-build-isolation
+git submodule update --init --recursive
+FLAGTREE_BACKEND=ascend TRITON_BUILD_FLAGPRISM=ON MAX_JOBS=16 \
+python3 -m pip install . --no-build-isolation
 '
 ```
 
@@ -93,15 +89,9 @@ python3 -m pip install ./third_party/FlagTree_DevTools/Debugger --no-build-isola
 
 ```bash
 cd "${FLAGTREE_SOURCE_DIR:-/workspace/FlagTree}"
-export FLAGTREE_SOURCE_DIR="${FLAGTREE_SOURCE_DIR:-$PWD}"
-export LLVM_SYSPATH=/path/to/llvm
-export PATH="$LLVM_SYSPATH/bin:$PATH"
-export FLAGTREE_BUILD_DIR=/tmp/flagtree-core-build
-FLAGTREE_BACKEND=ascend TRITON_BUILD_PROTON=OFF MAX_JOBS=16 \
-TRITON_BUILD_DIR="$FLAGTREE_BUILD_DIR" \
-python3 -m pip install -e . --no-build-isolation
-FLAGTREE_COMPONENT_BUILD_DIR=/tmp/flagtree-debugger-build \
-python3 -m pip install ./third_party/FlagTree_DevTools/Debugger --no-build-isolation
+git submodule update --init --recursive
+FLAGTREE_BACKEND=ascend TRITON_BUILD_FLAGPRISM=ON MAX_JOBS=16 \
+python3 -m pip install . --no-build-isolation
 ```
 
 常用接口：

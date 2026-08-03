@@ -5,11 +5,11 @@ Profile correctness tests involving GPU kernels should be placed in `test_profil
 """
 
 import json
-import triton.profiler as proton
+import flagtree.profiler as proton
 import pathlib
-from triton.profiler.hooks.hook import HookManager
-from triton.profiler.hooks.launch import LaunchHook
-from triton.profiler.hooks.instrumentation import InstrumentationHook
+from flagtree.profiler.hooks.hook import HookManager
+from flagtree.profiler.hooks.launch import LaunchHook
+from flagtree.profiler.hooks.instrumentation import InstrumentationHook
 
 
 def test_profile_single_session(tmp_path: pathlib.Path):

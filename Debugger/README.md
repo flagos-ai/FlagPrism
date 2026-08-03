@@ -1,221 +1,196 @@
-# FlagTree Debugger
+# FlagPrism Debugger
 
-`third_party/FlagTree_DevTools/Debugger` 是 FlagTree debugger 的独立可选模块，包含编译期插桩、
-运行期导出、record 解码和报告生成等实现。跨模块接口和协议定义以
-`third_party/FlagTree_DevTools/Debugger/include/Debugger` 为准。
+FlagPrism Debugger 用于观察 Triton kernel 内部的数值、内存访问和 operation
+执行状态。它将编译期静态 metadata 与 device 运行期记录关联，导出文本、
+JSON 和 level 2 tensor artifact，用于定位数值异常、越界访问和 kernel 内部
+数据流问题。
 
-本文面向 debugger 使用者和维护者，说明功能目的、用户接口、输出格式、可采集
-指标、运行示例以及简要设计架构。
+## Public API
 
-## 安装
-
-Debugger 是独立 wheel，不再由 FlagTree 主 wheel 的 CMake 开关控制。先安装匹配的
-FlagTree 0.6 core（Triton API 3.5），再安装 Debugger：
-
-```bash
-python -m pip install flagtree
-python -m pip install flagtree-debugger
-```
-
-在本仓库开发时可从源码构建。原生扩展需要与 core 相同的 LLVM/MLIR 和
-`libtriton` ABI；`LLVM_SYSPATH` 指向 core 使用的 LLVM 安装，
-`FLAGTREE_BUILD_DIR` 指向 core 的 CMake build 目录：
-
-```bash
-export FLAGTREE_SOURCE_DIR="$PWD"
-export LLVM_SYSPATH=/path/to/llvm
-export PATH="$LLVM_SYSPATH/bin:$PATH"
-export FLAGTREE_BUILD_DIR=/tmp/flagtree-core-build
-
-FLAGTREE_BACKEND=ascend TRITON_BUILD_PROTON=OFF \
-TRITON_BUILD_DIR="$FLAGTREE_BUILD_DIR" MAX_JOBS=16 \
-python -m pip install -e . --no-build-isolation
-
-FLAGTREE_COMPONENT_BUILD_DIR=/tmp/flagtree-debugger-build \
-python -m pip install ./third_party/FlagTree_DevTools/Debugger --no-build-isolation
-```
-
-未安装该 wheel 时，普通 `import triton` 和非 debugger kernel 保持可用；
-`import triton.debugger` 会提示安装 `flagtree-debugger`。core 只保留已知组件加载、
-dialect/编译/statement 转发接口和 `triton.debugger` 门面；Debugger dialect、marker
-创建、statement 元数据、passes、runtime 及 native binding 均由本 wheel 提供。
-
-公开 API 固定为 `triton.debugger`。`flagtree_debugger` 是 wheel 内部实现包，供
-组件注册和维护测试使用，不作为用户 API 兼容边界。
-
-可运行示例位于 `third_party/FlagTree_DevTools/Debugger/examples/`，精简的 FlagGems 回归样例位于
-`third_party/FlagTree_DevTools/Debugger/samples/`。生成的 kernel、报告、cache 和复制的第三方源码
-不进入仓库。
-
-## 目的
-
-FlagTree debugger 用于在 Triton kernel 内采集指定代码区域的运行期调试信息。
-它将编译期静态信息与运行期动态记录关联起来，用于定位 kernel 内部 operation
-的数值状态、内存访问状态和 full dump 数据。
-
-## 用户接口
-
-### Python 配置接口
-
-用户通过 `triton.debugger` 配置输出目录、record 容量和导出选项，并通过
-`debugger.activate(...)` 开启 debugger 编译和运行流程。
+Debugger 唯一的公开 Python 导入路径是：
 
 ```python
+import flagtree.debugger as debugger
+```
+
+不再提供 `triton.debugger` 公开命名空间。Triton JIT kernel 内的采集边界仍然是
+Triton language operation：
+
+```python
+tl.debug_collect_start(level=1, addr_level=1)
+# Triton operations to collect
+tl.debug_collect_end()
+```
+
+`flagtree.debugger` 负责 Python 配置、编译模式和导出；
+`tl.debug_collect_start/end` 只负责界定 `@triton.jit` 内需要采集的 IR 区域。
+
+## Build And Install
+
+Debugger 位于 `third_party/FlagPrism/Debugger`，由 FlagTree 主工程统一
+编译和打包，不再单独发布 wheel。
+
+```bash
+git submodule update --init --recursive
+
+export FLAGTREE_BACKEND=ascend
+export TRITON_BUILD_FLAGPRISM=ON
+export MAX_JOBS=16
+
+python3 -m pip install . --no-build-isolation
+```
+
+开发期可以使用 editable install：
+
+```bash
+python3 -m pip install -e . --no-build-isolation --no-deps
+```
+
+`TRITON_BUILD_FLAGPRISM=ON` 会在同一 CMake graph 中编译 Debugger、Profiler 及其 native
+runtime。设为 `OFF` 时构建 core-only FlagTree，该构建不包含两个工具 package。
+
+## Quick Start
+
+```python
+from pathlib import Path
+
+import torch
+import torch_npu
 import triton
-import triton.debugger as debugger
+import triton.language as tl
+import flagtree.debugger as debugger
+
 
 debugger.configure(
-    output_dir="/tmp/flagtree_debugger_example",
+    output_dir=Path("/tmp/flagtree_debugger_example"),
     record_capacity=4096,
     export_raw_records=False,
 )
 debugger.activate(level=1, addr_level=1)
-```
-
-常用接口：
-
-- `debugger.configure(...)`：配置输出目录、record 容量和导出选项。
-- `debugger.get_config()`：读取当前 debugger 配置。
-- `debugger.reset_config()`：恢复默认配置。
-- `debugger.activate(level=..., addr_level=...)`：开启后续 kernel 的 debugger
-  pipeline。
-- `debugger.deactivate()`：关闭 debugger pipeline。
-
-### Triton JIT 采集接口
-
-Python 侧 `debugger.activate(...)` 仅开启 debugger pipeline。实际采集范围由
-Triton JIT 函数内的 `tl.debug_collect_start(...)` 和 `tl.debug_collect_end()` 界定。
-
-```python
-import triton
-import triton.debugger as debugger
-import triton.language as tl
 
 
 @triton.jit
-def kernel(x_ptr, y_ptr, n: tl.constexpr, BLOCK_SIZE: tl.constexpr):
+def debug_abs_kernel(x_ptr, y_ptr, n: tl.constexpr,
+                     BLOCK_SIZE: tl.constexpr):
     offsets = tl.program_id(0) * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n
 
     tl.debug_collect_start(level=1, addr_level=1)
     x = tl.load(x_ptr + offsets, mask=mask, other=0.0)
-    y = tl.abs(x)
+    y = tl.abs(x) + 1.0
     tl.store(y_ptr + offsets, y, mask=mask)
     tl.debug_collect_end()
+
+
+n = 16
+x = torch.linspace(-8, 7, n, dtype=torch.float32, device="npu")
+y = torch.empty_like(x)
+
+debug_abs_kernel[(1,)](x, y, n, BLOCK_SIZE=16)
+torch_npu.npu.synchronize()
+
+print("output_allclose=", torch.allclose(y.cpu(), (torch.abs(x) + 1).cpu()))
+for run in debugger.take_exported_runs():
+    print("report_path=", run.get("report_path"))
 ```
 
-采集等级：
+`debugger.activate()` 应在编译需要调试的 kernel 之前调用。它开启进程级
+Debugger pipeline，但不会记录 Python、PyTorch 或 torch_npu operation。只有
+`@triton.jit` 内位于 collect marker 之间的 Triton operation 才会进入采集。
 
-- `level=1`：采集 summary 指标。
-- `level=2`：采集 full tensor value。
-- `addr_level=1`：采集 memory address summary。
-- `addr_level=2`：采集 full memory address。
+## Configuration
 
-## 输出
+### Persistent Defaults
 
-### level 1 输出示例
+`debugger.configure()` 修改后续 `activate()` 使用的默认配置。未传入的字段
+保持当前值。
 
-level 1 通常生成主文本报告、主 JSON 报告和 IR op 级日志报告。例如：
-
-```text
-test_debug_abs_kernel_aiv_20260629_193456_497_run1.txt
-test_debug_abs_kernel_aiv_20260629_193456_497_run1.json
-test_debug_abs_kernel_aiv_20260629_193456_497_run1_op_log.txt
-test_debug_abs_kernel_aiv_20260629_193456_497_run1_op_log.json
+```python
+debugger.configure(
+    output_dir="/tmp/flagtree_debugger_manual",
+    record_capacity=4096,
+    export_mode="POST_KERNEL_EXPORT",
+    export_on_error=False,
+    export_raw_records=False,
+)
 ```
 
-通用格式：
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `output_dir` | `/tmp/flagtree_debugger_manual` | 报告输出目录；`None` 关闭自动文件导出 |
+| `record_capacity` | `1024` | device record slot 容量，必须为正整数 |
+| `export_mode` | `POST_KERNEL_EXPORT` | kernel 完成后导出；协议也接受 `STREAMING_EXPORT` |
+| `export_on_error` | `False` | kernel 报错后是否仍尝试导出 |
+| `export_raw_records` | `False` | 是否额外写出 decoded raw-record sidecar |
 
-```text
-<script>_<kernel>_<timestamp>_run<N>.txt
-<script>_<kernel>_<timestamp>_run<N>.json
-<script>_<kernel>_<timestamp>_run<N>_op_log.txt
-<script>_<kernel>_<timestamp>_run<N>_op_log.json
+查询和恢复配置：
+
+```python
+print(debugger.get_config())
+debugger.reset_config()
 ```
 
-字段说明：
+### Activation
 
-- `<script>`：触发 kernel 的 Python 脚本名。
-- `<kernel>`：Triton kernel 名称，可能包含后端或 kernel variant 后缀。
-- `<timestamp>`：报告导出时间戳。
-- `run<N>`：当前进程内的 debugger run 序号。
-- 主 `.txt` / `.json`：Triton statement 级报告，面向源码语句查看。
-- `_op_log.txt` / `_op_log.json`：Triton MLIR op 级报告，JSON 字段名为
-  `op_log`。
+`level` 和 `addr_level` 属于采集策略，通过 `activate()` 配置：
 
-### level 2 full dump 输出
-
-level 2 在主报告之外生成 artifact 目录：
-
-```text
-<script>_<kernel>_<timestamp>_run<N>_artifacts/
-  tensor_index.json
-  op<id>_inst<id>_rec<id>_value.npy
-  op<id>_inst<id>_rec<id>_memory_address.npy
+```python
+debugger.activate(level=1, addr_level=1)
 ```
 
-字段说明：
+- `level=1`：采集数值 summary。
+- `level=2`：采集 summary 并导出支持的完整 tensor value。
+- `addr_level=0`：不插入动态地址采集。
+- `addr_level=1`：采集 load/store 的地址摘要。
+- `addr_level=2`：在后端支持的 pointer/mask pattern 上导出完整 lane
+  address。
 
-- `tensor_index.json`：artifact 索引文件。
-- `op<id>`：编译期分配的 operation id。
-- `inst<id>`：operation 的逻辑实例 id。
-- `rec<id>`：运行期 record slot index。
-- `*_value.npy`：完整 tensor value。
-- `*_memory_address.npy`：完整 memory address。
+`tl.debug_collect_start()` 可以为当前 region 指定 level。`addr_level=None`
+时继承 `debugger.activate()` 的地址采集等级：
 
-level 2 主报告会在对应 statement result 或独立捕获的 operand 下记录 artifact
-文件名，不直接展开完整 tensor 数据；引用已有 result 的 operand 只显示
-`[result ...]` 引用，不重复打印文件名。完整 dump 路径可在 `_op_log` 或
-`tensor_index.json` 中查看。
-例如：
-
-```text
-[result x]:
-  instances: [0]
-  summary:
-    ...
-  full_value_file: op3_inst0_rec10_value.npy
-  address_summary(load from):
-    ...
-  memory_address_file: op3_inst0_rec11_memory_address.npy
+```python
+tl.debug_collect_start(level=1)
 ```
 
-可选输出：
+长进程、notebook 或测试套件可在不再编译 debug kernel 时关闭 pipeline：
 
-- `*_raw_records.txt`：当 `debugger.configure(export_raw_records=True)` 时生成。
-  该文件用于 debugger record 协议和 decoder 调试。
+```python
+debugger.deactivate()
+```
 
-## 可采集指标
+一次性脚本通常无需调用 `deactivate()`。
 
-### 静态信息
+## Collected Data
 
-静态信息来自编译期 metadata，通常包括：
+### Static Metadata
 
-- `kernel_id`
-- `kernel_name`
-- `op_id`
-- `scope_id`
+编译期 metadata 通常包含：
+
+- kernel id 和 kernel name
+- `scope_id`、`op_id` 和 statement id
 - MLIR operation 名称
-- source location
-- Triton statement
-- 输入和输出 dtype
-- shape
-- stride 或 layout 信息，如果编译期可获得
+- Python source location 和 Triton statement
+- operand/result dtype
+- shape、layout 和可推导的 memory semantics
+- load/store 的 address space、access type、element bytes、alignment 和 mask
 
-### level 1 summary 指标
+分配了 `op_id` 但没有 runtime record 的 operation 会作为 static-only context
+保留，例如部分 `tt.splat` 和 `tt.addptr`。
 
-对 tensor-producing operation，level 1 可采集：
+### Level 1 Summary
+
+对支持的 tensor result，level 1 可记录：
 
 - `element_count`
 - `nan_count`
 - `inf_count`
 - `zero_count`
+- `mean`
 - `min`
 - `max`
-- `mean`
 - `l2_norm`
 
-对 memory operation 或 pointer-related operation，`addr_level=1` 可采集：
+`addr_level=1` 可为支持的 memory operation 记录：
 
 - `first_addr`
 - `last_addr`
@@ -224,319 +199,125 @@ level 2 主报告会在对应 statement result 或独立捕获的 operand 下记
 - `active_lane_count`
 - `address_span_bytes`
 
-地址摘要是否存在取决于后端是否能够为对应 pointer pattern 生成合法 lowering。
+地址摘要会应用 memory mask。报告中的 `status` 会指示摘要是否完整；
+不支持的 pointer pattern 不会伪造 lane 地址。
 
-### level 2 full dump 指标
+### Level 2 Full Dump
 
-level 2 导出完整数据：
+level 2 将完整 payload 写入 artifact 目录：
 
-- full tensor value：写入 `*_value.npy`。
-- full memory address：写入 `*_memory_address.npy`。
-- artifact metadata：写入 `tensor_index.json`。
+```text
+<report-stem>_artifacts/
+  tensor_index.json
+  op<id>_inst<id>_rec<id>_value.npy
+  op<id>_inst<id>_rec<id>_memory_address.npy
+```
 
-run-level 信息包括：
+level 2 要求 `output_dir` 不为 `None`。完整 value/address dump 仅支持
+编译期可确定 shape 且当前后端能合法 lowering 的数值与 pointer pattern。
+强制对不支持的 pattern 做 level 2 dump 会在编译期报错，不会生成
+看似成功但数据不完整的报告。
 
-- `record_level`
-- `record_count`
-- `overflow_count`
-- `raw_buffer_bytes`
-- `export_mode`
-- `backend`
-- `target`
+## Reports
 
-如果 `overflow_count` 非零，表示 device record buffer 容量不足，报告可能不完整。
-此时应增大 `record_capacity` 后重新运行。
+报告文件名由脚本名、kernel 名、时间戳和 run id 组成：
 
-## 运行示例
+```text
+<script>_<kernel>_<timestamp>_run<N>.txt
+<script>_<kernel>_<timestamp>_run<N>.json
+<script>_<kernel>_<timestamp>_run<N>_op_log.txt
+<script>_<kernel>_<timestamp>_run<N>_op_log.json
+<script>_<kernel>_<timestamp>_run<N>_raw_records.txt
+```
 
-以下示例展示如何针对 `test.py` 进行调试和信息导出。
+- 主 `.txt` / `.json`：按 Triton source statement 组织，用于日常调试。
+- `_op_log.txt` / `_op_log.json`：按 MLIR `op_id` 组织，包含更完整的
+  静态 metadata 和 runtime record。
+- `_raw_records.txt`：只在 `export_raw_records=True` 时生成，用于协议
+  和 decoder 调试。
+- `_artifacts/`：level 2 完整 tensor/address dump。
+
+当 kernel 有多个 program instance 时，文本报告以 `instances: [...]` 为对齐轴，
+各 summary 和 address summary 按相同顺序输出数组。JSON 报告保留同等
+结构，便于批处理。
+
+在 Python 中取得导出结果：
 
 ```python
-import torch
-import torch_npu
-import triton
-import triton.language as tl
-import triton.debugger as debugger
-
-
-debugger.configure(
-    output_dir="/tmp/flagtree_debugger_example",
-    record_capacity=4096,
-    export_raw_records=False,
-)
-debugger.activate(level=1, addr_level=1)
-
-
-@triton.jit
-def debug_abs_kernel(x_ptr, y_ptr, n: tl.constexpr, BLOCK_SIZE: tl.constexpr):
-    pid = tl.program_id(0)
-    offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
-    mask = offsets < n
-
-    tl.debug_collect_start(level=1, addr_level=1)
-    x = tl.load(x_ptr + offsets, mask=mask, other=0.0)
-    y = tl.abs(x)
-    z = y + 1.0
-    tl.store(y_ptr + offsets, z, mask=mask)
-    tl.debug_collect_end()
-
-
-n = 16
-block = 16
-x = torch.linspace(-8, 7, n, dtype=torch.float32, device="npu")
-y = torch.empty_like(x)
-
-debug_abs_kernel[(1,)](x, y, n, BLOCK_SIZE=block)
-torch_npu.npu.synchronize()
-
-expected = torch.abs(x) + 1.0
-ok = torch.allclose(y.cpu(), expected.cpu())
-runs = debugger.take_exported_runs()
-print(f"output_allclose={ok}")
-print(f"exported_runs={len(runs)}")
-for run in runs:
-    print(f"report_path={run.get('report_path')}")
-    print(f"meta={run.get('meta')}")
+runs = debugger.peek_exported_runs()  # 不清空内部列表
+runs = debugger.take_exported_runs()  # 返回并清空内部列表
+debugger.clear_exported_runs()
 ```
 
-`debugger.take_exported_runs()` 用于取得本次 debug 导出的信息，便于在脚本中打印
-报告路径、metadata 等内容。如果采集 level 2 full dump，还会包含 artifact 目录。
+关键 run 字段包括 `report_path`、`json_report_path`、
+`op_log_report_path`、`raw_records_path`、`meta`、`runtime_metadata` 和
+`decoded`。只有对应输出被启用或生成时，相应 path 字段才存在。
 
-### 运行命令
+如果 `overflow_count` 非零，说明 `record_capacity` 不足，报告可能不完整。
+应增大 capacity 并重新运行。level 2 不允许从 overflowed buffer 导出
+artifact。
 
-Ascend 后端运行时建议显式设置后端和目标 SoC 名称。输出目录由
-`debugger.configure(output_dir=...)` 在 Python 脚本中指定。
+## Ascend Runtime
+
+在已安装 FlagTree 的 Ascend 环境中：
 
 ```bash
+source /usr/local/Ascend/ascend-toolkit/set_env.sh
+
 export FLAGTREE_BACKEND=ascend
+# 多卡机器可按需选择可用物理设备，例如 NPU 1：
+export ASCEND_VISIBLE_DEVICES=1
+
+python3 third_party/FlagPrism/Debugger/examples/abs_level1.py
+```
+
+如果后端无法从设备查询 SoC，可显式指定：
+
+```bash
 export TRITON_ASCEND_ARCH=Ascend910B4
-python3 test.py
 ```
 
-### 运行输出示例
+可直接运行的示例：
 
-level 1 debug 运行完成后，脚本输出可包含：
+- `examples/abs_level1.py`
+- `examples/abs_level2.py`
+- `examples/softmax_dim1_level1.py`
+- `examples/softmax_dim1_level2.py`
 
-```text
-output_allclose=True
-exported_runs=1
-report_path=/tmp/flagtree_debugger_example/test_debug_abs_kernel_aiv_20260630_002414_291_run1.txt
-meta={'run_id': 1, 'device_id': 0, 'kernel_id': 4288825906, 'protocol_version': 2, 'record_level': 1, 'export_mode': 1, 'backend_kind': 4}
-```
+## Backend Limitations
 
-`exported_runs=1` 表示本次执行导出了一次 debugger run；
-`report_path` 指向文本主报告。
+- summary 插桩主要依赖通用 TTIR arithmetic/reduce/store。
+- memory address 采集使用 Debugger 专用
+  `flagtree_debug.capture_memory_address` operation，需要后端提供 lowering。
+- 当前 CANN9 `addr_level=1` 支持对可证明的
+  `tt.addptr(tt.splat(base), offsets)` 指针链和 prefix mask 生成 lane-aware
+  address summary。无法完整分析时只报告可证明的地址信息。
+- `addr_level=2` 只能用于后端支持完整 lane address lowering 的
+  pointer/mask pattern。
+- Debug hidden-argument ABI 尚未穿透任意 Triton call graph。含不可安全
+  改写 call signature 的 helper/callee 会保持 metadata-only，避免 Debugger 改变
+  原 kernel 语义。
 
-level 1 输出目录通常包含：
+新增设备后端时，必须验证 summary writer、hidden argument、transfer engine
+和 `capture_memory_address` lowering。
 
-```text
-/tmp/flagtree_debugger_example/test_debug_abs_kernel_aiv_20260630_002414_291_run1.txt
-/tmp/flagtree_debugger_example/test_debug_abs_kernel_aiv_20260630_002414_291_run1.json
-/tmp/flagtree_debugger_example/test_debug_abs_kernel_aiv_20260630_002414_291_run1_op_log.txt
-/tmp/flagtree_debugger_example/test_debug_abs_kernel_aiv_20260630_002414_291_run1_op_log.json
-```
+## Architecture
 
-### 报告片段示例
+FlagTree 主仓库仅保留必要的集成点：
 
-level 1 主报告以 Triton statement 级视图为主，按源码语句展示 result 和
-operand。IR op 级报告保留在 `_op_log.txt` / `_op_log.json` 中，用于查看
-编译后 op 粒度的静态 metadata 和动态记录。
+- `triton._flagprism`：Debugger 组件注册和编译/运行时生命周期边界。
+- `tl.debug_collect_start/end`：Triton language 的采集 marker。
+- Ascend compiler/launcher hook：传递 Debugger metadata 和 hidden control pointer。
 
-statement 级报告只展示源码语句相关信息，不展开 `op_id`、capture policy 等
-IR 级实现细节。load 结果下的 `address_summary(load from)` 表示该结果从哪里读出；
-store 语句下的 `address_summary(store to)` 表示该语句写到哪里。地址来自完整
-pointer 表达式求值结果，例如 `y_ptr + offsets`；如果语句有 mask，
-`active_lane_count` 和地址范围按 mask 后的 active lane 统计。
+Debugger 的主要实现位于当前目录：
 
-#### Triton 语句级报告示例
+- `Frontend/`：前端 marker、配置和 launch/ABI 接线。
+- `Metadata/`：collect region 解析、`op_id` 分配和静态 metadata。
+- `Instrumentation/`：summary、memory event、full dump 和 timeline 插桩。
+- `Runtime/`：control block、device buffer、transfer engine 和 post-kernel export。
+- `Decode/`：record decode、statement/op 组织和文本/JSON 报告。
 
-load 语句示例：
+内部 compiler binding 位于 `triton._C.libtriton.debugger`，runtime binding 位于
+`flagtree.debugger._native`。它们是实现细节，用户不应直接导入。
 
-```text
-Triton Statement Records
-source_loc: loc("test.py":30:16)
-statement_id: 30004
-statement: x = tl.load(x_ptr + offsets, mask=mask, other=0.0)
-  [result x]:
-    instances: [0]
-    summary:
-      element_count: [16 (U64)]
-      nan_count    : [0 (U64)]
-      inf_count    : [0 (U64)]
-      zero_count   : [1 (U64)]
-      mean         : [-0.5 (F32)]
-      min          : [-8 (F32)]
-      max          : [7 (F32)]
-      l2_norm      : [18.5472 (F32)]
-    full_value_file: op3_inst0_rec10_value.npy     # level 2 only
-    address_summary(load from):
-      status            : [complete]
-      first_addr        : [0x...]
-      last_addr         : [0x...]
-      min_addr          : [0x...]
-      max_addr          : [0x...]
-      active_lane_count : [16]
-      address_span_bytes: [64]
-    memory_address_file: op3_inst0_rec11_memory_address.npy
-  <operand x_ptr + offsets>:
-    runtime: not captured
-  <operand mask>:
-    instances: [0]
-    summary:
-      element_count: [16 (U64)]
-    full_value_file: op4_inst0_rec12_value.npy     # level 2 only
-  <operand other>:
-    constant_value: dense<0.000000e+00> : tensor<16xf32>
-    runtime: not captured
-```
-
-计算语句示例：
-
-```text
-source_loc: loc("test.py":31:15)
-statement_id: 31004
-statement: y = tl.abs(x)
-  [result y]:
-    instances: [0]
-    summary:
-      element_count: [16 (U64)]
-      nan_count    : [0 (U64)]
-      inf_count    : [0 (U64)]
-      zero_count   : [1 (U64)]
-      mean         : [4 (F32)]
-      min          : [0 (F32)]
-      max          : [8 (F32)]
-      l2_norm      : [18.5472 (F32)]
-  <operand x>: [result x]
-```
-
-store 关联示例：
-
-```text
-source_loc: loc("test.py":32:12)
-statement_id: 32004
-statement: z = y + 1.0
-  [result z]:
-    instances: [0]
-    summary:
-      element_count: [16 (U64)]
-      nan_count    : [0 (U64)]
-      inf_count    : [0 (U64)]
-      zero_count   : [0 (U64)]
-      mean         : [5 (F32)]
-      min          : [1 (F32)]
-      max          : [9 (F32)]
-      l2_norm      : [22.0907 (F32)]
-  <operand y>: [result y]
-  <operand rhs>:
-    constant_value: dense<1.000000e+00> : tensor<16xf32>
-    runtime: not captured
-
-source_loc: loc("test.py":33:30)
-statement_id: 33004
-statement: tl.store(y_ptr + offsets, z, mask=mask)
-  memory_access:
-    instances: [0]
-    address_summary(store to):
-      status            : [complete]
-      first_addr        : [0x...]
-      last_addr         : [0x...]
-      min_addr          : [0x...]
-      max_addr          : [0x...]
-      active_lane_count : [16]
-      address_span_bytes: [64]
-  <operand y_ptr + offsets>:
-    runtime: not captured
-  <operand z>: [result z]
-```
-
-#### Triton IR op 级报告示例
-
-IR op 级报告以 `IR Op Log Records` 为主视图。每个 `op_id` 只展示一次编译期
-静态元数据；同一个 op 的动态记录按 `logical_instance_id` 聚合，文本报告中
-`instances` 是对齐轴，`summary` 与 `address_summary` 的每个指标都按这个顺序
-输出数组。
-
-计算 op 示例：
-
-```text
-op_id=5 scope_id=1
-  static:
-    mlir_op: arith.addf
-    source_loc: loc("test.py":42:12)
-    triton_statement: arith.addf
-    dtype_in: arg0=tensor<16xf32>, arg1=tensor<16xf32>
-    dtype_out: tensor<16xf32>
-    shape: [16]
-
-  instances: [0]
-  summary:
-    element_count: [16 (U64)]
-    nan_count    : [0 (U64)]
-    inf_count    : [0 (U64)]
-    zero_count   : [0 (U64)]
-    mean         : [5 (F32)]
-    min          : [1 (F32)]
-    max          : [9 (F32)]
-    l2_norm      : [22.0907 (F32)]
-```
-
-store op 示例：
-
-```text
-op_id=8 scope_id=1
-  static:
-    mlir_op: tt.store
-    role: store
-    category: store
-    source_loc: loc("test.py":45:30)
-    triton_statement: tt.store
-    dtype_in: arg0=tensor<16x!tt.ptr<f32>>, arg1=tensor<16xf32>, arg2=tensor<16xi1>
-    dtype_out: tensor<16xf32>
-    shape: [16]
-    memory_semantics: addr_space=global access_type=store access_bytes=4 alignment_required=4 has_mask=true boundary_check_policy=<none>
-
-  instances: [0]
-  address_summary:
-    status            : [complete]
-    first_addr        : [0x...]
-    last_addr         : [0x...]
-    min_addr          : [0x...]
-    max_addr          : [0x...]
-    active_lane_count : [16]
-    address_span_bytes: [64]
-```
-
-`IR Op Log Static Only Ops` 列出有 `op_id` 和静态元数据、但没有 runtime record
-的 op。这些 op 通常用于 producer/context 分析，例如 pointer-producing
-`tt.splat` / `tt.addptr`，不会重复写无意义的动态 summary。
-
-## 设计架构
-
-### Wheel 边界
-
-- FlagTree core：`triton._components` 中面向 `flagtree_debugger` 的薄加载器、编译与
-  statement 回调、`tl.debug_collect_start/end` 转发，以及 `triton.debugger` 门面。
-- `flagtree-debugger` wheel：私有实现包 `flagtree_debugger`、Debugger dialect 和
-  marker/statement 前端、passes、运行期传输/解码、报告生成及 `_native` 扩展。
-- core 直接导入已知包 `flagtree_debugger`，不扫描第三方 entry point；组件 API 或
-  Triton 3.5 API 系列不匹配时会在加载阶段报错。
-- Debugger 版本和当前采集配置编码进 backend `instrumentation_mode`，因此进入原有
-  backend option hash。Ascend launcher 根据 `debug_launch_hidden_arg` 直接调用
-  Debugger launch context，core 不维护通用 hidden-arg 生命周期。
-- Triton 原生 `create_store` 仍返回 `None`。Debugger 通过通用
-  `builder.get_last_op()` 获取刚插入的 StoreOp 并添加 statement 属性，不改变 Store
-  的 IR、操作数或 Python builder ABI。
-
-整体设计包含以下模块：
-
-- Frontend/：保存 Python 配置，控制 debug mode，并为 kernel launch 准备运行期
-  metadata 和 hidden argument。
-- Metadata/：扫描 collect region 内的 IR operation，生成稳定的 `op_id` 和静态
-  描述。
-- Instrumentation/：根据 `level` 和 `addr_level` 插入 summary、full value 和 full
-  address 记录逻辑。
-- Runtime/：管理 debug buffer 和 control block，执行 post-kernel export，并将 raw
-  buffer 交给 host decoder。
-- Decode/：将 raw record 解码为 op/instance 结构，并处理 overflow、payload 和路径
-  信息。
+跨模块协议和公共 C++ 契约以 `include/Debugger/` 为准。

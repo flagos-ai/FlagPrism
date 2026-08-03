@@ -18,7 +18,7 @@ _spec.loader.exec_module(_mad)
 __doc__ = _mad.extend_doc(__doc__)
 
 import triton  # noqa: F401
-from flagtree_debugger.native import compiler_binding
+from flagtree.debugger.native import compiler_binding
 from triton._C.libtriton import ir
 
 

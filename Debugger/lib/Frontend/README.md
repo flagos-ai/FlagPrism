@@ -9,7 +9,7 @@
 
 对应公共接口：
 
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Frontend/Bridge.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Frontend/Bridge.h`
 
 实现重点：
 

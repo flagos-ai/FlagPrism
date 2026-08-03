@@ -1,19 +1,23 @@
 #include "Device.h"
 #include "Driver/Ascend/AscendApi.h"
+#if FLAGTREE_PROTON_GPU_RUNTIME
 #include "Driver/GPU/CudaApi.h"
 #include "Driver/GPU/HipApi.h"
+#endif
 
 #include "Utility/Errors.h"
 
 namespace proton {
 
 Device getDevice(DeviceType type, uint64_t index) {
+#if FLAGTREE_PROTON_GPU_RUNTIME
   if (type == DeviceType::CUDA) {
     return cuda::getDevice(index);
   }
   if (type == DeviceType::HIP) {
     return hip::getDevice(index);
   }
+#endif
   if (type == DeviceType::ASCEND) {
     return ascend::getDevice(index);
   }

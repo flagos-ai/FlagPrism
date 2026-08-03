@@ -1,4 +1,4 @@
-"""FlagTree debugger: TTIR pass orchestration and compile-time metadata keys."""
+"""FlagPrism debugger: TTIR pass orchestration and compile-time metadata keys."""
 from __future__ import annotations
 
 import json
@@ -10,8 +10,8 @@ from .native import compiler_binding
 
 _instrumentation_mode = ""
 _DISABLED_BUILD_MESSAGE = (
-    "FlagTree debugger compiler support is unavailable. Install a "
-    "flagtree-debugger wheel compatible with the installed FlagTree version."
+    "FlagPrism debugger compiler support is unavailable. Reinstall FlagTree "
+    "with `TRITON_BUILD_FLAGPRISM=ON`."
 )
 
 

@@ -1,30 +1,15 @@
-cmake_minimum_required(VERSION 3.20)
-project(FlagTreeDebuggerPython LANGUAGES CXX)
-
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS ON)
-
-set(FLAGTREE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../.." CACHE PATH
-    "FlagTree source tree used for compiler headers")
-set(FLAGTREE_BUILD_DIR "" CACHE PATH
-    "Optional FlagTree build tree containing generated headers")
-set(FLAGTREE_LIBTRITON "" CACHE FILEPATH
-    "Installed FlagTree libtriton Python extension")
-
-if(NOT FLAGTREE_LIBTRITON)
-  message(FATAL_ERROR "FLAGTREE_LIBTRITON must point to the installed libtriton extension")
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
+  message(FATAL_ERROR
+    "Debugger native bindings are built from the FlagTree CMake graph")
 endif()
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
-find_package(pybind11 CONFIG REQUIRED)
-find_package(LLVM CONFIG REQUIRED)
-find_package(MLIR CONFIG REQUIRED)
-
-list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}" "${MLIR_CMAKE_DIR}")
-include(TableGen)
-include(AddLLVM)
-include(AddMLIR)
+set(FLAGTREE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../..")
+set(FLAGPRISM_PYTHON_DIR "" CACHE PATH
+    "Python package root receiving bundled FlagPrism extensions")
+if(NOT FLAGPRISM_PYTHON_DIR)
+  message(FATAL_ERROR
+    "FLAGPRISM_PYTHON_DIR is required for the bundled debugger")
+endif()
 
 set(DEBUGGER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
 set(DEBUGGER_INCLUDE_DIR "${DEBUGGER_ROOT}/include")
@@ -45,14 +30,11 @@ mlir_tablegen("${DEBUGGER_GENERATED_DIR}/Dialect.h.inc" -gen-dialect-decls
 mlir_tablegen("${DEBUGGER_GENERATED_DIR}/Dialect.cpp.inc" -gen-dialect-defs
               -dialect=flagtree_debug -I "${DEBUGGER_INCLUDE_DIR}"
               -I "${MLIR_INCLUDE_DIRS}")
-add_public_tablegen_target(FlagTreeDebuggerComponentTableGen)
+add_public_tablegen_target(FlagPrismDebuggerComponentTableGen)
 
-set(DEBUGGER_BINDING_SOURCES
-  "${DEBUGGER_ROOT}/python/NativeModule.cpp"
-  "${DEBUGGER_ROOT}/python/CompilerBindings.cpp"
-  "${DEBUGGER_ROOT}/python/Bindings.cpp"
-)
-set(DEBUGGER_IMPLEMENTATION_SOURCES
+# Compiler bindings live in libtriton so they use the core's module-local
+# MLIR/pybind types without exporting the libtriton C++ ABI.
+set(DEBUGGER_COMPILER_IMPLEMENTATION_SOURCES
   "${DEBUGGER_ROOT}/lib/IR/Dialect.cpp"
   "${DEBUGGER_ROOT}/lib/IR/Ops.cpp"
   "${DEBUGGER_ROOT}/lib/Metadata/Passes.cpp"
@@ -61,6 +43,34 @@ set(DEBUGGER_IMPLEMENTATION_SOURCES
   "${DEBUGGER_ROOT}/lib/Instrumentation/Passes.cpp"
   "${DEBUGGER_ROOT}/lib/Instrumentation/RecordBuilder.cpp"
   "${DEBUGGER_ROOT}/lib/Instrumentation/Writer.cpp"
+)
+add_triton_plugin(TritonDebugger
+  "${DEBUGGER_ROOT}/python/CompilerPlugin.cpp"
+  "${DEBUGGER_ROOT}/python/CompilerBindings.cpp"
+  ${DEBUGGER_COMPILER_IMPLEMENTATION_SOURCES}
+
+  DEPENDS
+  FlagPrismDebuggerComponentTableGen
+
+  LINK_LIBS
+  MLIRIR
+  MLIRPass
+  LLVMSupport
+)
+target_link_libraries(TritonDebugger PRIVATE Python3::Module pybind11::headers)
+target_include_directories(TritonDebugger PRIVATE
+  "${DEBUGGER_INCLUDE_DIR}"
+  "${CMAKE_CURRENT_BINARY_DIR}/include"
+  "${PYTHON_SRC_PATH}"
+  "${FLAGTREE_SOURCE_DIR}/python/src"
+  "${LLVM_INCLUDE_DIRS}"
+  "${MLIR_INCLUDE_DIRS}"
+)
+
+# Runtime transfer and report bindings remain independently loadable, but no
+# longer depend on libtriton or its MLIR pybind wrappers.
+set(DEBUGGER_RUNTIME_IMPLEMENTATION_SOURCES
+  "${DEBUGGER_ROOT}/lib/Metadata/TrackedOpTable.cpp"
   "${DEBUGGER_ROOT}/lib/Runtime/BufferLayout.cpp"
   "${DEBUGGER_ROOT}/lib/Runtime/TransferEngine.cpp"
   "${DEBUGGER_ROOT}/lib/Frontend/Bridge.cpp"
@@ -68,45 +78,36 @@ set(DEBUGGER_IMPLEMENTATION_SOURCES
   "${DEBUGGER_ROOT}/lib/Decode/Reporter.cpp"
 )
 pybind11_add_module(flagtree_debugger_native MODULE
-  ${DEBUGGER_BINDING_SOURCES}
-  ${DEBUGGER_IMPLEMENTATION_SOURCES}
+  "${DEBUGGER_ROOT}/python/NativeModule.cpp"
+  "${DEBUGGER_ROOT}/python/Bindings.cpp"
+  ${DEBUGGER_RUNTIME_IMPLEMENTATION_SOURCES}
 )
-add_dependencies(flagtree_debugger_native FlagTreeDebuggerComponentTableGen)
-set_source_files_properties(${DEBUGGER_IMPLEMENTATION_SOURCES}
-  PROPERTIES COMPILE_OPTIONS "-fno-rtti")
-
 target_include_directories(flagtree_debugger_native PRIVATE
   "${DEBUGGER_INCLUDE_DIR}"
-  "${CMAKE_CURRENT_BINARY_DIR}/include"
-  "${FLAGTREE_SOURCE_DIR}/include"
-  "${FLAGTREE_SOURCE_DIR}/python/src"
-  "${FLAGTREE_SOURCE_DIR}/third_party"
   "${LLVM_INCLUDE_DIRS}"
-  "${MLIR_INCLUDE_DIRS}"
 )
-if(FLAGTREE_BUILD_DIR)
-  target_include_directories(flagtree_debugger_native PRIVATE
-    "${FLAGTREE_BUILD_DIR}/include"
-    "${FLAGTREE_BUILD_DIR}/third_party"
-  )
-endif()
-
 target_link_libraries(flagtree_debugger_native PRIVATE
-  "${FLAGTREE_LIBTRITON}"
-  MLIRIR
-  MLIRPass
   LLVMSupport
   Python3::Module
+)
+
+set_source_files_properties(
+  ${DEBUGGER_COMPILER_IMPLEMENTATION_SOURCES}
+  ${DEBUGGER_RUNTIME_IMPLEMENTATION_SOURCES}
+  PROPERTIES COMPILE_OPTIONS "-fno-rtti"
 )
 
 include("${DEBUGGER_ROOT}/lib/Runtime/CANN.cmake")
 flagtree_debugger_enable_cann(flagtree_debugger_native)
 
+set(_flagtree_debugger_output_dir
+    "${FLAGPRISM_PYTHON_DIR}/flagtree/debugger")
+file(MAKE_DIRECTORY "${_flagtree_debugger_output_dir}")
 set_target_properties(flagtree_debugger_native PROPERTIES
   PREFIX ""
   OUTPUT_NAME "_native"
-  BUILD_RPATH "$ORIGIN/../triton/_C"
-  INSTALL_RPATH "$ORIGIN/../triton/_C"
+  LIBRARY_OUTPUT_DIRECTORY "${_flagtree_debugger_output_dir}"
+  RUNTIME_OUTPUT_DIRECTORY "${_flagtree_debugger_output_dir}"
 )
 if(PYTHON_EXTENSION_SUFFIX)
   set_target_properties(flagtree_debugger_native PROPERTIES

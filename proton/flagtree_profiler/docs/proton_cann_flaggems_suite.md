@@ -7,7 +7,7 @@ FlagGems suite 是第三级测试，用公开 Triton 算子库 [FlagGems](https:
 运行完整 benchmark 集合：
 
 ```bash
-python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_flaggems_full \
   --clean \
   --with-flaggems \
@@ -19,7 +19,7 @@ python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_prof
 只跑一个文件：
 
 ```bash
-python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_flaggems_add \
   --clean \
   --with-flaggems \
@@ -29,7 +29,7 @@ python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_prof
 快速验证 runner 时，可以不加 `--all`，此时只跑默认 12 个代表性 benchmark 文件：
 
 ```bash
-python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_flaggems_default \
   --clean \
   --with-flaggems
@@ -38,7 +38,7 @@ python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_prof
 只统计 op-level case，不实际运行：
 
 ```bash
-python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_flaggems_ops_list \
   --clean \
   --with-flaggems \

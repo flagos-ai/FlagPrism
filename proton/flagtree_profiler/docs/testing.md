@@ -32,7 +32,7 @@ which msprof  # only required by legacy CANN/msprof tests
 这是默认自动化测试，包含 CSV import 单元测试和真实 NPU direct-finalize 测试。
 
 ```bash
-python3 -m pytest -q third_party/FlagTree_DevTools/proton/flagtree_profiler/test/test_cann_smoke.py -s
+python3 -m pytest -q third_party/FlagPrism/proton/flagtree_profiler/test/test_cann_smoke.py -s
 ```
 
 预期结果：
@@ -52,7 +52,7 @@ python3 -m pytest -q third_party/FlagTree_DevTools/proton/flagtree_profiler/test
 兼容旧路径的命令仍可收集同一组测试：
 
 ```bash
-python3 -m pytest -q third_party/FlagTree_DevTools/proton/test/test_cann_smoke.py -s
+python3 -m pytest -q third_party/FlagPrism/proton/test/test_cann_smoke.py -s
 ```
 
 ## 2. 统一 profiler suite
@@ -60,7 +60,7 @@ python3 -m pytest -q third_party/FlagTree_DevTools/proton/test/test_cann_smoke.p
 `scripts/cann_profile_test_suite.py` 是测试的唯一推荐入口。默认只运行项目内自定义的 12 个 Triton kernel，覆盖 elementwise、activation、math、memory、cast、reduction、softmax、transpose、matmul、masking。
 
 ```bash
-python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_tests \
   --clean
 ```
@@ -68,7 +68,7 @@ python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_prof
 如果只想跑其中一个算子：
 
 ```bash
-python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_tests_one \
   --clean \
   --custom-operator triton_vector_add_fp32
@@ -100,7 +100,7 @@ python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_prof
 第二级测试用真实开源 Triton 算子库验证 profiler。Liger-Kernel 主要覆盖 LLM 训练/推理相关 low-level Triton kernel，规模比自定义 12 算子更接近实际库封装，但仍可控，适合作为日常扩展回归。
 
 ```bash
-python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_tests_liger \
   --clean \
   --with-liger \
@@ -127,7 +127,7 @@ Liger suite 当前覆盖 19 个已选定、可在 Ascend 环境稳定运行的 l
 快速验证时只加 `--with-flaggems`，此时运行默认代表性集合：
 
 ```bash
-python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_tests_flaggems \
   --clean \
   --with-flaggems
@@ -136,7 +136,7 @@ python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_prof
 跑全量 FlagGems op-level benchmark：
 
 ```bash
-python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
   --out /tmp/proton_cann_tests_flaggems_all \
   --clean \
   --with-flaggems \

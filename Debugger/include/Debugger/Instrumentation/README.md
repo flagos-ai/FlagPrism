@@ -3,7 +3,7 @@
 本目录对应 C 模块：GPU 插桩采集。
 负责人：颜臻。
 
-这个目录就是 C 模块的主要开发目录。C 的公共接口在这里定义，C 的实现入口在 `third_party/FlagTree_DevTools/Debugger/lib/Instrumentation/`。
+这个目录就是 C 模块的主要开发目录。C 的公共接口在这里定义，C 的实现入口在 `third_party/FlagPrism/Debugger/lib/Instrumentation/`。
 
 核心文件：
 

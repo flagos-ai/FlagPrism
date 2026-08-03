@@ -640,7 +640,7 @@ private:
 
 } // namespace
 
-void init_triton_debugger(py::module &&m) {
+void init_flagtree_debugger_runtime(py::module &&m) {
   py::class_<PreparedLaunchHandle>(m, "PreparedLaunchHandle")
       .def_property_readonly("hidden_arg_value",
                              &PreparedLaunchHandle::hiddenArgValue)

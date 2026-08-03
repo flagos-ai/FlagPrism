@@ -15,12 +15,12 @@ import pytest
 
 import triton
 import triton.language as tl
-from flagtree_debugger.native import compiler_binding
+from flagtree.debugger.native import compiler_binding
 from triton._C.libtriton import ir
 from triton.backends.compiler import GPUTarget
 from triton.compiler import ASTSource
 from triton.compiler.compiler import make_backend
-from triton._components import run_compiler_hook
+from triton._flagprism import run_compiler_hook
 
 
 fd = compiler_binding()
@@ -350,6 +350,8 @@ def test_module_a_to_b_memory_metadata_from_frontend_markers():
     store = _find_tracked_op(tracked_table, "store")
     assert load["mlirOpName"] == "tt.load"
     assert store["mlirOpName"] == "tt.store"
+    assert load["tritonStatement"] == "x = tl.load(x_ptr + offsets)"
+    assert store["tritonStatement"] == "tl.store(x_ptr + offsets, x)"
     for row in (load, store):
         assert row["isMemoryOp"] is True
         assert row["opCategory"] == row["accessType"]

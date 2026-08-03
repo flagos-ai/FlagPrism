@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""Shared text: module A acceptance items from docs/debugger_module_contract.md + third_party/FlagTree_DevTools/Debugger/include/Debugger/README.md.
+"""Shared text: module A acceptance items from docs/debugger_module_contract.md + third_party/FlagPrism/Debugger/include/Debugger/README.md.
 
 Referenced by test_module_a_*.py (do not duplicate the long form in each file — import MODULE_A_CHECKLIST).
 """
@@ -20,7 +20,7 @@ debug_enabled 为 False 时不应走 debug launcher 流程；单独开发期允�
 
 【§6.1 A 侧可测】编译成功、metadata/TTIR/launch 实参可观测代理。
 
-【third_party/FlagTree_DevTools/Debugger/include/Debugger/README.md】debug_tracked_table 行与 TrackedOpTable 契约一致，A 仅透传不另造 schema。
+【third_party/FlagPrism/Debugger/include/Debugger/README.md】debug_tracked_table 行与 TrackedOpTable 契约一致，A 仅透传不另造 schema。
 
 【§7】可选：带 collect 的 kernel 编译+运行 smoke。
 """

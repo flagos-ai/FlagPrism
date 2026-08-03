@@ -6,7 +6,7 @@ import pytest
 
 
 _MARKERS = {
-    "module_a": "FlagTree debugger Module A coverage",
+    "module_a": "FlagPrism debugger Module A coverage",
     "module_a_a1": "Module A frontend marker coverage",
     "module_a_a2": "Module A metadata contract coverage",
     "module_a_a3": "Module A launch ABI coverage",

@@ -3,7 +3,7 @@
 本目录对应 D 模块：Host 解码与报告。
 负责人：玉珏。
 
-这个目录就是 D 模块的主要开发目录。D 的公共接口在这里定义，D 的实现入口在 `third_party/FlagTree_DevTools/Debugger/lib/Decode/`。
+这个目录就是 D 模块的主要开发目录。D 的公共接口在这里定义，D 的实现入口在 `third_party/FlagPrism/Debugger/lib/Decode/`。
 
 核心文件：
 

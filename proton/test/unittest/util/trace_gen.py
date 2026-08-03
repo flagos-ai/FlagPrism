@@ -1,9 +1,9 @@
 import triton
 import argparse
 import ctypes
-import triton.profiler as proton
-import triton.profiler.language as pl
-from triton.profiler.hooks import InstrumentationHook
+import flagtree.profiler as proton
+import flagtree.profiler.language as pl
+from flagtree.profiler.hooks import InstrumentationHook
 
 pl.enable_semantic("triton")
 

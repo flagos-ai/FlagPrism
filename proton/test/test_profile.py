@@ -5,7 +5,7 @@ Each test should invoke one or more GPU kernels and check the validity of their 
 
 import torch
 import triton
-import triton.profiler as proton
+import flagtree.profiler as proton
 import json
 import pytest
 from typing import NamedTuple
@@ -13,8 +13,8 @@ import pathlib
 import threading
 
 import triton.language as tl
-from triton.profiler.hooks.launch import COMPUTE_METADATA_SCOPE_NAME
-import triton.profiler.hooks.launch as proton_launch
+from flagtree.profiler.hooks.launch import COMPUTE_METADATA_SCOPE_NAME
+import flagtree.profiler.hooks.launch as proton_launch
 
 
 def is_cuda():

@@ -4,7 +4,7 @@ import os
 import flag_gems
 import torch
 import triton
-import triton.debugger as debugger
+import flagtree.debugger as debugger
 
 try:
     import torch_npu

@@ -36,8 +36,8 @@ class DebugCollectRuntime:
         binding = runtime_binding()
         if binding is None:
             raise RuntimeError(
-                "FlagTree debugger native support is unavailable. Install a "
-                "compatible flagtree-debugger wheel."
+                "FlagPrism debugger native support is unavailable. Reinstall "
+                "FlagTree with `TRITON_BUILD_FLAGPRISM=ON`."
             )
         return binding
 

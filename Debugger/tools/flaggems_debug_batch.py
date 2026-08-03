@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Batch-instrument and run FlagGems operators with FlagTree debugger enabled.
+"""Batch-instrument and run FlagGems operators with FlagPrism debugger enabled.
 
 It copies FlagGems to an ignored worktree, instruments the copy, runs each op
 in an isolated subprocess, and writes all experiment output under one run dir.
@@ -828,7 +828,7 @@ platform.python_version_tuple = lambda: ("3", "11", "15")
 
 try:
     import triton
-    import triton.debugger as debugger
+    import flagtree.debugger as debugger
 
     output_dir = os.environ.get("FLAGTREE_DEBUGGER_BATCH_OUTPUT_DIR")
     if output_dir:
@@ -1171,7 +1171,7 @@ def add_bool_argument(
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Batch run FlagGems ops with FlagTree debugger instrumentation."
+        description="Batch run FlagGems ops with FlagPrism debugger instrumentation."
     )
     parser.add_argument("--flaggems-root", type=Path, default=DEFAULT_FLAGGEMS_ROOT)
     parser.add_argument("--workspace-root", type=Path, default=DEFAULT_WORKSPACE_ROOT)

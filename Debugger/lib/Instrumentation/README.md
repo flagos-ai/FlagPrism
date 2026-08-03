@@ -12,10 +12,10 @@
 
 对应公共接口：
 
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/Collectors.h`
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/Passes.h`
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/RecordBuilder.h`
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/Writer.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Instrumentation/Collectors.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Instrumentation/Passes.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Instrumentation/RecordBuilder.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Instrumentation/Writer.h`
 
 实现重点：
 
@@ -28,4 +28,4 @@
 
 需要采集和写入的指标，见：
 
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Instrumentation/README.md`
+- `third_party/FlagPrism/Debugger/include/Debugger/Instrumentation/README.md`

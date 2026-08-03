@@ -23,7 +23,7 @@ def test_exec(mode, tmp_path: pathlib.Path):
     if mode == "script":
         subprocess.check_call(["proton", "-n", name, helper_file, "test"], stdout=subprocess.DEVNULL)
     elif mode == "python":
-        subprocess.check_call(["python3", "-m", "triton.profiler.proton", "-n", name, helper_file, "test"],
+        subprocess.check_call(["python3", "-m", "flagtree.profiler.proton", "-n", name, helper_file, "test"],
                               stdout=subprocess.DEVNULL)
     elif mode == "pytest":
         subprocess.check_call(["proton", "-n", name, "pytest", "-k", "test_main", helper_file],

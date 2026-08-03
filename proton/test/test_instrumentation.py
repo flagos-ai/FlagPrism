@@ -6,8 +6,8 @@ import json
 import triton
 import triton.language as tl
 import triton.language.semantic
-import triton.profiler.language as pl
-import triton.profiler as proton
+import flagtree.profiler.language as pl
+import flagtree.profiler as proton
 from triton.tools.tensor_descriptor import TensorDescriptor
 
 from typing import NamedTuple

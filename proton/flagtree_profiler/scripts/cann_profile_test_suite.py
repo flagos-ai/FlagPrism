@@ -7,7 +7,7 @@ writes one top-level summary.
 
 Example:
 
-    python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
+    python3 third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_profile_test_suite.py \
       --out /tmp/proton_cann_tests --clean
 """
 

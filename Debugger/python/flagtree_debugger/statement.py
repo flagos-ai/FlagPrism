@@ -3,6 +3,8 @@ from __future__ import annotations
 import ast
 from typing import Any
 
+from .native import compiler_binding
+
 
 def _statement_source(generator: Any, node: ast.AST) -> str:
     source = None
@@ -25,18 +27,6 @@ def _statement_id(generator: Any, node: ast.AST) -> int:
     return max(0, min(line * 1000 + min(col, 999), (1 << 31) - 1))
 
 
-def _operation_handle(generator: Any, value: Any):
-    from triton.language import tensor
-
-    if not isinstance(value, tensor):
-        return None
-    handle = getattr(value, "handle", None)
-    if handle is not None:
-        return handle
-    get_last_op = getattr(generator.builder, "get_last_op", None)
-    return get_last_op() if callable(get_last_op) else None
-
-
 def _annotate_value(
     generator: Any,
     node: ast.AST,
@@ -44,8 +34,30 @@ def _annotate_value(
     source: str,
     name: str | None = None,
 ) -> None:
-    handle = _operation_handle(generator, value)
-    if handle is None or not hasattr(handle, "set_attr"):
+    from triton.language import tensor
+
+    if not isinstance(value, tensor):
+        return
+    handle = getattr(value, "handle", None)
+    statement_id = _statement_id(generator, node)
+    if handle is None:
+        if type(generator.builder).__name__ == "InterpreterBuilder":
+            return
+        binding = compiler_binding()
+        annotate_operation = (
+            getattr(binding, "annotate_statement_operation", None)
+            if binding is not None
+            else None
+        )
+        if callable(annotate_operation):
+            annotate_operation(
+                generator.builder,
+                source,
+                name,
+                statement_id,
+            )
+        return
+    if not hasattr(handle, "set_attr"):
         return
     if source:
         handle.set_attr(
@@ -59,7 +71,7 @@ def _annotate_value(
         )
     handle.set_attr(
         "flagtree.debug.statement_id",
-        generator.builder.get_int32_attr(_statement_id(generator, node)),
+        generator.builder.get_int32_attr(statement_id),
     )
 
 

@@ -35,14 +35,14 @@ def _launcher():
 @pytest.mark.module_a
 @pytest.mark.module_a_ctt3
 def test_module_a_CTT3_hidden_arg_is_last_launch_tuple_element(monkeypatch):
-    import flagtree_debugger
+    from flagtree.debugger import api
 
     @contextmanager
     def launch_context(*args, **kwargs):
         del args, kwargs
         yield (0x11223344,)
 
-    monkeypatch.setattr(flagtree_debugger, "ascend_launch_context", launch_context)
+    monkeypatch.setattr(api, "ascend_launch_context", launch_context)
     launcher = _launcher()
     launcher(1, 1, 1, 0, 0x1234, {"hash": "unit"}, None, None, None, 99)
 
@@ -52,7 +52,7 @@ def test_module_a_CTT3_hidden_arg_is_last_launch_tuple_element(monkeypatch):
 @pytest.mark.module_a
 @pytest.mark.module_a_ctt3
 def test_module_a_CTT3_rejects_hidden_arg_count_mismatch(monkeypatch):
-    from flagtree_debugger import api
+    from flagtree.debugger import api
 
     monkeypatch.setattr(
         api,

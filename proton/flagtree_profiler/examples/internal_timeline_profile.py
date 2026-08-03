@@ -4,7 +4,7 @@
 Run:
 
     cd /workspace/FlagTree
-    python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/examples/internal_timeline_profile.py
+    python3 third_party/FlagPrism/proton/flagtree_profiler/examples/internal_timeline_profile.py
 
 Outputs:
 
@@ -67,7 +67,7 @@ import shutil
 
 import triton
 import triton.language as tl
-import triton.profiler as proton
+import flagtree.profiler as proton
 
 
 @triton.jit

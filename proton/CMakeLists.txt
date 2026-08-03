@@ -22,12 +22,21 @@ set(PROTON_COMMON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/common")
 set(FLAGTREE_PROFILER_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flagtree_profiler")
 set(FLAGTREE_PROFILER_CSRC_DIR "${FLAGTREE_PROFILER_DIR}/csrc")
 
-# ============ Check for includes =============
-if(NOT CUPTI_INCLUDE_DIR)
-  message(FATAL_ERROR "CUPTI include directory not defined")
+# FlagTree's Ascend compiler defines CUDA/HIP compatibility macros for shared
+# Triton code. Select Proton runtime sources from the actual backend instead.
+set(FLAGTREE_PROTON_GPU_RUNTIME ON)
+if(FLAGTREE_BACKEND STREQUAL "ascend")
+  set(FLAGTREE_PROTON_GPU_RUNTIME OFF)
 endif()
-if(NOT ROCTRACER_INCLUDE_DIR)
-  message(FATAL_ERROR "ROCTRACER include directory not defined")
+
+# ============ Check for includes =============
+if(FLAGTREE_PROTON_GPU_RUNTIME)
+  if(NOT CUPTI_INCLUDE_DIR)
+    message(FATAL_ERROR "CUPTI include directory not defined")
+  endif()
+  if(NOT ROCTRACER_INCLUDE_DIR)
+    message(FATAL_ERROR "ROCTRACER include directory not defined")
+  endif()
 endif()
 if(NOT JSON_INCLUDE_DIR)
   message(FATAL_ERROR "JSON include directory not defined")
@@ -74,23 +83,30 @@ function(add_proton_library name)
 
   target_link_libraries(${name} PRIVATE Python3::Module pybind11::headers)
 
-  # Use system to skip warnings caused by legacy clang compilers
-  target_include_directories(${name}
-    SYSTEM PRIVATE
-      "${ROCTRACER_INCLUDE_DIR}"
-  )
+  if(FLAGTREE_PROTON_GPU_RUNTIME)
+    # Use system to skip warnings caused by legacy clang compilers.
+    target_include_directories(${name} SYSTEM PRIVATE
+      "${ROCTRACER_INCLUDE_DIR}")
+  endif()
 
   target_include_directories(${name}
     PRIVATE
-      "${CUPTI_INCLUDE_DIR}"
       "${JSON_INCLUDE_DIR}"
       "${PROTON_COMMON_DIR}/include"
       "${PROTON_SRC_DIR}/include"
       "${FLAGTREE_PROFILER_CSRC_DIR}/include"
   )
 
-  # If HIP is AMD-based
-  target_compile_definitions(${name} PRIVATE __HIP_PLATFORM_AMD__)
+  if(FLAGTREE_PROTON_GPU_RUNTIME)
+    target_include_directories(${name} PRIVATE "${CUPTI_INCLUDE_DIR}")
+  endif()
+
+  target_compile_definitions(${name} PRIVATE
+    FLAGTREE_PROTON_GPU_RUNTIME=$<BOOL:${FLAGTREE_PROTON_GPU_RUNTIME}>)
+  if(FLAGTREE_PROTON_GPU_RUNTIME)
+    # If HIP is AMD-based.
+    target_compile_definitions(${name} PRIVATE __HIP_PLATFORM_AMD__)
+  endif()
 
   # Append this library name to the GLOBAL property "PROTON_LIBS"
   set_property(GLOBAL APPEND PROPERTY PROTON_LIBS ${name})

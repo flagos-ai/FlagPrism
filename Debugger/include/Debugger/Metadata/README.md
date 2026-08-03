@@ -3,7 +3,7 @@
 本目录对应 B 模块：作用域解析与编译期元数据记录。
 负责人：华师。
 
-这个目录就是 B 模块的主要开发目录。B 的公共接口在这里定义，B 的实现入口在 `third_party/FlagTree_DevTools/Debugger/lib/Metadata/`。
+这个目录就是 B 模块的主要开发目录。B 的公共接口在这里定义，B 的实现入口在 `third_party/FlagPrism/Debugger/lib/Metadata/`。
 
 核心文件：
 

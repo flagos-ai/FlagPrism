@@ -57,8 +57,8 @@ _CONFIG_KEYS = frozenset({
     "export_raw_records",
 })
 _DISABLED_BUILD_MESSAGE = (
-    "FlagTree debugger native support is unavailable. Install a flagtree-debugger "
-    "wheel compatible with the installed FlagTree version."
+    "FlagPrism debugger native support is unavailable. Reinstall FlagTree with "
+    "`TRITON_BUILD_FLAGPRISM=ON`."
 )
 
 
@@ -281,7 +281,7 @@ def _render_export_summary(exported_run: dict[str, Any],
     raw_buffer = exported_run.get("raw_buffer", b"")
     raw_size = len(raw_buffer) if hasattr(raw_buffer, "__len__") else 0
     lines = [
-        "FlagTree Debug Export",
+        "FlagPrism Debug Export",
         f"kernel_name: {metadata_dict.get('debug_kernel_name') or metadata_dict.get('name') or '<unknown>'}",
         f"kernel_id: {meta.get('kernel_id', metadata_dict.get('debug_kernel_id', 0))}",
         f"run_id: {meta.get('run_id', '<unknown>')}",
@@ -976,7 +976,7 @@ def prepare_kernel_launch(metadata: Any, stream: int, launch_metadata: Any = Non
     if _launch_prepare_hook is None:
         raise RuntimeError(
             "debug-enabled kernel launch requires "
-            "triton.debugger.register_launch_prepare_hook(...)"
+            "flagtree.debugger.register_launch_prepare_hook(...)"
         )
 
     prepared = _launch_prepare_hook(

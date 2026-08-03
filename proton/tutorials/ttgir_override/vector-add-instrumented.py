@@ -2,8 +2,8 @@ import torch
 
 import triton
 import triton.language as tl
-import triton.profiler.language as pl
-import triton.profiler as proton
+import flagtree.profiler.language as pl
+import flagtree.profiler as proton
 import pathlib
 import os
 

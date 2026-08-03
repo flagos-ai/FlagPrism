@@ -8,8 +8,10 @@
 #include "mlir/Pass/Pass.h"
 #include "mlir/Pass/PassManager.h"
 #include <cstdint>
+#include <iterator>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+#include <stdexcept>
 
 namespace py = pybind11;
 
@@ -34,6 +36,32 @@ void init_flagtree_debugger_compiler(py::module_ &m) {
   m.def("load_dialects", [](MLIRContext &context) {
     loadDebuggerDialect(context);
   });
+  // Store builders return no Python IR value, so the optional plugin owns the
+  // insertion-point lookup instead of extending FlagTree's core IR bindings.
+  m.def(
+      "annotate_statement_operation",
+      [](TritonOpBuilder &builder, const std::string &source,
+         py::object resultName, int32_t statementId) {
+        auto &opBuilder = builder.getBuilder();
+        Block *block = opBuilder.getInsertionBlock();
+        auto insertionPoint = opBuilder.getInsertionPoint();
+        if (!block || insertionPoint == block->begin())
+          throw std::runtime_error(
+              "builder has no previously inserted operation");
+
+        Operation &operation = *std::prev(insertionPoint);
+        if (!source.empty())
+          operation.setAttr("flagtree.debug.triton_statement",
+                            opBuilder.getStringAttr(source));
+        if (!resultName.is_none())
+          operation.setAttr(
+              "flagtree.debug.statement_result_name",
+              opBuilder.getStringAttr(py::cast<std::string>(resultName)));
+        operation.setAttr("flagtree.debug.statement_id",
+                          opBuilder.getI32IntegerAttr(statementId));
+      },
+      py::arg("builder"), py::arg("source"), py::arg("result_name"),
+      py::arg("statement_id"));
   m.def("create_debug_collect_begin",
         [](TritonOpBuilder &builder, int32_t level,
            int32_t addrLevel) -> OpState {

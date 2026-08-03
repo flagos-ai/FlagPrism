@@ -3,7 +3,7 @@ Minimal smoke test for Proton's CANN vendor backend.
 
 Run on the server with:
 
-    python -m pytest -q third_party/FlagTree_DevTools/proton/flagtree_profiler/test/test_cann_smoke.py -s
+    python -m pytest -q third_party/FlagPrism/proton/flagtree_profiler/test/test_cann_smoke.py -s
 
 This test intentionally uses a host-timing fallback op instead of declaring a
 GPU kernel. It validates the public API and artifact/degradation contract before
@@ -22,12 +22,12 @@ from types import SimpleNamespace
 
 import pytest
 import triton.knobs as knobs
-import triton.profiler as proton
+import flagtree.profiler as proton
 from triton.compiler import LazyDict
-from flagtree_profiler.native import runtime_binding
+from flagtree.profiler.native import runtime_binding
 libproton = runtime_binding()
 
-proton_profile = importlib.import_module("triton.profiler.profile")
+proton_profile = importlib.import_module("flagtree.profiler.profile")
 
 
 @pytest.fixture(autouse=True)
@@ -91,7 +91,7 @@ def test_ir_record_buffer_capacity(monkeypatch):
 
 
 def test_ir_record_capacity_is_part_of_cache_mode(monkeypatch):
-    from flagtree_debugger.compiler import apply_compile_options, get_instrumentation_mode
+    from flagtree.debugger.compiler import apply_compile_options, get_instrumentation_mode
 
     monkeypatch.setenv("PROTON_IR_RECORD_BUFFER_MB", "32")
     proton_profile._activate_instrumentation()
@@ -106,7 +106,7 @@ def test_ir_record_capacity_is_part_of_cache_mode(monkeypatch):
 
 
 def test_native_instrumentation_preserves_mode_and_default_hook(monkeypatch):
-    from flagtree_profiler.mode import Default
+    from flagtree.profiler.mode import Default
 
     calls = {}
     mode = Default(buffer_size=256)
@@ -174,7 +174,7 @@ def test_finalize_preserves_data_specific_default_format(monkeypatch):
 @pytest.fixture(scope="session")
 def real_cann_direct_run(tmp_path_factory):
     _require_real_cann_environment()
-    repo = pathlib.Path(__file__).resolve().parents[4]
+    repo = pathlib.Path(__file__).resolve().parents[5]
     out = tmp_path_factory.mktemp("proton_cann_direct_real")
     profile_base = out / "profile"
     msprof_out = out / "msprof"
@@ -184,7 +184,7 @@ def real_cann_direct_run(tmp_path_factory):
     env.setdefault("PROTON_CANN_TRITON_HOOK_LEGACY", "1")
     cmd = [
         sys.executable,
-        str(repo / "third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_operator_profile_suite.py"),
+        str(repo / "third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_operator_profile_suite.py"),
         "--workload",
         "--name",
         str(profile_base),

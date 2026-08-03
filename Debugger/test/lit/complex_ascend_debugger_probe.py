@@ -24,7 +24,7 @@ from types import SimpleNamespace
 import numpy as np
 
 
-ROOT = Path(__file__).resolve().parents[4]
+ROOT = Path(__file__).resolve().parents[5]
 OUT = Path(os.environ.get("FLAGTREE_DEBUGGER_COMPLEX_OUT", "/tmp/flagtree_debugger_complex_e2e"))
 BLOCK_SIZE = 16
 COLLECTOR_NAMES = {
@@ -329,7 +329,7 @@ def run_probe() -> dict:
     make_launcher_no_pch = patch_launcher_build()
 
     import acl
-    from flagtree_debugger.native import runtime_binding
+    from flagtree.debugger.native import runtime_binding
     dbg = runtime_binding()
     assert dbg is not None
     from triton.backends.compiler import GPUTarget

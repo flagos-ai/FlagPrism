@@ -11,8 +11,8 @@
 
 对应公共接口：
 
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Runtime/BufferLayout.h`
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Runtime/TransferEngine.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Runtime/BufferLayout.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Runtime/TransferEngine.h`
 
 实现重点：
 
@@ -26,4 +26,4 @@
 
 需要维护的运行期上下文和动态元数据，见：
 
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Runtime/README.md`
+- `third_party/FlagPrism/Debugger/include/Debugger/Runtime/README.md`

@@ -8,7 +8,7 @@ import json
 import pathlib
 from collections import Counter
 
-import triton.profiler as proton
+import flagtree.profiler as proton
 
 
 def _make_arg_parser() -> argparse.ArgumentParser:

@@ -10,8 +10,8 @@
 
 对应公共接口：
 
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Decode/Decoder.h`
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Decode/Reporter.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Decode/Decoder.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Decode/Reporter.h`
 
 实现重点：
 
@@ -23,4 +23,4 @@
 
 最终需要展示的指标，见：
 
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Decode/README.md`
+- `third_party/FlagPrism/Debugger/include/Debugger/Decode/README.md`

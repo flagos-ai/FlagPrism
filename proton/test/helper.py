@@ -1,4 +1,4 @@
-import triton.profiler as proton
+import flagtree.profiler as proton
 
 import torch
 import sys

@@ -8,7 +8,7 @@ the FlagGems checkout untouched and imports it from source.
 
 Example:
 
-    python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_flaggems_profile_suite.py \
+    python third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_flaggems_profile_suite.py \
       --out /tmp/proton_cann_flaggems_full \
       --clean
 """
@@ -299,7 +299,7 @@ def _jsonable(value: Any) -> Any:
 
 
 def _flagtree_python_build_path() -> pathlib.Path | None:
-    repo_root = pathlib.Path(__file__).resolve().parents[4]
+    repo_root = pathlib.Path(__file__).resolve().parents[5]
     build_root = repo_root / "python" / "build"
     if not build_root.exists():
         return None
@@ -378,8 +378,8 @@ def _worker_main(args: argparse.Namespace) -> int:
         _prepare_worker_imports(case_path, args.device)
 
         if args.phase == "profiled":
-            import triton.profiler as proton
-            from flagtree_profiler.native import runtime_binding
+            import flagtree.profiler as proton
+            from flagtree.profiler.native import runtime_binding
             libproton = runtime_binding()
 
             mode = (

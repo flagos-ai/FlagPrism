@@ -4,7 +4,7 @@
 This script is intended to be launched by external msprof, for example:
 
     msprof --msproftx=on --output=/tmp/proton_cann_real/msprof \
-      python third_party/FlagTree_DevTools/proton/flagtree_profiler/scripts/cann_real_npu_workload.py \
+      python third_party/FlagPrism/proton/flagtree_profiler/scripts/cann_real_npu_workload.py \
         --name /tmp/proton_cann_real/profile_run \
         --vendor-output /tmp/proton_cann_real/msprof
 
@@ -24,8 +24,8 @@ import time
 
 import triton
 import triton.language as tl
-import triton.profiler as proton
-from flagtree_profiler.native import runtime_binding
+import flagtree.profiler as proton
+from flagtree.profiler.native import runtime_binding
 libproton = runtime_binding()
 
 

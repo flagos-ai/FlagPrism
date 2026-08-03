@@ -134,7 +134,7 @@ int runLifecycleSmokeTest(mlir::flagtree::debugger::TransferEngine &engine) {
     message += recent;
     message += "\"";
   }
-  std::fprintf(stderr, "FlagTree debugger runtime smoke test failed: %s\n",
+  std::fprintf(stderr, "FlagPrism debugger runtime smoke test failed: %s\n",
                message.c_str());
   std::exit(250);
 }

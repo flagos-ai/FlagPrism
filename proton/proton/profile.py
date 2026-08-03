@@ -50,7 +50,7 @@ def _mode_with_ir_triton_overrides(mode: Optional[str]) -> str:
 
 
 def _set_instrumentation_mode(value: str) -> None:
-    from flagtree_debugger.compiler import set_instrumentation_mode
+    from flagtree.debugger.compiler import set_instrumentation_mode
 
     set_instrumentation_mode(value)
 
@@ -64,7 +64,7 @@ def _instrumentation_record_capacity() -> int:
 
 
 def _activate_instrumentation() -> None:
-    import triton.debugger as debugger
+    import flagtree.debugger as debugger
 
     record_capacity = _instrumentation_record_capacity()
     debugger.clear_exported_runs()
@@ -78,15 +78,15 @@ def _activate_instrumentation() -> None:
 
 
 def _deactivate_instrumentation() -> None:
-    import triton.debugger as debugger
+    import flagtree.debugger as debugger
 
     debugger.deactivate()
     _set_instrumentation_mode("")
 
 
 def _take_instrumentation_runs() -> list[dict]:
-    import triton.debugger as debugger
-    from flagtree_debugger.runtime import default_debug_collect_runtime
+    import flagtree.debugger as debugger
+    from flagtree.debugger.runtime import default_debug_collect_runtime
 
     runs = list(debugger.take_exported_runs())
     runtime_runs = default_debug_collect_runtime.take_exported_runs()

@@ -4,9 +4,12 @@
 #include "Data/TraceData.h"
 #include "Data/TreeData.h"
 #include "Device.h"
+#include "Profiler/Profiler.h"
+#if FLAGTREE_PROTON_GPU_RUNTIME
 #include "Profiler/Cupti/CuptiProfiler.h"
 #include "Profiler/Instrumentation/InstrumentationProfiler.h"
 #include "Profiler/Roctracer/RoctracerProfiler.h"
+#endif
 #include "Profiler/Vendor/Adapter.h"
 #include "Utility/String.h"
 #include "nlohmann/json.hpp"
@@ -29,6 +32,7 @@ namespace {
 Profiler *getProfiler(const std::string &profilerName,
                       const std::string &profilerPath,
                       const std::string &mode) {
+#if FLAGTREE_PROTON_GPU_RUNTIME
   if (proton::toLower(profilerName) == "cupti") {
     auto *profiler = &CuptiProfiler::instance();
     profiler->setLibPath(profilerPath);
@@ -46,6 +50,7 @@ Profiler *getProfiler(const std::string &profilerName,
     return InstrumentationProfiler::instance().setMode(
         proton::split(mode, ":"));
   }
+#endif
   throw std::runtime_error("Unknown profiler: " + profilerName);
 }
 

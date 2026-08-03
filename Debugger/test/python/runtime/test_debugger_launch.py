@@ -7,10 +7,10 @@ from types import SimpleNamespace
 import pytest
 import triton
 
-from flagtree_debugger import api as debugger
+from flagtree.debugger import api as debugger
 
 
-ROOT = Path(__file__).resolve().parents[5]
+ROOT = Path(__file__).resolve().parents[6]
 
 
 def _reset_debugger_state():
@@ -469,7 +469,7 @@ def test_default_prepare_hook_writes_timestamped_report(tmp_path, monkeypatch):
             report_path.name,
         )
         text = report_path.read_text()
-        assert "FlagTree Debug Export" in text
+        assert "FlagPrism Debug Export" in text
         assert "kernel_name: debug_kernel" in text
         assert "raw_buffer_bytes: 4" in text
         assert "Decoded Header" in text

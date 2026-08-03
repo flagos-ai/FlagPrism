@@ -10,8 +10,8 @@
 
 对应公共接口：
 
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Metadata/Passes.h`
-- `third_party/FlagTree_DevTools/Debugger/include/Debugger/Metadata/TrackedOpTable.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Metadata/Passes.h`
+- `third_party/FlagPrism/Debugger/include/Debugger/Metadata/TrackedOpTable.h`
 
 实现重点：
 

@@ -50,7 +50,7 @@ uint32_t saturatingU32(uint64_t value) {
 }
 
 [[noreturn]] void failRuntime(const std::string &message) {
-  std::fprintf(stderr, "FlagTree debugger runtime fatal error: %s\n",
+  std::fprintf(stderr, "FlagPrism debugger runtime fatal error: %s\n",
                message.c_str());
   std::abort();
 }

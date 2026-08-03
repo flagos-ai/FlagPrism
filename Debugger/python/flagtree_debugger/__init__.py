@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import sys
-from importlib import metadata
+from triton import __version__
+from triton._flagprism import register_component
 
 from . import compiler as _compiler_module
 from . import native as _native_module
@@ -10,21 +10,11 @@ from .api import *  # noqa: F403
 from .api import __all__
 
 
-try:
-    __version__ = metadata.version("flagtree-debugger")
-except metadata.PackageNotFoundError:
-    __version__ = "0.1.0"
-
-
 class _DebuggerComponent:
     name = "debugger"
     api_version = 1
     version = __version__
     core_version_series = "3.5"
-
-    @staticmethod
-    def module():
-        return sys.modules[__name__]
 
     @staticmethod
     def load_dialects(context) -> None:
@@ -62,4 +52,15 @@ class _DebuggerComponent:
 
         return debug_collect_end(semantic)
 
-component = _DebuggerComponent()
+    @staticmethod
+    def ascend_launch_context(
+        metadata, grid, stream, launch_metadata=None, kernel_args=None
+    ):
+        from .api import ascend_launch_context
+
+        return ascend_launch_context(
+            metadata, grid, stream, launch_metadata, kernel_args
+        )
+
+
+component = register_component("debugger", _DebuggerComponent())

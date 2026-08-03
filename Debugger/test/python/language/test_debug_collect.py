@@ -1,6 +1,6 @@
 import triton
 import triton.language as tl
-from flagtree_debugger.native import compiler_binding
+from flagtree.debugger.native import compiler_binding
 from triton.backends.compiler import GPUTarget
 from triton.compiler import ASTSource
 from triton._C.libtriton import ir, passes
@@ -48,6 +48,12 @@ def _run_pm(pm, mod):
         pm.run(mod, "test_debug_collect")
     except TypeError:
         pm.run(mod)
+
+
+def test_statement_operation_annotation_is_component_owned():
+    assert callable(getattr(fd, "annotate_statement_operation", None))
+    assert not hasattr(ir.builder, "get_last_op")
+    assert not hasattr(ir.operation, "set_attr")
 
 
 def test_debug_collect_markers_stripped_from_persisted_ttir():
@@ -110,6 +116,8 @@ def test_debug_compile_metadata_keys():
     store = _find_tracked_op(md.debug_tracked_table, "store")
     assert load["mlirOpName"] == "tt.load"
     assert store["mlirOpName"] == "tt.store"
+    assert load["tritonStatement"] == "x = tl.load(x_ptr + offsets)"
+    assert store["tritonStatement"] == "tl.store(x_ptr + offsets, x)"
     for row in (load, store):
         assert row["isMemoryOp"] is True
         assert row["opCategory"] == row["accessType"]
@@ -257,7 +265,7 @@ def test_debug_collect_records_outer_reduce_not_combiner_body(tmp_path):
 
 
 def test_debug_collect_tensor_pointer_ops_are_metadata_only(tmp_path):
-    from flagtree_debugger.compiler import run_ttir_debug_passes_if_needed
+    from flagtree.debugger.compiler import run_ttir_debug_passes_if_needed
 
     ctx = ir.context()
     ir.load_dialects(ctx)

@@ -132,7 +132,7 @@ function(flagtree_debugger_enable_cann target)
 
   if(FLAGTREE_DEBUGGER_CANN_FOUND)
     message(STATUS
-      "FlagTree Debugger: enabling CANN runtime for ${target} "
+      "FlagPrism Debugger: enabling CANN runtime for ${target} "
       "(${FLAGTREE_DEBUGGER_CANN_RESOLVED_ROOT})")
     target_compile_definitions(${target}
       PRIVATE
@@ -166,7 +166,7 @@ function(flagtree_debugger_enable_cann target)
     endif()
   else()
     message(STATUS
-      "FlagTree Debugger: CANN runtime not found for ${target}, "
+      "FlagPrism Debugger: CANN runtime not found for ${target}, "
       "building stub CANN adapter")
     target_compile_definitions(${target}
       PRIVATE

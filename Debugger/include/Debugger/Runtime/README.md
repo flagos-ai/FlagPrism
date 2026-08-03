@@ -3,7 +3,7 @@
 本目录对应 F 模块：缓冲与数据异步导出。
 负责人：闫明。
 
-这个目录就是 F 模块的主要开发目录。F 的公共接口在这里定义，F 的实现入口在 `third_party/FlagTree_DevTools/Debugger/lib/Runtime/`。
+这个目录就是 F 模块的主要开发目录。F 的公共接口在这里定义，F 的实现入口在 `third_party/FlagPrism/Debugger/lib/Runtime/`。
 
 核心文件：
 
@@ -89,6 +89,6 @@
 
 独立开发：
 
-- 可以直接在 `third_party/FlagTree_DevTools/Debugger/lib/Runtime/` 目录单独配置和构建 F 模块
-- 独立构建入口：`third_party/FlagTree_DevTools/Debugger/lib/Runtime/CMakeLists.txt`
+- 可以直接在 `third_party/FlagPrism/Debugger/lib/Runtime/` 目录单独配置和构建 F 模块
+- 独立构建入口：`third_party/FlagPrism/Debugger/lib/Runtime/CMakeLists.txt`
 - standalone 目标：`FlagTreeDebuggerRuntimeStandalone`

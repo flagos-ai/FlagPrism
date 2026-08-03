@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect and run FlagGems pytest nodes under the FlagTree debugger.
+"""Collect and run FlagGems pytest nodes under the FlagPrism debugger.
 
 This module is shared by the direct-case and saved-sample regression runners.
 It keeps each pytest node isolated and records progress after every invocation.
@@ -306,7 +306,7 @@ platform.python_implementation = lambda: "CPython"
 platform.python_version = lambda: "3.11.15"
 platform.python_version_tuple = lambda: ("3", "11", "15")
 
-import triton.debugger as debugger
+import flagtree.debugger as debugger
 import triton
 import pytest
 

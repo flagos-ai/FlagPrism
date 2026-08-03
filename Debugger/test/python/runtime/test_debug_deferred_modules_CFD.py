@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 
 
-ROOT = Path(__file__).resolve().parents[5]
+DEBUGGER_ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[6]
 TRITON_OPT = ROOT / "python" / "build" / "cmake.linux-aarch64-cpython-3.11" / "bin" / "triton-opt"
 
 
@@ -194,7 +195,7 @@ def _run_triton_opt(input_file: str, *args: str) -> str:
     result = subprocess.run(
         [
             str(TRITON_OPT),
-            str(ROOT / "third_party" / "Debugger" / "test" / "lit" / input_file),
+            str(DEBUGGER_ROOT / "test" / "lit" / input_file),
             *args,
         ],
         cwd=ROOT,
@@ -218,7 +219,7 @@ def _compile_design_example_with_hidden_debug_arg(monkeypatch):
 
     sys.path.insert(
         0,
-        str(ROOT / "third_party" / "Debugger" / "test" / "python" / "language"),
+        str(DEBUGGER_ROOT / "test" / "python" / "language"),
     )
     design_module = importlib.import_module("test_module_a_design_example_ir_flag")
     kernel = design_module._design_debug_kernel
@@ -269,7 +270,7 @@ def _compile_design_example_with_hidden_debug_arg(monkeypatch):
     else:
         backend.add_stages(stages, options)
     current = stages["ttir"](current, metadata)
-    from triton._components import run_compiler_hook
+    from triton._flagprism import run_compiler_hook
 
     run_compiler_hook("ttir.post_optimization", current, metadata)
     ttir = str(current)
@@ -392,7 +393,7 @@ def test_module_c_doc_example_instrumented_ir():
 
 
 def test_module_f_exported_buffer_decodes_through_module_d():
-    from flagtree_debugger.native import runtime_binding
+    from flagtree.debugger.native import runtime_binding
     dbg = runtime_binding()
     assert dbg is not None
 
@@ -421,7 +422,7 @@ def test_module_f_exported_buffer_decodes_through_module_d():
 
 
 def test_module_d_decodes_summary_record_and_exports_text_report():
-    from flagtree_debugger.native import runtime_binding
+    from flagtree.debugger.native import runtime_binding
     dbg = runtime_binding()
     assert dbg is not None
 
@@ -466,7 +467,7 @@ def test_module_d_decodes_summary_record_and_exports_text_report():
 
 
 def test_module_f_cann_export_decodes_to_module_d_report_for_doc_example():
-    from flagtree_debugger.native import runtime_binding
+    from flagtree.debugger.native import runtime_binding
     dbg = runtime_binding()
     assert dbg is not None
 
@@ -524,7 +525,7 @@ def test_module_f_cann_export_decodes_to_module_d_report_for_doc_example():
 
 
 def test_compiled_design_example_instrumented_ir_exports_final_debugger_report(monkeypatch):
-    from flagtree_debugger.native import runtime_binding
+    from flagtree.debugger.native import runtime_binding
     dbg = runtime_binding()
     assert dbg is not None
 

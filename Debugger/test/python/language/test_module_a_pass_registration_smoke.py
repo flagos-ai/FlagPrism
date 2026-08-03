@@ -17,7 +17,7 @@ __doc__ = _mad.extend_doc(__doc__)
 
 import pytest
 
-from flagtree_debugger.native import compiler_binding
+from flagtree.debugger.native import compiler_binding
 
 
 fd = compiler_binding()

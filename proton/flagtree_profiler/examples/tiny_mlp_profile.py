@@ -7,7 +7,7 @@
 运行：
 
     cd /workspace/FlagTree
-    python3 third_party/FlagTree_DevTools/proton/flagtree_profiler/examples/tiny_mlp_profile.py
+    python3 third_party/FlagPrism/proton/flagtree_profiler/examples/tiny_mlp_profile.py
 
 输出文件：
 
@@ -48,7 +48,7 @@ import shutil
 
 import triton
 import triton.language as tl
-import triton.profiler as proton
+import flagtree.profiler as proton
 
 
 @triton.jit

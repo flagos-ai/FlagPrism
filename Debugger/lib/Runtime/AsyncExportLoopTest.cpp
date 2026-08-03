@@ -40,7 +40,7 @@ int readEnvInt(const char *name, int fallback) {
     message += "\"";
   }
   std::fprintf(stderr,
-               "FlagTree debugger async export loop test failed: %s\n",
+               "FlagPrism debugger async export loop test failed: %s\n",
                message.c_str());
   std::exit(250);
 }
@@ -160,7 +160,7 @@ int runCannAsyncExportLoopTest() {
 
   if (!ctx.deviceCtrlPtr || !ctx.hostBufferPtr || ctx.bufferSize == 0) {
     std::fprintf(stderr,
-                 "FlagTree debugger async export loop test failed: invalid "
+                 "FlagPrism debugger async export loop test failed: invalid "
                  "launch context\n");
     return 1;
   }
@@ -275,7 +275,7 @@ int runCannAsyncExportLoopTest() {
 
   const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
       end - start);
-  std::cout << "FlagTree debugger async export loop passed\n";
+  std::cout << "FlagPrism debugger async export loop passed\n";
   std::cout << "device=" << deviceId << "\n";
   std::cout << "iterations=" << iterations << "\n";
   std::cout << "records_per_iteration=" << recordsPerIteration << "\n";
@@ -293,7 +293,7 @@ int main() {
   return runCannAsyncExportLoopTest();
 #else
   std::fprintf(stderr,
-               "FlagTree debugger async export loop test requires CANN runtime "
+               "FlagPrism debugger async export loop test requires CANN runtime "
                "support in this build\n");
   return 200;
 #endif

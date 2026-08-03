@@ -14,11 +14,11 @@ import pathlib
 import shutil
 import sys
 
-import triton.profiler as proton
+import flagtree.profiler as proton
 
 
 def _repo_root() -> pathlib.Path:
-    return pathlib.Path(__file__).resolve().parents[4]
+    return pathlib.Path(__file__).resolve().parents[5]
 
 
 def _load_torch():

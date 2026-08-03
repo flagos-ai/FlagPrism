@@ -1122,7 +1122,7 @@ except Exception:
     torch_npu = None
 
 import triton
-import triton.debugger as debugger
+import flagtree.debugger as debugger
 import flag_gems
 
 

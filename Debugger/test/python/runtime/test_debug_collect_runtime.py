@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 def test_debug_collect_runtime_uses_flagtree_backend_for_backend_name(monkeypatch):
-    from flagtree_debugger.runtime import DebugCollectRuntime
+    from flagtree.debugger.runtime import DebugCollectRuntime
 
     monkeypatch.setenv("FLAGTREE_BACKEND", "ascend")
     metadata = {
@@ -20,7 +20,7 @@ def test_debug_collect_runtime_uses_flagtree_backend_for_backend_name(monkeypatc
 
 
 def test_debug_collect_runtime_does_not_infer_backend_from_npu_target(monkeypatch):
-    from flagtree_debugger.runtime import DebugCollectRuntime
+    from flagtree.debugger.runtime import DebugCollectRuntime
 
     monkeypatch.delenv("FLAGTREE_BACKEND", raising=False)
     metadata = {
@@ -32,7 +32,7 @@ def test_debug_collect_runtime_does_not_infer_backend_from_npu_target(monkeypatc
 
 
 def test_debug_collect_runtime_prepare_export_decodes_header():
-    from flagtree_debugger.runtime import default_debug_collect_runtime
+    from flagtree.debugger.runtime import default_debug_collect_runtime
 
     md = SimpleNamespace()
     md.debug_kernel_id = 7
@@ -70,7 +70,7 @@ def test_debug_collect_runtime_prepare_export_decodes_header():
 
 
 def test_debugger_binding_decodes_and_reports_summary_record():
-    from flagtree_debugger.native import runtime_binding
+    from flagtree.debugger.native import runtime_binding
     dbg = runtime_binding()
     assert dbg is not None
 
@@ -119,7 +119,7 @@ def test_debugger_binding_decodes_and_reports_summary_record():
 
 
 def test_debugger_binding_decodes_deterministic_compact_bundle_records():
-    from flagtree_debugger.native import runtime_binding
+    from flagtree.debugger.native import runtime_binding
     dbg = runtime_binding()
     assert dbg is not None
 
@@ -187,7 +187,7 @@ def test_debugger_binding_decodes_deterministic_compact_bundle_records():
 
 
 def test_debugger_binding_decodes_deterministic_compact_timeline_record():
-    from flagtree_debugger.native import runtime_binding
+    from flagtree.debugger.native import runtime_binding
     dbg = runtime_binding()
     assert dbg is not None
 
@@ -297,16 +297,16 @@ def test_ascend_spec_jit_applies_instrumentation_mode_to_compile_options(
     monkeypatch.setitem(sys.modules, spec.name, ascend_jit)
     spec.loader.exec_module(ascend_jit)
 
-    from flagtree_debugger.compiler import set_instrumentation_mode
+    from flagtree.debugger.compiler import set_instrumentation_mode
 
     set_instrumentation_mode("debugger")
     try:
         kwargs = {}
-        ascend_jit._components.apply_compile_options(kwargs)
+        ascend_jit._flagprism.apply_compile_options(kwargs)
         assert kwargs["instrumentation_mode"].startswith("debugger|")
 
         explicit = {"instrumentation_mode": "custom"}
-        ascend_jit._components.apply_compile_options(explicit)
+        ascend_jit._flagprism.apply_compile_options(explicit)
         assert explicit == {"instrumentation_mode": "custom"}
     finally:
         set_instrumentation_mode("")

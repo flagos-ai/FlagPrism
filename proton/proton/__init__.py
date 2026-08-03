@@ -1,8 +1,8 @@
 # ruff: noqa
 from __future__ import annotations
 
-import sys
-from importlib import metadata
+from triton import __version__
+from triton._flagprism import register_component
 
 from .scope import scope, cpu_timed_scope, enter_scope, exit_scope
 from .state import state, enter_state, exit_state
@@ -16,11 +16,6 @@ from .profile import (
 )
 from . import context, specs, mode
 
-
-try:
-    __version__ = metadata.version("flagtree-profiler")
-except metadata.PackageNotFoundError:
-    __version__ = "0.1.0"
 
 __all__ = (
     "DEFAULT_PROFILE_NAME",
@@ -49,13 +44,9 @@ class _ProfilerComponent:
     core_version_series = "3.5"
 
     @staticmethod
-    def module():
-        return sys.modules[__name__]
-
-    @staticmethod
     def load_dialects(context) -> None:
         from .native import compiler_binding
 
         compiler_binding().load_dialects(context)
 
-component = _ProfilerComponent()
+component = register_component("profiler", _ProfilerComponent())

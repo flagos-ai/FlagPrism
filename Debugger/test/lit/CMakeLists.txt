@@ -15,7 +15,7 @@ set(LIT_ARGS "-Dfilecheck=${FILECHECK_PATH}")
 
 add_lit_testsuite(
   check-flagtree-debugger-lit-tests
-  "Running the FlagTree debugger regression tests"
+  "Running the FlagPrism debugger regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}
   ARGS ${LIT_ARGS}
   DEPENDS ${FLAGTREE_DEBUGGER_LIT_DEPENDS}

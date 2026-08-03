@@ -1,8 +1,8 @@
 import pathlib
 import pytest
 
-from flagtree_profiler.native import runtime_binding
-from triton.profiler.profile import _select_backend
+from flagtree.profiler.native import runtime_binding
+from flagtree.profiler.profile import _select_backend
 
 libproton = runtime_binding()
 
