@@ -15,7 +15,7 @@
 - 读取 F 导出的原始字节流。
 - 按 `Protocol.h` 的布局解码 record。
 - 用 `BufferMeta + DebugRuntimeMetadata + KernelDebugMetadata / TrackedOpTable` 恢复语义。
-- 输出最终文本报告或后续结构化报告。
+- 输出 statement/op-log 文本报告、JSON 报告及 Level 2 artifact 关联信息。
 
 上游输入：
 
@@ -37,7 +37,7 @@
 - `source_loc`
 - `triton_statement`
 - `mlir_op_name`
-- `dtype / shape / stride / layout`
+- `dtype / shape`，以及 metadata 中实际存在的 compiler layout 信息
 - `addrSpace`
 - `accessType`
 - `accessBytes`
@@ -70,8 +70,8 @@
 - 语义类：
   - `dtype_in / dtype_out`
   - `shape`
-  - `stride`
-  - `layout`
+  - `stride / layout`（当前 TTIR SSA value 常为 `unknown`，不是 runtime tensor
+    stride/layout）
   - `addr_space`
   - `access_type`
   - `access_bytes`
@@ -89,21 +89,21 @@
 	  - `denom_near_zero_count`（敏感 op 后续扩展）
 	  - `neg_sqrt_count`（敏感 op 后续扩展）
 - 内存类：
-  - `LAST_ALIGNED_ADDR`
-  - `BASE_ALIGNED_ADDR`
   - `FIRST_ADDR`
   - `LAST_ADDR`
   - `MIN_ADDR`
   - `MAX_ADDR`
   - `ACTIVE_LANE_COUNT`
   - `ADDRESS_SPAN_BYTES`
-  - `alignment_ok`
-  - `offset`
-  - 局部地址快照
+  - fallback 时的 `LAST_ALIGNED_ADDR / BASE_ALIGNED_ADDR`
 - 动态实例类：
-  - launch 期 tensor `shape / stride / layout`
+  - launch 期 tensor `shape / stride / layout`（runtime registry 已定义，当前
+    Python 默认 launch path 尚未自动填充）
   - `bufferId`
   - buffer 边界信息
+
+`alignment_ok`、buffer-relative offset、局部地址窗口、warp id 和异常 lane 聚类
+尚未进入当前协议或默认报告，不能作为已采集指标展示。
 
 报告格式：
 
@@ -112,6 +112,11 @@
 - 语句级文本报告用 `[result x]` 标注当前语句结果，用 `<operand x>` 标注参数；
   若 operand 来自前序 result，则只输出 `<operand x>: [result x]` 引用。重名
   result 会按出现顺序标成 `[result x:001]`、`[result x:002]`。
+- Level 2 artifact 能关联到 statement value/access 时，statement 文本把
+  `full_value_file` 紧跟在对应 `summary` 后，把 `memory_address_file` 紧跟在
+  对应 `address_summary(load from/store to)` 后，并只显示相对于
+  `_artifacts/` 的文件名。所有 artifact 以 `tensor_index.json` 和 op log 为
+  完整索引。
 - IR op 级动态记录单独放在 `IR Op Log Records` 视图中，并在自动导出时
   写入同 stem 的 `_op_log.txt` / `_op_log.json` 文件；JSON 中对应字段名为
   `op_log`。
@@ -145,3 +150,4 @@
 
 - `decodeExportedRun()`
 - `renderTextReport()`
+- `renderJsonReport()`

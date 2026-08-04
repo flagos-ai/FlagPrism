@@ -12,9 +12,18 @@ from .api import __all__
 
 class _DebuggerComponent:
     name = "debugger"
-    api_version = 1
+    api_version = (2, 0)
     version = __version__
-    core_version_series = "3.5"
+    required_capabilities = frozenset(
+        {
+            "compiler.dialects.v1",
+            "compiler.events.v1",
+            "compiler.options.v1",
+            "frontend.statement_events.v1",
+            "language.debug_collect.v1",
+            "runtime.launch_context.v1",
+        }
+    )
 
     @staticmethod
     def load_dialects(context) -> None:
@@ -23,10 +32,10 @@ class _DebuggerComponent:
         load_dialects(context)
 
     @staticmethod
-    def run_compiler_hook(stage: str, module, metadata: dict) -> None:
-        from .compiler import run_compiler_hook
+    def on_compiler_event(event) -> None:
+        from .compiler import run_compiler_event
 
-        run_compiler_hook(stage, module, metadata)
+        run_compiler_event(event)
 
     @staticmethod
     def apply_compile_options(options: dict) -> None:
@@ -35,10 +44,10 @@ class _DebuggerComponent:
         apply_compile_options(options)
 
     @staticmethod
-    def annotate_statement(kind, generator, node, target, value) -> None:
+    def on_statement_event(event) -> None:
         from .statement import annotate_statement
 
-        annotate_statement(kind, generator, node, target, value)
+        annotate_statement(event)
 
     @staticmethod
     def debug_collect_start(semantic, level, addr_level):
@@ -53,13 +62,16 @@ class _DebuggerComponent:
         return debug_collect_end(semantic)
 
     @staticmethod
-    def ascend_launch_context(
-        metadata, grid, stream, launch_metadata=None, kernel_args=None
-    ):
-        from .api import ascend_launch_context
+    def launch_context(event):
+        from .api import launch_context
 
-        return ascend_launch_context(
-            metadata, grid, stream, launch_metadata, kernel_args
+        return launch_context(
+            event.backend,
+            event.metadata,
+            event.grid,
+            event.stream,
+            event.launch_metadata,
+            event.kernel_args,
         )
 
 

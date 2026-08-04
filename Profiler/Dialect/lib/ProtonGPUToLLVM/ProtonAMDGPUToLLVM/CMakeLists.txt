@@ -1,0 +1,22 @@
+if(FLAGPRISM_FLAGTREE_SOURCE_DIR)
+  # FlagPrism provides an unambiguous parent-tree root for bundled builds.
+  include_directories(${FLAGPRISM_FLAGTREE_SOURCE_DIR}/third_party/amd/include)
+elseif(FLAGTREE_SOURCE_DIR)
+  include_directories(${FLAGTREE_SOURCE_DIR}/third_party/amd/include)
+else()
+  include_directories(${PROJECT_SOURCE_DIR}/third_party/amd/include)
+endif()
+
+add_triton_library(ProtonAMDGPUToLLVM
+    TargetInfo.cpp
+    AMDPatternProtonGPUOpToLLVM.cpp
+    AddSchedBarriers.cpp
+    ConvertProtonGPUToLLVM.cpp
+
+    DEPENDS
+    ProtonAMDGPUConversionPassIncGen
+
+    LINK_LIBS PUBLIC
+    ProtonGPUToLLVM
+    TritonAMDGPUToLLVM
+)

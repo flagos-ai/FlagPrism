@@ -1,0 +1,6 @@
+build/
+flagtree_profiler.egg-info/
+python/flagtree_profiler/_native*.so
+
+*.hatchet
+*.chrome_trace

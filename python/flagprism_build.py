@@ -14,19 +14,9 @@ def _check_env_flag(name: str, default: str = "") -> bool:
 
 
 def _flagprism_enabled(default: bool = True) -> bool:
-    names = (
-        "TRITON_BUILD_FLAGPRISM",
-        "TRITON_BUILD_DEVTOOLS",
-        "TRITON_BUILD_PROTON",
+    return _check_env_flag(
+        "TRITON_BUILD_FLAGPRISM", "ON" if default else "OFF"
     )
-    values = {_check_env_flag(name) for name in names if name in os.environ}
-    if len(values) > 1:
-        raise RuntimeError(
-            "FlagPrism components cannot be enabled independently. Set "
-            "TRITON_BUILD_FLAGPRISM=ON for the combined tools build or OFF "
-            "for a core-only build."
-        )
-    return values.pop() if values else default
 
 
 @dataclass(frozen=True)
@@ -53,8 +43,8 @@ class FlagPrismBuildConfig:
                 self.root / "Debugger" / "python" / "flagtree_debugger" / "__init__.py",
                 self.root / "Debugger" / "python" / "flagtree_debugger" / "language.py",
                 self.root / "Debugger" / "python" / "flagtree_debugger" / "statement.py",
-                self.root / "proton" / "CMakeLists.txt",
-                self.root / "proton" / "proton" / "__init__.py",
+                self.root / "Profiler" / "CMakeLists.txt",
+                self.root / "Profiler" / "python" / "flagtree_profiler" / "__init__.py",
             ))
         missing = [
             str(self.relative_root / path.relative_to(self.root))
@@ -123,12 +113,17 @@ class FlagPrismBuildConfig:
                 artifact.unlink(missing_ok=True)
             return
 
-        expected_native = "libproton" + (
+        for artifact in (triton_root / "_C").glob("libproton*"):
+            artifact.unlink(missing_ok=True)
+
+        expected_native = "_native" + (
             sysconfig.get_config_var("EXT_SUFFIX") or ".so"
         )
-        for artifact in (triton_root / "_C").glob("libproton*"):
-            if artifact.name != expected_native:
-                artifact.unlink(missing_ok=True)
+        native_path = flagtree_root / "profiler" / expected_native
+        if not native_path.is_file():
+            raise RuntimeError(
+                f"FlagTree Profiler native module was not built: {native_path}"
+            )
 
     def package_dirs(self) -> tuple[tuple[str, str], ...]:
         if not self.enabled:
@@ -140,11 +135,11 @@ class FlagPrismBuildConfig:
             ),
             (
                 "flagtree.profiler",
-                str(self.relative_root / "proton" / "proton"),
+                str(self.relative_root / "Profiler" / "python" / "flagtree_profiler"),
             ),
             (
                 "flagtree.profiler.hooks",
-                str(self.relative_root / "proton" / "proton" / "hooks"),
+                str(self.relative_root / "Profiler" / "python" / "flagtree_profiler" / "hooks"),
             ),
         )
 
@@ -155,8 +150,8 @@ class FlagPrismBuildConfig:
         if not self.enabled:
             return []
         return [
-            "proton = flagtree.profiler.proton:main",
-            "proton-viewer = flagtree.profiler.viewer:main",
+            "flagtree-profiler = flagtree.profiler.cli:main",
+            "flagtree-profiler-viewer = flagtree.profiler.viewer:main",
         ]
 
 

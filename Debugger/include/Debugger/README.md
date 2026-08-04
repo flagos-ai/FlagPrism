@@ -3,15 +3,15 @@
 `third_party/FlagPrism/Debugger/include/Debugger` 目录保存 debugger 的公共契约。这里定义的是跨模块都要遵守的接口，而不是某个人的临时实现。
 
 这些头文件由 FlagTree 主 CMake graph 从 FlagPrism submodule 编译。Debugger native
-extension 与 `libtriton` 一起写入同一个 FlagTree wheel；主仓库通过
-`triton._flagprism` 的稳定组件接口调用该模块。
+extension 与 `libtriton` 一起写入同一个 FlagTree wheel；主仓库通过 Host API 2.x
+和 capability 驱动的 `triton._flagprism` 组件接口调用该模块。
 
 目录划分：
 
 - `Common/`：统一协议、record 布局、buffer header、运行时主键
 - `Frontend/`：A 模块，Python 前端与 launch/ABI 接线，负责人华师
 - `Metadata/`：B 模块，编译期作用域解析、`op_id` 分配、静态元数据，负责人华师
-- `Instrumentation/`：C 模块，GPU 插桩、summary/memory event 记录，负责人颜臻
+- `Instrumentation/`：C 模块，device 插桩、summary/memory event 记录，负责人颜臻
 - `Runtime/`：F 模块，control block、ring buffer、导出与运行时上下文，负责人闫明
 - `Decode/`：D 模块，解码与报告，负责人玉珏
 
@@ -32,8 +32,9 @@ extension 与 `libtriton` 一起写入同一个 FlagTree wheel；主仓库通过
 Python 调试接口：
 
 Debugger 默认通过 Python 侧接口开启，编译期会进入 debugger instrumentation
-mode，运行期会为 kernel launch 准备 `__debug_ctrl_ptr` hidden arg，并在 kernel
-结束后导出报告。
+mode。只有编译 metadata 明确启用 hidden-argument ABI 的 Ascend/CANN kernel，
+运行期才会为 launch 准备 `__debug_ctrl_ptr`，并在 kernel 结束后同步和导出报告；
+metadata-only kernel 不改变原 launch ABI。
 
 基本用法：
 
@@ -73,6 +74,9 @@ kernel[(grid,)](...)
 passes 和 runtime native binding 会由同一次构建统一打包。编译期 binding 位于
 `triton._C.libtriton.debugger`，runtime binding 位于
 `flagtree.debugger._native`，后者不链接 `libtriton`。
+
+构建只保留两种模式：`TRITON_BUILD_FLAGPRISM=ON` 联合构建 Debugger 和 Profiler，
+`TRITON_BUILD_FLAGPRISM=OFF` 构建不含两个工具 package 的 core-only wheel。
 
 从 host 侧触发容器内完整 rebuild：
 
@@ -129,15 +133,21 @@ python3 -m pip install . --no-build-isolation
   全 true，或形如 `offsets < limit` 的 prefix mask。无法匹配的指针/掩码形态会
   退回到单条 base/last aligned address 事件，保证 debugger 不破坏正常编译。
   新增后端时需要验证或重写
-  `flagtree_debug.capture_memory_address` lowering。`addr_level=2` 预留给 full
-  lane dump，当前未实现时报告不得伪装为已采集。
+  `flagtree_debug.capture_memory_address` lowering。`level=2, addr_level=2` 会在
+  CANN9 支持的 pointer/mask pattern 上额外导出完整 lane address `.npy`；不支持的
+  pattern 在编译期报错，不生成不完整 artifact。
 
 导出文件：
 
 - 默认输出目录：`/tmp/flagtree_debugger_manual`。
 - 主报告文件名包含脚本名、kernel 名、时间戳和 run id，例如
   `test_debug_abs_kernel_aiv_20260617_150006_507_run1.txt`。
-- 主报告默认只包含整理后的 header 和文本报告，不直接 dump decoded raw records。
+- 主 `.txt/.json` 是 Triton statement 视图；同 stem 的
+  `_op_log.txt/.json` 是 IR op 视图。
+- Level 2 额外生成同 stem 的 `_artifacts/`，其中包含 `tensor_index.json` 和
+  value/memory-address `.npy`。statement 文本只显示 artifact 文件名，完整路径
+  由 index 和 Python run metadata 保存。
+- 主报告默认不直接 dump decoded raw records。
 - 需要调试 raw record 时，先使用
   `debugger.configure(export_raw_records=True)`，再在进程初始化阶段
   `debugger.activate(level=1)`，会额外生成
@@ -149,3 +159,6 @@ python3 -m pip install . --no-build-isolation
 cat /tmp/flagtree_debugger_manual/<report-file-stem>.txt
 cat /tmp/flagtree_debugger_manual/<report-file-stem>_raw_records.txt
 ```
+
+用户语义、statement 报告格式、Ascend 运行环境和当前后端边界以
+[`Debugger/README.md`](../../README.md) 为准。

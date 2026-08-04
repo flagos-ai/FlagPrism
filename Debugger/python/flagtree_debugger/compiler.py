@@ -246,13 +246,17 @@ def run_ttadapter_debug_passes_if_needed(mod, metadata: dict) -> None:
     _run_pass_manager(pm, mod, "flagtree_debug_ttadapter")
 
 
-def run_compiler_hook(stage: str, mod, metadata: dict) -> None:
+def run_compiler_event(event) -> None:
+    metadata = event.metadata
     set_instrumentation_mode(str(metadata.get("instrumentation_mode", "")))
-    if stage in {"ttir", "ttir.post_optimization"}:
-        run_ttir_debug_passes_if_needed(mod, metadata)
+    if event.phase == "post_override" and event.ir_kind == "ttir":
+        run_ttir_debug_passes_if_needed(event.module, metadata)
         update_compile_metadata(metadata)
-    elif stage == "ttadapter.pre_serialize":
-        run_ttadapter_debug_passes_if_needed(mod, metadata)
+    elif (
+        event.phase == "pre_backend_serialize"
+        and event.ir_kind == "ttadapter"
+    ):
+        run_ttadapter_debug_passes_if_needed(event.module, metadata)
 
 
 def update_compile_metadata(metadata: dict) -> None:

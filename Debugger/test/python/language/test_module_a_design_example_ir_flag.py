@@ -20,7 +20,7 @@ from triton._C.libtriton import ir
 from triton.backends.compiler import GPUTarget
 from triton.compiler import ASTSource
 from triton.compiler.compiler import make_backend
-from triton._flagprism import run_compiler_hook
+from triton._flagprism import emit_compiler_event
 
 
 fd = compiler_binding()
@@ -58,7 +58,12 @@ def _add_stages(backend, stages, options, source):
 
 def _run_ttir_stage(stages, module, metadata):
     module = stages["ttir"](module, metadata)
-    run_compiler_hook("ttir.post_optimization", module, metadata)
+    emit_compiler_event(
+        phase="post_override",
+        ir_kind="ttir",
+        module=module,
+        metadata=metadata,
+    )
     return module
 
 

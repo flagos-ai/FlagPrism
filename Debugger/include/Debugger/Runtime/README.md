@@ -15,7 +15,7 @@
 - 为一次 debug run 生成 host 侧运行时上下文。
 - 分配并管理 control block / ring buffer。
 - 初始化 `RingBufferHeader`。
-- 返回 `__debug_ctrl_ptr` 的设备地址。
+- 为启用 hidden-argument ABI 的 launch 返回 `__debug_ctrl_ptr` 设备地址。
 - 在 kernel 结束后把原始字节流导出给 D。
 - 维护 runtime tensor / buffer 注册表，供 D 做动态实例解释。
 
@@ -74,9 +74,15 @@
 
 - `DebugBufferPlan.recordSize` 必须和协议 record 尺寸一致。
 - `initHeader()` 负责把 `capacity / recordSize / payloadOffset` 写进 header。
-- `hiddenArg()` 返回的就是 kernel 看到的 `__debug_ctrl_ptr`。
+- 对启用 hidden-argument ABI 的 kernel，`hiddenArg()` 返回 kernel 看到的
+  `__debug_ctrl_ptr`；metadata-only kernel 不调用该路径。
 - `DebugLaunchContext.streamHandle` 用于把 F 的 H2D / D2H 操作和实际 kernel
   launch stream 对齐；A 未接线前允许保持 `0`。
+
+`DebugRuntimeMetadata` 已定义 launch tensor/buffer registry，但当前 Python 默认
+launch path 尚未自动枚举 PyTorch kernel 参数，因此常规报告中的
+`Runtime Inventory` 目前可能显示 `buffers: 0`、`tensors: 0`。调用方可通过
+`runtime_metadata_builder` 填充；自动采集 runtime shape/stride/layout 尚待实现。
 
 真实后端入口：
 

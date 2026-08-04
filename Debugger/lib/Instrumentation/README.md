@@ -23,7 +23,7 @@
 - memory event 插桩
 - full value payload 引用
 - `logical_instance_id` 生成
-- GPU 侧 record 构造
+- device 侧 record 构造
 - 通过 `__debug_ctrl_ptr` 写 ring buffer
 
 需要采集和写入的指标，见：

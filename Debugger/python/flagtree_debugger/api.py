@@ -1006,13 +1006,15 @@ def finalize_prepared_launch(prepared: Optional[PreparedKernelLaunch],
 
 
 @contextmanager
-def ascend_launch_context(
+def launch_context(
+    backend: str,
     metadata: Any,
     grid: Sequence[int],
     stream: int,
     launch_metadata: Any = None,
     kernel_args: Optional[Sequence[Any]] = None,
 ):
+    backend = str(backend or "unknown").lower()
     metadata_dict = _metadata_to_dict(metadata)
     runtime_launch_metadata = _materialize_launch_metadata(launch_metadata)
     runtime_launch_metadata = dict(runtime_launch_metadata or {})
@@ -1032,11 +1034,16 @@ def ascend_launch_context(
         expected = int(has_hidden_arg)
         if len(hidden_args) != expected:
             raise RuntimeError(
-                f"instrumented Ascend kernel requires {expected} debugger hidden "
+                f"instrumented {backend} kernel requires {expected} debugger hidden "
                 f"argument(s), but the debugger prepared {len(hidden_args)}"
             )
         yield hidden_args
         if has_hidden_arg:
+            if backend not in {"ascend", "cann", "npu"}:
+                raise RuntimeError(
+                    f"FlagPrism has no hidden-argument synchronization adapter "
+                    f"for backend {backend!r}"
+                )
             import torch_npu
 
             torch_npu.npu.synchronize()
@@ -1045,6 +1052,19 @@ def ascend_launch_context(
         raise
     finally:
         finalize_prepared_launch(prepared, launch_error)
+
+
+def ascend_launch_context(
+    metadata: Any,
+    grid: Sequence[int],
+    stream: int,
+    launch_metadata: Any = None,
+    kernel_args: Optional[Sequence[Any]] = None,
+):
+    """Compatibility alias for callers predating the generic host gateway."""
+    return launch_context(
+        "ascend", metadata, grid, stream, launch_metadata, kernel_args
+    )
 
 
 __all__ = (
@@ -1062,6 +1082,7 @@ __all__ = (
     "get_output_dir",
     "is_active",
     "is_available",
+    "launch_context",
     "peek_exported_runs",
     "prepare_kernel_launch",
     "prepare_metadata_only_kernel_launch",

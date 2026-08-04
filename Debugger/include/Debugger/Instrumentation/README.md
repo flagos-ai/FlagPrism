@@ -1,6 +1,6 @@
 # Instrumentation
 
-本目录对应 C 模块：GPU 插桩采集。
+本目录对应 C 模块：device 插桩采集。
 负责人：颜臻。
 
 这个目录就是 C 模块的主要开发目录。C 的公共接口在这里定义，C 的实现入口在 `third_party/FlagPrism/Debugger/lib/Instrumentation/`。
@@ -15,8 +15,8 @@
 模块目标：
 
 - 读取 B 输出的 `op_id` 和静态语义。
-- 在 GPU 上对目标 op 做 summary / memory-event 插桩。
-- 在 GPU 上直接构建协议规定的数据块。
+- 在 device 上对目标 op 做 summary / memory-event 插桩。
+- 在 device 上直接构建协议规定的数据块。
 - 通过 `__debug_ctrl_ptr` 把数据块写入 F 管理的 ring buffer。
 
 上游输入：
@@ -72,26 +72,22 @@
 	  - `denom_near_zero_count`（后续扩展）
 	  - `neg_sqrt_count`（后续扩展）
 - 内存侧动态指标：
-  - `LAST_ALIGNED_ADDR`
-  - `BASE_ALIGNED_ADDR`
   - `FIRST_ADDR`
   - `LAST_ADDR`
   - `MIN_ADDR`
   - `MAX_ADDR`
   - `ACTIVE_LANE_COUNT`
   - `ADDRESS_SPAN_BYTES`
-  - `alignment_ok`
-  - `offset`
-  - 局部地址快照
+  - fallback 时的 `LAST_ALIGNED_ADDR / BASE_ALIGNED_ADDR`
 - 执行上下文：
-  - `logical_instance_id`
-  - CTA 级上下文
-  - warp / lane 级上下文
+  - `logical_instance_id`，用于区分 program instance
 - 全量值导出相关：
   - `payloadOffset`
   - `payloadLength`
-  - 输入/输出切片
-  - 关键中间结果窗口
+  - 支持的 statement result/operand value 与 memory lane address
+
+尚未采集的指标包括显式 warp id、异常 lane 聚类、`alignment_ok`、通用 address
+offset 和局部地址窗口；这些字段不得在报告中伪装为当前结果。
 
 说明：
 
@@ -99,7 +95,8 @@
 - 当前 device summary lowering 会先把浮点值转成 f32 后统计；f64 精度敏感场景
   需要后续 dtype-preserving collector 路径。
 - 内存地址动态采集由 `addr_level` 单独控制：`0` 不插入动态地址记录，仅保留静态
-  memory metadata；`1` 插入地址 summary 记录；`2` 预留给 full lane dump。
+  memory metadata；`1` 插入地址 summary 记录；`level=2, addr_level=2` 在后端
+  支持当前 pointer/mask pattern 时额外导出 full lane address。
 - 内存地址动态采集通过 debugger 专用 IR
   `flagtree_debug.capture_memory_address` 表达，不修改 Triton 原生
   `tt.ptr_to_int` 语义。当前 CANN9 TTIR lowering 对可反向切片的 pointer 形态

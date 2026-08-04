@@ -12,7 +12,7 @@
 
 1. 读取 B 模块标注的被跟踪 op 集合（`op_id`、`is_memory_op`、`record_level`、`addr_level` 等 IR attribute）
 2. 对每个被跟踪 op 决定需要哪些 record 类型（summary / memory event / full value）
-3. 在 GPU 上统计数值摘要指标并构建协议 record（Phase 1 必选：`nan_count`、`inf_count`、`zero_count`、`mean`、`min`、`max`、`l2_norm`、`element_count`；`addr_level=1` 时对支持的 Triton pointer 链采集 `first/last/min/max/active_lane_count/address_span_bytes` 地址摘要，无法匹配时退回 base/last aligned address）
+3. 在 device 上统计数值摘要指标并构建协议 record（当前 8 项：`nan_count`、`inf_count`、`zero_count`、`mean`、`min`、`max`、`l2_norm`、`element_count`；`addr_level=1` 时对支持的 Triton pointer 链采集 `first/last/min/max/active_lane_count/address_span_bytes` 地址摘要，无法匹配时退回 base/last aligned address）
 4. 通过 `__debug_ctrl_ptr` 写入 F 模块管理的 ring buffer
 
 **单独开发期替代方案**（分工文档 §3.3 明确允许）：
@@ -53,9 +53,10 @@ runOnOperation()
   │   ├─ 读取 op_id（优先 flagtree.debug.op_id，回退 op_id）
   │   ├─ op_id == 0 或缺失 → 跳过
   │   ├─ 读取 RecordLevel（从 op 向上逐层查找）
-│   ├─ 判断 hasSummary = 结果类型是否支持 summary collector
-│   ├─ 判断 hasMemoryEvent = addr_level > 0 && isMemoryLikeOp(op) && 存在 memory pointer operand
-  │   ├─ 判断 hasFullValueRef = (hasSummary && level == LEVEL_TENSOR_FULL)
+  │   ├─ 判断 hasSummary = 结果类型是否支持 summary collector
+  │   ├─ 判断 hasMemoryEvent = addr_level > 0 && isMemoryLikeOp(op) && 存在 memory pointer operand
+  │   ├─ level 2 时规划支持的 result/store value/statement operand dump
+  │   ├─ level 2 且 addr_level >= 2 时规划支持的 memory lane address dump
   │   └─ 在 op 上设置以下 attribute：
   │       flagtree.debug.instrumented          = true
   │       flagtree.debug.record_kinds          = ["summary"?, "memory_event"?, "full_value"?]
@@ -72,11 +73,13 @@ runOnOperation()
 
 #### 3.1.2 op 分类策略
 
-| op 类型 | hasSummary | hasMemoryEvent | 生成 record |
-|---------|-----------|---------------|------------|
-| 普通计算 op（有结果） | true | false | SummaryRecord |
-| store / atomic（无结果） | false | true | MemoryEventRecord |
-| load（有结果 + 是 memory op） | true | true | SummaryRecord + MemoryEventRecord |
+| op 类型 | Level 1 primary record | Level 2 额外 record |
+|---------|------------------------|---------------------|
+| 普通计算 op（有支持的结果） | summary | 支持时导出完整 result value |
+| store / atomic | address event（`addr_level > 0`） | 支持时导出 store value；`addr_level=2` 时导出 lane address |
+| load | result summary + address event（`addr_level > 0`） | 支持时导出 result value；`addr_level=2` 时导出 lane address |
+
+statement operand 若无法引用前序 result，会按 operand capture map 作为独立目标处理。
 
 `isMemoryLikeOp` 判断逻辑：
 1. 优先读取 B 显式标注的 `flagtree.debug.is_memory_op` / `is_memory_op` bool attribute
@@ -88,7 +91,8 @@ runOnOperation()
 
 `getAddrLevel(op)` 使用同样的逐级查找规则读取 `flagtree.debug.addr_level` 或
 `debug_addr_level`。默认值为 `0`，表示不插入动态 address event；`1` 表示插入
-地址 summary；`2` 预留给 full lane dump。
+地址 summary；`2` 在 record level 也为 2 且后端支持当前 pointer/mask pattern 时，
+额外生成 full lane address dump。
 
 #### 3.1.4 幂等性保护
 
@@ -96,7 +100,7 @@ runOnOperation()
 
 #### 3.1.5 当前阶段与最终目标的关系
 
-当前 pass 在 metadata-only 编译路径只输出 IR attribute；在 hidden-arg ABI 打开时会插入并降低 `flagtree_debug.record_*` / `flagtree_debug.capture_memory_address`，生成实际的 GPU 侧归约计算指令和 ring buffer 写入指令。
+当前 pass 在 metadata-only 编译路径只输出 IR attribute；在 hidden-arg ABI 打开时会插入并降低 `flagtree_debug.record_*` / `flagtree_debug.capture_memory_address`，生成实际的 device 侧归约计算指令和 ring buffer 写入指令。
 
 ---
 
@@ -168,7 +172,7 @@ std::unique_ptr<RecordSink> createRingBufferSink(void *ctrlPtr, size_t bufferSiz
 
 **职责**：提供在 CPU 上计算 summary 指标的能力，用于：
 1. 单元测试中验证指标计算公式是否正确
-2. 作为 GPU 侧实现的参考规范（设备侧归约的预期结果）
+2. 作为 device 侧实现的参考规范（设备侧归约的预期结果）
 
 #### 3.3.1 `SummaryStats` 结构体
 
@@ -176,9 +180,11 @@ std::unique_ptr<RecordSink> createRingBufferSink(void *ctrlPtr, size_t bufferSiz
 struct SummaryStats {
   uint64_t nanCount    = 0;  // 元素中 NaN 的个数
   uint64_t infCount    = 0;  // 元素中 ±Inf 的个数
+  uint64_t zeroCount   = 0;  // 有限值中零的个数，包含 -0.0
   double   mean        = 0.0; // 有限值的算术均值（无有限值时为 0.0）
   double   min         = 0.0; // 有限值的最小值（无有限值时为 0.0）
   double   max         = 0.0; // 有限值的最大值（无有限值时为 0.0）
+  double   l2Norm      = 0.0; // 有限值平方和的平方根
   uint64_t elementCount = 0;  // 元素总数（含 NaN 和 Inf）
 };
 ```
@@ -191,12 +197,13 @@ struct SummaryStats {
 遍历 float 数组：
   isnan(v)  → nanCount++
   isinf(v)  → infCount++
-  else      → sum += (double)v, 更新 min/max, finiteCount++
+  else      → 更新 zeroCount、sum、平方和、min/max 和 finiteCount
 
 结束后：
   elementCount = count（总数，含异常值）
-  finiteCount > 0 时：mean = sum / finiteCount, min = minVal, max = maxVal
-  finiteCount == 0 时：mean/min/max 保持 0.0（空数组或全 NaN/Inf）
+  finiteCount > 0 时：mean = sum / finiteCount, min = minVal, max = maxVal,
+                      l2Norm = sqrt(平方和)
+  finiteCount == 0 时：mean/min/max/l2Norm 保持 0.0（空数组或全 NaN/Inf）
 ```
 
 **关键实现细节**：
@@ -219,18 +226,18 @@ void writeSummaryRecordsToSink(uint32_t opId, uint64_t logicalInstanceId,
 **实现流程**：
 1. 调用 `getEnabledCollectors(level)` 获取当前 level 下启用的 collector 列表
 2. 按列表顺序，对每个 `CollectorKind` 从 `SummaryStats` 中取对应字段：
-   - `NAN_COUNT` / `INF_COUNT` / `ELEMENT_COUNT` → `buildSummaryU64Record(opId, instanceId, kind, value)`
-   - `MEAN_FINITE` / `MIN_FINITE` / `MAX_FINITE` → `buildSummaryF64Record(opId, instanceId, kind, value)`
+   - `NAN_COUNT` / `INF_COUNT` / `ZERO_COUNT` / `ELEMENT_COUNT` → `buildSummaryU64Record(opId, instanceId, kind, value)`
+   - `MEAN_FINITE` / `MIN_FINITE` / `MAX_FINITE` / `L2_NORM` → `buildSummaryF64Record(opId, instanceId, kind, value)`
 3. 调用 `sink.writeSummary(record)` 写入
 
-**Phase 1 下启用的 6 个 collector 及写入顺序**：
+**当前启用的 8 个 collector 及写入顺序**：
 ```
 NAN_COUNT → INF_COUNT → ZERO_COUNT → MEAN_FINITE → MIN_FINITE → MAX_FINITE → L2_NORM → ELEMENT_COUNT
 ```
 
 此顺序由 `kSummaryCollectorSpecs` 静态表决定，与 `getEnabledCollectors` 遍历顺序一致。
 
-**端到端语义**：`writeSummaryRecordsToSink` 把"host-side 统计计算 → record 构造 → sink 写入"三步串联，镜像了 GPU kernel 执行时"归约 → 构建 record header/payload → 写 ring buffer"的逻辑流程。
+**端到端语义**：`writeSummaryRecordsToSink` 把"host-side 统计计算 → record 构造 → sink 写入"三步串联，镜像了 device kernel 执行时"归约 → 构建 record header/payload → 写 ring buffer"的逻辑流程。
 
 ---
 
@@ -243,7 +250,9 @@ NAN_COUNT → INF_COUNT → ZERO_COUNT → MEAN_FINITE → MIN_FINITE → MAX_FI
 - `buildMemoryEventRecord`
 - `buildFullValueRefRecord`
 
-每个函数填充 `RecordHeader`（`recordKind`、`opId`、`logicalInstanceId`）和 payload 字段，保证 record 大小严格等于 32 bytes（由 `Protocol.h` 的 `static_assert` 约束）。
+每个函数填充 `RecordHeader`（`recordKind`、`opId`、`logicalInstanceId`）和 payload
+字段。这些基础 record 为 32 bytes；device summary 还会使用 64-byte bundle record，
+每次 run 的实际 slot 大小以 `RingBufferHeader.recordSize` 为准。
 
 #### `Writer.cpp` ring buffer 操作（完整）
 - `computeLogicalInstanceId(pid0, pid1, pid2, num_programs0, num_programs1)`
@@ -252,7 +261,7 @@ NAN_COUNT → INF_COUNT → ZERO_COUNT → MEAN_FINITE → MIN_FINITE → MAX_FI
 - `appendRecordToRingBuffer`（含 overflow 计数和 `RB_FLAG_OVERFLOW` 标志）
 
 #### `Collectors.cpp` 规格表（完整）
-- `kSummaryCollectorSpecs` 静态表，定义 Phase 1 的 6 个 collector
+- `kSummaryCollectorSpecs` 静态表，定义当前 8 个 collector
 - `getSummaryCollectorSpecs` / `getCollectorName` / `getEnabledCollectors` / `isCollectorEnabledAtLevel` / `isKnownCollector`
 
 ---
@@ -266,12 +275,12 @@ NAN_COUNT → INF_COUNT → ZERO_COUNT → MEAN_FINITE → MIN_FINITE → MAX_FI
 | `BuildsSummaryRecords` | 原有 | record builder 字段正确性 |
 | `BuildsMemoryAndFullValueRecords` | 原有 | memory event / full value record 字段 |
 | `ComputesLogicalInstanceId` | C-3 | `logical_instance_id` 公式：`pid0 + pid1*n0 + pid2*n0*n1` |
-| `CollectorLookupMatchesPhase1Set` | 原有 | Phase 1 启用 6 个 collector |
+| `CollectorLookupMatchesPhase1Set` | 原有 | 当前启用 8 个 collector |
 | `RingBufferWriterWritesAndTracksOverflow` | C-4 | ring buffer overflow 计数和 FLAG |
 | `RejectsMismatchedRecordSize` | 原有 | 不匹配 record size 返回 INVALID_ARGUMENT |
 | `ComputeSummaryStatsF32_Mixed` | **新增** | 混合数组（有限+NaN+Inf）统计正确 |
 | `ComputeSummaryStatsF32_Empty` | **新增** | 空数组边界处理 |
-| `ComputeSummaryStatsF32_AllNaN` | **新增** | 全 NaN 时 mean/min/max 为 0.0 |
+| `ComputeSummaryStatsF32_AllNaN` | **新增** | 全 NaN 时 mean/min/max/l2_norm 为 0.0 |
 | `ComputeSummaryStatsF64_Finite` | **新增** | F64 全有限值统计正确 |
 | `LinearAppendSink_WritesAndOverflows` | **新增（C-4）** | LinearAppendSink overflow 计数，raw buffer 字节验证 |
 | `LinearAppendSink_MixedRecordTypes` | **新增** | 混合写入不同 record 类型，RecordKind 字段正确 |
@@ -292,13 +301,13 @@ NAN_COUNT → INF_COUNT → ZERO_COUNT → MEAN_FINITE → MIN_FINITE → MAX_FI
    record_level)   │   │ record_level → 决定 record 类型 →         │         │
                     │   │ 打 attribute：instrumented / record_kinds / │        │
                     │   │ summary_collectors / memory_event_kind /  │         │
-                    │   │ hidden_arg / logical_instance_id_formula  │         │
+                    │   │ hidden_arg（ABI 开启时）/ instance 公式   │         │
                     │   └───────────────────────────────────────────┘         │
                     │                                                         │
   实际数据（测试）  │   computeSummaryStatsF32/F64                            │
   float/double ──→ │   ┌──────────────┐   SummaryStats                      │
   data[]            │   │ 统计 NaN/Inf │ ──────────────→                      │
-                    │   │ 有限值 sum   │                 writeSummaryRecordsToSink
+                    │   │ zero/sum/L2  │                 writeSummaryRecordsToSink
                     │   │ min / max   │                 ┌─────────────────┐   │
                     │   └──────────────┘                │ 按 collector 顺序│   │
                     │                                   │ buildSummary*Record  │
@@ -332,7 +341,7 @@ C 模块消费以下 B 输出的 IR attribute（`InsertInstrumentationPass` 读�
 | `flagtree.debug.op_id` | `op_id` | IntegerAttr | B 分配的稳定 op 标识 |
 | `flagtree.debug.is_memory_op` | `is_memory_op` | BoolAttr | 是否为 memory op |
 | `flagtree.debug.record_level` | `debug_record_level` | IntegerAttr / StringAttr | 采集级别（1=SUMMARY, 2=TENSOR_FULL） |
-| `flagtree.debug.addr_level` | `debug_addr_level` | IntegerAttr / StringAttr | 动态地址采集级别（0=关闭，1=summary，2=full lane 预留） |
+| `flagtree.debug.addr_level` | `debug_addr_level` | IntegerAttr / StringAttr | 动态地址采集级别（0=关闭，1=summary，2=在 level 2 下请求 full lane） |
 
 ### C → F（下游输出）
 
@@ -353,12 +362,10 @@ C 向函数打的 attribute，F 模块在接线隐藏参数时需读取：
 
 ## 7. 尚未实现的内容（待后续阶段）
 
-以下内容属于联调期或后续阶段任务，当前正确地保持为 stub：
+以下内容属于联调期或后续阶段任务：
 
-1. **`addr_level=2` full lane dump**：当前只实现 `addr_level=1` 地址摘要；全量 lane address/value dump 仍需单独的 payload ABI。
+1. **更复杂 pointer 链的数据流分析**：当前地址摘要和 full lane dump 采用有界反向切片，覆盖常见 `tt.addptr(tt.splat(base), offsets)` 和 prefix mask 形态；跨循环 iter_arg、复杂 select/where、非连续 offset、非 prefix mask、非等价 reshape 等形态仍会退回 fallback，或在请求 Level 2 full address 时于编译期报错。
 
-2. **更复杂 pointer 链的数据流分析**：当前地址摘要采用有界反向切片，覆盖常见 `tt.addptr(tt.splat(base), offsets)` 和 prefix mask 形态；跨循环 iter_arg、复杂 select/where、非连续 offset、非 prefix mask、非等价 reshape 等形态仍会退回 fallback。
+2. **P1-Optional 指标**：`denom_near_zero_count`、`neg_sqrt_count`、有限值样本快照等，由 B 识别敏感 op 类型后 C 插入专用 collector（分工文档 §3.6.2）。
 
-3. **P1-Optional 指标**：`denom_near_zero_count`、`neg_sqrt_count`、有限值样本快照等，由 B 识别敏感 op 类型后 C 插入专用 collector（分工文档 §3.6.2）。
-
-4. **host buffer offset 关联增强**：报告中的 `alignment_ok` 和 buffer offset 依赖 F 的 buffer registry；地址摘要中的每个地址边界后续可进一步关联到具体 buffer/range。
+3. **host buffer offset 关联增强**：报告中的 `alignment_ok` 和 buffer offset 依赖 F 的 buffer registry；地址摘要中的每个地址边界后续可进一步关联到具体 buffer/range。

@@ -56,6 +56,11 @@
   - `rank`
   - `elementBits`
   - `vecWidth`
+
+`stride/layout/encoding` 只表示编译期实际可获取的 IR 信息。当前 TTIR SSA
+register/pointer value 缺少 encoding 时会序列化为 `unknown`；这不代表 PyTorch
+runtime tensor 的内存 stride 或 contiguous layout。
+
 - operand 语义：
   - `operandIndex`
   - `operandRole`

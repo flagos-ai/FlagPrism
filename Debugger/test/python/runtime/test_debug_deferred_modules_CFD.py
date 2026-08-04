@@ -270,9 +270,14 @@ def _compile_design_example_with_hidden_debug_arg(monkeypatch):
     else:
         backend.add_stages(stages, options)
     current = stages["ttir"](current, metadata)
-    from triton._flagprism import run_compiler_hook
+    from triton._flagprism import emit_compiler_event
 
-    run_compiler_hook("ttir.post_optimization", current, metadata)
+    emit_compiler_event(
+        phase="post_override",
+        ir_kind="ttir",
+        module=current,
+        metadata=metadata,
+    )
     ttir = str(current)
     current = stages["ttadapter"](current, metadata)
     ttadapter_ir = str(current)

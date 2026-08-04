@@ -1,0 +1,11 @@
+if(FLAGTREE_PROFILER_GPU_RUNTIME)
+  add_profiler_library(FlagTreeProfilerRuntime
+    Cupti/CuptiPCSampling.cpp
+    Cupti/CuptiProfiler.cpp
+    RocTracer/RoctracerProfiler.cpp
+    Instrumentation/InstrumentationProfiler.cpp
+    Instrumentation/CudaRuntime.cpp
+    Instrumentation/HipRuntime.cpp
+    Instrumentation/Metadata.cpp
+  )
+endif()

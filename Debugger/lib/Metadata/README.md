@@ -23,4 +23,6 @@
 需要特别保证的字段：
 
 - `debugKernelId == BufferMeta.kernelId`
-- `TrackedOpEntry` 中的 `dtype / shape / stride / layout / access* / alignment*` 与编译期 IR 一致
+- `TrackedOpEntry` 中的 `dtype / shape / stride / layout / access* / alignment*`
+  只反映编译期 IR；无法从 TTIR 获得的 stride/layout 保持 `unknown`，不得解释为
+  runtime tensor layout

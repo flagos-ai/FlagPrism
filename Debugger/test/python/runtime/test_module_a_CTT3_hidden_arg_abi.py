@@ -42,7 +42,7 @@ def test_module_a_CTT3_hidden_arg_is_last_launch_tuple_element(monkeypatch):
         del args, kwargs
         yield (0x11223344,)
 
-    monkeypatch.setattr(api, "ascend_launch_context", launch_context)
+    monkeypatch.setattr(api, "launch_context", launch_context)
     launcher = _launcher()
     launcher(1, 1, 1, 0, 0x1234, {"hash": "unit"}, None, None, None, 99)
 
