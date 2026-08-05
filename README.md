@@ -2,6 +2,8 @@
 
 English | [简体中文](README_CN.md)
 
+FlagPrism is currently under construction and active development.
+
 This repository centrally maintains FlagTree's optional debugging and profiling
 components:
 
