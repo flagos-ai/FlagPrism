@@ -14,17 +14,17 @@ Debugger 唯一的公开 Python 导入路径是：
 import flagtree.debugger as debugger
 ```
 
-不再提供 `triton.debugger` 公开命名空间。Triton JIT kernel 内的采集边界仍然是
-Triton language operation：
+不再提供 `triton.debugger` 公开命名空间。Triton JIT kernel 内的采集边界由
+FlagTree language 扩展提供：
 
 ```python
-tl.debug_collect_start(level=1, addr_level=1)
+ftl.debug_collect_start(level=1, addr_level=1)
 # Triton operations to collect
-tl.debug_collect_end()
+ftl.debug_collect_end()
 ```
 
 `flagtree.debugger` 负责 Python 配置、编译模式和导出；
-`tl.debug_collect_start/end` 只负责界定 `@triton.jit` 内需要采集的 IR 区域。
+`ftl.debug_collect_start/end` 只负责界定 `@triton.jit` 内需要采集的 IR 区域。
 
 core-only wheel 不包含 `flagtree.debugger`。需要在通用代码中探测工具是否已随
 FlagTree 构建时，可通过 host gateway 加载组件；正常用户代码直接导入公开 API
@@ -67,8 +67,9 @@ from pathlib import Path
 import torch
 import torch_npu
 import triton
-import triton.language as tl
 import flagtree.debugger as debugger
+import flagtree.language as ftl
+import triton.language as tl
 
 
 debugger.configure(
@@ -85,12 +86,12 @@ def debug_abs_kernel(x_ptr, y_ptr, n: tl.constexpr,
     offsets = tl.program_id(0) * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n
 
-    tl.debug_collect_start(level=1, addr_level=1)
+    ftl.debug_collect_start(level=1, addr_level=1)
     x = tl.load(x_ptr + offsets, mask=mask, other=0.0)
     y = tl.abs(x)
     z = y + 1.0
     tl.store(y_ptr + offsets, z, mask=mask)
-    tl.debug_collect_end()
+    ftl.debug_collect_end()
 
 
 n = 16
@@ -156,11 +157,11 @@ debugger.activate(level=1, addr_level=1)
 - `addr_level=2`：当 `level=2` 且后端支持当前 pointer/mask pattern 时，额外
   导出完整 lane address；与 `level=1` 组合时仍只生成地址摘要。
 
-`tl.debug_collect_start()` 可以为当前 region 指定 level。`addr_level=None`
+`ftl.debug_collect_start()` 可以为当前 region 指定 level。`addr_level=None`
 时继承 `debugger.activate()` 的地址采集等级：
 
 ```python
-tl.debug_collect_start(level=1)
+ftl.debug_collect_start(level=1)
 ```
 
 长进程、notebook 或测试套件可在不再编译 debug kernel 时关闭 pipeline：
@@ -417,9 +418,9 @@ kernel 才会附加 hidden control pointer。未接入的后端不会因为全�
 
 FlagTree 主仓库仅保留必要的集成点：
 
-- `triton._flagprism`：Host API 2.x、capability 校验、Debugger 组件注册和
+- `flagtree._flagprism`：Host API 2.x、capability 校验、Debugger 组件注册和
   编译/运行时生命周期边界。
-- `tl.debug_collect_start/end`：Triton language 的采集 marker。
+- `flagtree.language.debug_collect_start/end`：FlagTree language 的采集 marker。
 - Ascend compiler/launcher hook：传递 Debugger metadata 和 hidden control pointer。
 
 Debugger 的主要实现位于当前目录：

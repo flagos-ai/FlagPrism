@@ -221,7 +221,7 @@ python3 third_party/FlagPrism/Profiler/scripts/cann_vendor_raw_report.py \
 - `data="tree"`：使用树形数据格式输出 profile 结果。
 - `backend="cann"`：选择昇腾 CANN vendor backend。目前 FlagTree Profiler 只接入了这个后端。
 - `hook="triton"`：打开 Triton kernel launch hook。用户的 Triton kernel 启动时会自动进入/退出 FlagTree Profiler scope，不需要手动包每个 kernel。
-- `hook="instrumentation"`：在 `hook="triton"` 的基础上启用 Triton IR 自动插桩，并把内部 IR op timeline/metrics 合并进原有 `profile.timeline.json` 和 `profile.hatchet`。用户不需要手动写 `tl.debug_collect_start/end`。
+- `hook="instrumentation"`：在 `hook="triton"` 的基础上启用 Triton IR 自动插桩，并把内部 IR op timeline/metrics 合并进原有 `profile.timeline.json` 和 `profile.hatchet`。用户不需要手动写 `flagtree.language.debug_collect_start/end`。
 - `mode=...`：后端配置字符串，多个配置项用 `:` 连接。
 
 `mode` 中的配置项：
@@ -300,11 +300,11 @@ python3 third_party/FlagPrism/Profiler/scripts/cann_profile_test_suite.py \
 
 FlagTree Profiler 的实现分为几层，目标是在不改变 FlagTree Profiler 使用方式的前提下，优先用 IR instrumentation 提供跨后端基础 profiler；如果某个后端有成熟厂商 profiler，再把厂商数据作为增强指标接进 `profiler.start()` / `profiler.finalize()` 生命周期。
 
-1. **用户入口层**：用户调用 `flagtree.profiler`。主仓库 `setup.py` 将 `Profiler/python/flagtree_profiler` 源码直接安装到该公开命名空间，组件再通过 `triton._flagprism` 注册编译期回调。`profiler.start(..., backend="cann", hook="triton", mode="...")` 仍进入 FlagTree Profiler 原有 Python API。昇腾上 `hook="triton"` 默认打开 FlagPrism debugger 自动插桩，并把 CANN legacy `aclprof/msprof` mode 改成关闭；设置 `FLAGTREE_PROFILER_CANN_TRITON_HOOK_LEGACY=1` 后恢复旧 CANN 路径。相关文件：`setup.py`、`python/triton/_flagprism.py`、`third_party/FlagPrism/Profiler/python/flagtree_profiler/__init__.py`、`third_party/FlagPrism/Profiler/python/flagtree_profiler/profile.py`。
+1. **用户入口层**：用户调用 `flagtree.profiler`。主仓库 `setup.py` 将 `Profiler/python/flagtree_profiler` 源码直接安装到该公开命名空间，组件再通过 `flagtree._flagprism` 注册编译期回调。`profiler.start(..., backend="cann", hook="triton", mode="...")` 仍进入 FlagTree Profiler 原有 Python API。昇腾上 `hook="triton"` 默认打开 FlagPrism debugger 自动插桩，并把 CANN legacy `aclprof/msprof` mode 改成关闭；设置 `FLAGTREE_PROFILER_CANN_TRITON_HOOK_LEGACY=1` 后恢复旧 CANN 路径。相关文件：`setup.py`、`python/flagtree/_flagprism.py`、`third_party/FlagPrism/Profiler/python/flagtree_profiler/__init__.py`、`third_party/FlagPrism/Profiler/python/flagtree_profiler/profile.py`。
 
 2. **Triton hook 层**：`hook="triton"` 在 Triton kernel launch 前后自动进入/退出 FlagTree Profiler scope，使用户不需要手动包每个 kernel。相关文件：`third_party/FlagPrism/Profiler/python/flagtree_profiler/hooks/hook.py`。
 
-3. **IR 插桩层**：`flagtree.debugger.compiler` 在无用户 marker 时自动插入默认 collect region，并通过 core 的薄 compiler hook 运行 Debugger metadata/instrumentation pass。Debugger 版本与采集配置写入 backend `instrumentation_mode` 参与原有 option hash；Ascend launcher 直接进入 Debugger launch context，追加 hidden arg 并在导出前同步。关键文件：`python/triton/_flagprism.py`、`third_party/FlagPrism/Debugger/python/flagtree_debugger/compiler.py`、`third_party/FlagPrism/Debugger/lib/Metadata/Passes.cpp`、`third_party/FlagPrism/Debugger/lib/Instrumentation/Passes.cpp`、`third_party/FlagPrism/Debugger/python/flagtree_debugger/api.py`、`third_party/ascend/backend/driver.py`。
+3. **IR 插桩层**：`flagtree.debugger.compiler` 在无用户 marker 时自动插入默认 collect region，并通过 core 的薄 compiler hook 运行 Debugger metadata/instrumentation pass。Debugger 版本与采集配置写入 backend `instrumentation_mode` 参与原有 option hash；Ascend launcher 直接进入 Debugger launch context，追加 hidden arg 并在导出前同步。关键文件：`python/flagtree/_flagprism.py`、`third_party/FlagPrism/Debugger/python/flagtree_debugger/compiler.py`、`third_party/FlagPrism/Debugger/lib/Metadata/Passes.cpp`、`third_party/FlagPrism/Debugger/lib/Instrumentation/Passes.cpp`、`third_party/FlagPrism/Debugger/python/flagtree_debugger/api.py`、`third_party/ascend/backend/driver.py`。
 
 4. **Artifact 合成层**：Python `finalize()` 在 FlagTree Profiler C++ session 写完基础文件后，把 IR runtime records 合并进原有 `profile.timeline.json` 和 `profile.hatchet`，同时在 `profile.meta.json`、`profile.vendor.json` 中标注 IR 数据源、默认/legacy 模式、可用指标和不可用的 CANN-only 指标。关键文件：`third_party/FlagPrism/Profiler/python/flagtree_profiler/profile.py`。
 
@@ -347,7 +347,7 @@ FlagTree Profiler 的公共接入点位于：
 IR 插桩实现位于同一 FlagPrism 工具套件的 Debugger 组件；FlagTree 主体只保留薄转发，hidden-arg
 生命周期由 Ascend backend 与 Debugger 直接衔接：
 
-- `python/triton/_flagprism.py`：已知 Debugger/Profiler 包加载及必要的 compiler、
+- `python/flagtree/_flagprism.py`：已知 Debugger/Profiler 包加载及必要的 compiler、
   statement 和 DSL 转发。
 - `third_party/FlagPrism/Debugger/python/flagtree_debugger/compiler.py`：决定是否自动插入 collect marker，并调度 debugger pass。
 - `third_party/FlagPrism/Debugger/include/Debugger/Metadata/Passes.h`、`third_party/FlagPrism/Debugger/lib/Metadata/Passes.cpp`：默认 collect marker 插入和 metadata pass。

@@ -6,6 +6,7 @@ import torch
 import torch_npu
 import triton
 import flagtree.debugger as debugger
+import flagtree.language as ftl
 import triton.language as tl
 
 
@@ -27,14 +28,14 @@ def debug_softmax_dim1_kernel(x_ptr, y_ptr, n_cols: tl.constexpr, BLOCK_SIZE: tl
     mask = cols < n_cols
     offsets = row * n_cols + cols
 
-    tl.debug_collect_start(level=1, addr_level=1)
+    ftl.debug_collect_start(level=1, addr_level=1)
     x = tl.load(x_ptr + offsets, mask=mask, other=-float("inf"))
     shifted = x - tl.max(x, axis=0)
     numerator = tl.exp(shifted)
     denominator = tl.sum(numerator, axis=0)
     y = numerator / denominator
     tl.store(y_ptr + offsets, y, mask=mask)
-    tl.debug_collect_end()
+    ftl.debug_collect_end()
 
 
 def main():

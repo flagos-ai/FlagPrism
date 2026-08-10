@@ -21,6 +21,7 @@ __doc__ = _mad.extend_doc(__doc__)
 pytest.importorskip("torch")
 
 import triton
+import flagtree.language as ftl
 import triton.language as tl
 from triton.backends.compiler import GPUTarget
 from triton.compiler import ASTSource
@@ -45,10 +46,10 @@ def test_module_a_CTT1_illegal_nesting_compile_fails(fresh_triton_cache, capfd):
 
     @triton.jit
     def kernel(x_ptr):
-        tl.debug_collect_start(level=1)
-        tl.debug_collect_start(level=1)
-        tl.debug_collect_end()
-        tl.debug_collect_end()
+        ftl.debug_collect_start(level=1)
+        ftl.debug_collect_start(level=1)
+        ftl.debug_collect_end()
+        ftl.debug_collect_end()
 
     src = _ast_source(kernel)
     with pytest.raises(Exception, match="PassManager::run failed"):
@@ -63,7 +64,7 @@ def test_module_a_CTT1_missing_end_compile_fails(fresh_triton_cache, capfd):
 
     @triton.jit
     def kernel(x_ptr):
-        tl.debug_collect_start(level=1)
+        ftl.debug_collect_start(level=1)
         tl.store(x_ptr + tl.arange(0, 1), tl.zeros([1], dtype=tl.float32))
 
     src = _ast_source(kernel)

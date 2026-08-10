@@ -219,9 +219,9 @@ def is_tl_import_present(module: ast.Module) -> bool:
     return False
 
 
-def insert_tl_import(module: ast.Module) -> None:
+def insert_module_import(module: ast.Module, name: str, alias: str) -> None:
     import_node = ast.Import(
-        names=[ast.alias(name="triton.language", asname="tl")]
+        names=[ast.alias(name=name, asname=alias)]
     )
     index = 0
     if (
@@ -245,6 +245,23 @@ def insert_tl_import(module: ast.Module) -> None:
         index += 1
 
     module.body.insert(index, import_node)
+
+
+def insert_tl_import(module: ast.Module) -> None:
+    insert_module_import(module, "triton.language", "tl")
+
+
+def is_ftl_import_present(module: ast.Module) -> bool:
+    for node in module.body:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "flagtree.language" and alias.asname == "ftl":
+                    return True
+    return False
+
+
+def insert_ftl_import(module: ast.Module) -> None:
+    insert_module_import(module, "flagtree.language", "ftl")
 
 
 class ExtLaunchIdNormalizer(ast.NodeTransformer):
@@ -342,7 +359,7 @@ def is_debug_collect_call(node: ast.AST) -> bool:
         isinstance(func, ast.Attribute)
         and func.attr in {"debug_collect_start", "debug_collect_end"}
         and isinstance(func.value, ast.Name)
-        and func.value.id == "tl"
+        and func.value.id == "ftl"
     )
 
 
@@ -391,7 +408,7 @@ def make_debug_start(level: int, addr_level: int) -> ast.Expr:
     return ast.Expr(
         value=ast.Call(
             func=ast.Attribute(
-                value=ast.Name(id="tl", ctx=ast.Load()),
+                value=ast.Name(id="ftl", ctx=ast.Load()),
                 attr="debug_collect_start",
                 ctx=ast.Load(),
             ),
@@ -408,7 +425,7 @@ def make_debug_end() -> ast.Expr:
     return ast.Expr(
         value=ast.Call(
             func=ast.Attribute(
-                value=ast.Name(id="tl", ctx=ast.Load()),
+                value=ast.Name(id="ftl", ctx=ast.Load()),
                 attr="debug_collect_end",
                 ctx=ast.Load(),
             ),
@@ -509,8 +526,6 @@ def contains_tl_region_entry_call(node: ast.AST) -> bool:
         if func.attr in {
             "program_id",
             "num_programs",
-            "debug_collect_start",
-            "debug_collect_end",
         }:
             continue
         return True
@@ -624,8 +639,8 @@ def instrument_file(
             record["instrumented"] = True
             classifications.append(record)
 
-    if changed > 0 and not is_tl_import_present(module):
-        insert_tl_import(module)
+    if changed > 0 and not is_ftl_import_present(module):
+        insert_ftl_import(module)
 
     if changed > 0:
         ast.fix_missing_locations(module)
@@ -653,15 +668,21 @@ def patch_pointwise_dynamic_codegen(root: Path, level: int, addr_level: int) -> 
     if not path.exists():
         return False
     text = read_text(path)
-    if "tl.debug_collect_start(level=" in text:
+    if "ftl.debug_collect_start(level=" in text:
         return False
 
     start_line = (
-        f'code.writeline("tl.debug_collect_start(level={level}, '
+        f'code.writeline("ftl.debug_collect_start(level={level}, '
         f'addr_level={addr_level})")'
     )
-    end_line = 'code.writeline("tl.debug_collect_end()")'
+    end_line = 'code.writeline("ftl.debug_collect_end()")'
     replacements = [
+        (
+            '        code.writeline("from triton import language as tl")\n',
+            '        code.writeline("from triton import language as tl")\n'
+            '        code.writeline("import flagtree.language as ftl")\n',
+            1,
+        ),
         (
             '        code.writeline("# loads")\n'
             '        for i in range(schema.num_input_tensors()):\n',
@@ -1215,7 +1236,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=True,
         help_text=(
             "Patch the copied FlagGems pointwise_dynamic code generator so "
-            "generated wrapper kernels contain tl.debug_collect_start/end."
+            "generated wrapper kernels contain ftl.debug_collect_start/end."
         ),
     )
     parser.add_argument("--export-raw-records", action="store_true")

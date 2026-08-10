@@ -6,6 +6,7 @@ import torch
 import torch_npu
 import triton
 import flagtree.debugger as debugger
+import flagtree.language as ftl
 import triton.language as tl
 
 
@@ -26,12 +27,12 @@ def debug_abs_kernel(x_ptr, y_ptr, n: tl.constexpr, BLOCK_SIZE: tl.constexpr):
     offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n
 
-    tl.debug_collect_start(level=1, addr_level=1)
+    ftl.debug_collect_start(level=1, addr_level=1)
     x = tl.load(x_ptr + offsets, mask=mask, other=0.0)
     y = tl.abs(x)
     z = y + 1.0
     tl.store(y_ptr + offsets, z, mask=mask)
-    tl.debug_collect_end()
+    ftl.debug_collect_end()
 
 
 def main():

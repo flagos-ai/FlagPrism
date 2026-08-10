@@ -21,6 +21,7 @@ __doc__ = _mad.extend_doc(__doc__)
 pytest.importorskip("torch")
 
 import triton
+import flagtree.language as ftl
 import triton.language as tl
 from triton.backends.compiler import GPUTarget
 from triton.compiler import ASTSource
@@ -45,8 +46,8 @@ def test_module_a_A1_markers_absent_from_persisted_ttir(fresh_triton_cache):
 
     @triton.jit
     def kernel(x_ptr):
-        tl.debug_collect_start(level=1)
-        tl.debug_collect_end()
+        ftl.debug_collect_start(level=1)
+        ftl.debug_collect_end()
 
     _ = fresh_triton_cache
     src = _ast_source(kernel)

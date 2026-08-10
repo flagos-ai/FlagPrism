@@ -10,7 +10,7 @@ MODULE_A_CHECKLIST = """
 【边界 §2.1/§2.2】metadata JSON key 稳定；组件隐藏实参通过
 prepare_kernel_launch(...) 产出，并由 Ascend launcher 追加到 kernel 实参。
 
-【§3.1】tl.debug_collect_start/end；marker 降到 TTIR（方言 flagtree_debug.*）；编排 flagtree_debug passes；
+【§3.1】flagtree.language.debug_collect_start/end；marker 降到 TTIR（方言 flagtree_debug.*）；编排 flagtree_debug passes；
 CompiledKernel.metadata 含 debug_enabled、debug_protocol_version、debug_record_level、debug_addr_level、
 debug_export_mode、debug_kernel_id、debug_tracked_table 及实现侧 debug_launch_hidden_arg；
 debug_enabled 为 False 时不应走 debug launcher 流程；单独开发期允许 mock control handle。

@@ -2,7 +2,7 @@
 """Module A: design-doc debug collect example reaches IR and debug metadata.
 
 The example in ``docs/debugger_design.md`` shows the intended frontend path:
-``tl.debug_collect_start/end`` become ``flagtree_debug.collect_begin/end`` in
+``ftl.debug_collect_start/end`` become ``flagtree_debug.collect_begin/end`` in
 TTIR, then early debug passes consume those markers for later debugger stages.
 """
 from __future__ import annotations
@@ -14,13 +14,14 @@ import json
 import pytest
 
 import triton
+import flagtree.language as ftl
 import triton.language as tl
 from flagtree.debugger.native import compiler_binding
 from triton._C.libtriton import ir
 from triton.backends.compiler import GPUTarget
 from triton.compiler import ASTSource
 from triton.compiler.compiler import make_backend
-from triton._flagprism import emit_compiler_event
+from flagtree._flagprism import emit_compiler_event
 
 
 fd = compiler_binding()
@@ -82,12 +83,12 @@ def _design_debug_kernel(x_ptr, y_ptr, a_ptr, b_ptr, n, BLOCK_SIZE: tl.constexpr
     a = tl.load(a_ptr + offsets, mask=mask, other=0.0)
     b = tl.load(b_ptr + offsets, mask=mask, other=0.0)
 
-    tl.debug_collect_start(level=1)
+    ftl.debug_collect_start(level=1)
 
     y = a * b
     z = x + y
 
-    tl.debug_collect_end()
+    ftl.debug_collect_end()
 
     tl.store(y_ptr + offsets, z, mask=mask)
 
@@ -95,10 +96,10 @@ def _design_debug_kernel(x_ptr, y_ptr, a_ptr, b_ptr, n, BLOCK_SIZE: tl.constexpr
 @triton.jit
 def _memory_debug_kernel(x_ptr):
     offsets = tl.arange(0, 4)
-    tl.debug_collect_start(level=1)
+    ftl.debug_collect_start(level=1)
     x = tl.load(x_ptr + offsets)
     tl.store(x_ptr + offsets, x)
-    tl.debug_collect_end()
+    ftl.debug_collect_end()
 
 
 @pytest.mark.module_a

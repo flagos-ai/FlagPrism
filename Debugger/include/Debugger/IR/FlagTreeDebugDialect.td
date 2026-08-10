@@ -10,7 +10,8 @@ def FlagTreeDebug_Dialect : Dialect {
   let cppNamespace = "::mlir::flagtree::debugger";
   let summary = "FlagPrism debugger collect-region markers";
   let description = [{
-    Marker operations for `tl.debug_collect_start` / `tl.debug_collect_end`.
+    Marker operations for `flagtree.language.debug_collect_start` /
+    `flagtree.language.debug_collect_end`.
     Scope pairing and op-id assignment are handled by later passes (module B).
   }];
   let dependentDialects = [];
