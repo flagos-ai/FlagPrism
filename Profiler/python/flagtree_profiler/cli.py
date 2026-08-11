@@ -145,7 +145,14 @@ def run_profiling(args, target_args):
             raise SystemExit(result.returncode)
         return
 
-    start(args.name, context=args.context, data=args.data, backend=backend, hook=args.hook)
+    start(
+        args.name,
+        context=args.context,
+        data=args.data,
+        backend=backend,
+        mode=args.mode,
+        hook=args.hook,
+    )
 
     do_setup_and_execute(target_args)
 

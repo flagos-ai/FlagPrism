@@ -388,7 +388,7 @@ def _augment_timeline(path: Path, runs: list[dict], synthesize_kernel_events: bo
                 synthetic_next_ts,
                 float(kernel_event.get("ts", 0.0)) + float(kernel_event.get("dur", 0.0)),
             )
-        elif synthesize_kernel_events:
+        elif synthesize_kernel_events or _host_time_bounds(run)[0] is not None:
             kernel_event = _synthetic_kernel_event_for_run(
                 run_index,
                 run,

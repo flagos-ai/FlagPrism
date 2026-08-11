@@ -221,7 +221,7 @@ python3 third_party/FlagPrism/Profiler/scripts/cann_vendor_raw_report.py \
 - `data="tree"`：使用树形数据格式输出 profile 结果。
 - `backend="cann"`：选择昇腾 CANN vendor backend。目前 FlagTree Profiler 只接入了这个后端。
 - `hook="triton"`：打开 Triton kernel launch hook。用户的 Triton kernel 启动时会自动进入/退出 FlagTree Profiler scope，不需要手动包每个 kernel。
-- `hook="instrumentation"`：在 `hook="triton"` 的基础上启用 Triton IR 自动插桩，并把内部 IR op timeline/metrics 合并进原有 `profile.timeline.json` 和 `profile.hatchet`。用户不需要手动写 `ftl.debug_collect_start/end`。
+- `hook="instrumentation"`：在 `hook="triton"` 的基础上启用 Triton IR 自动插桩，并把内部 IR op timeline/metrics 合并进原有 `profile.timeline.json` 和 `profile.hatchet`。用户不需要手动写 `flagtree.language.debug_collect_start/end`。
 - `mode=...`：后端配置字符串，多个配置项用 `:` 连接。
 
 `mode` 中的配置项：
@@ -347,7 +347,7 @@ FlagTree Profiler 的公共接入点位于：
 IR 插桩实现位于同一 FlagPrism 工具套件的 Debugger 组件；FlagTree 主体只保留薄转发，hidden-arg
 生命周期由 Ascend backend 与 Debugger 直接衔接：
 
-- `python/triton/_flagprism.py`：已知 Debugger/Profiler 包加载及必要的 compiler、
+- `python/flagtree/_flagprism.py`：已知 Debugger/Profiler 包加载及必要的 compiler、
   statement 和 DSL 转发。
 - `third_party/FlagPrism/Debugger/python/flagtree_debugger/compiler.py`：决定是否自动插入 collect marker，并调度 debugger pass。
 - `third_party/FlagPrism/Debugger/include/Debugger/Metadata/Passes.h`、`third_party/FlagPrism/Debugger/lib/Metadata/Passes.cpp`：默认 collect marker 插入和 metadata pass。

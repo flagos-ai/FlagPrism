@@ -40,9 +40,9 @@ metadata-only kernel 不改变原 launch ABI。
 
 ```python
 import triton
-import triton.language as tl
 import flagtree.debugger as debugger
 import flagtree.language as ftl
+import triton.language as tl
 
 # 通常在 import 后配置并开启一次。后续哪些 Triton IR op 被记录，
 # 由 @triton.jit 内部的 ftl.debug_collect_start/end 控制。
@@ -113,7 +113,7 @@ python3 -m pip install . --no-build-isolation
 - `debugger.activate(level=1, addr_level=0)`：开启进程级 debugger 模式。通常
   在 import 后调用一次；`level` 控制数值采集等级，`addr_level` 控制动态地址
   采集，默认 `0` 表示不插入地址采集。
-- `ftl.debug_collect_start/end`：在 `@triton.jit` 内界定实际采集范围。Python
+- `flagtree.language.debug_collect_start/end`：在 `@triton.jit` 内界定实际采集范围。Python
   侧 `activate` 只开启 debugger pipeline，不会记录普通 PyTorch/torch_npu 语句。
   `ftl.debug_collect_start(level=..., addr_level=...)` 可覆盖当前 region 的地址
   采集等级；不传 `addr_level` 时继承 `debugger.activate(...)` 的配置。

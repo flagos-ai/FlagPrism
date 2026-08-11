@@ -206,29 +206,22 @@ def copy_flaggems_source(src: Path, dest: Path) -> None:
     shutil.copytree(src, dest, symlinks=True, ignore=ignore)
 
 
-def is_language_import_present(
-    module: ast.Module, package: str, alias_name: str
-) -> bool:
+def is_tl_import_present(module: ast.Module) -> bool:
     for node in module.body:
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if (
-                    alias.name == f"{package}.language"
-                    and alias.asname == alias_name
-                ):
+                if alias.name == "triton.language" and alias.asname == "tl":
                     return True
-        if isinstance(node, ast.ImportFrom) and node.module == package:
+        if isinstance(node, ast.ImportFrom) and node.module == "triton":
             for alias in node.names:
-                if alias.name == "language" and alias.asname == alias_name:
+                if alias.name == "language" and alias.asname == "tl":
                     return True
     return False
 
 
-def insert_language_import(
-    module: ast.Module, package: str, alias_name: str
-) -> None:
+def insert_module_import(module: ast.Module, name: str, alias: str) -> None:
     import_node = ast.Import(
-        names=[ast.alias(name=f"{package}.language", asname=alias_name)]
+        names=[ast.alias(name=name, asname=alias)]
     )
     index = 0
     if (
@@ -254,20 +247,21 @@ def insert_language_import(
     module.body.insert(index, import_node)
 
 
-def is_tl_import_present(module: ast.Module) -> bool:
-    return is_language_import_present(module, "triton", "tl")
-
-
 def insert_tl_import(module: ast.Module) -> None:
-    insert_language_import(module, "triton", "tl")
+    insert_module_import(module, "triton.language", "tl")
 
 
 def is_ftl_import_present(module: ast.Module) -> bool:
-    return is_language_import_present(module, "flagtree", "ftl")
+    for node in module.body:
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name == "flagtree.language" and alias.asname == "ftl":
+                    return True
+    return False
 
 
 def insert_ftl_import(module: ast.Module) -> None:
-    insert_language_import(module, "flagtree", "ftl")
+    insert_module_import(module, "flagtree.language", "ftl")
 
 
 class ExtLaunchIdNormalizer(ast.NodeTransformer):
@@ -365,7 +359,7 @@ def is_debug_collect_call(node: ast.AST) -> bool:
         isinstance(func, ast.Attribute)
         and func.attr in {"debug_collect_start", "debug_collect_end"}
         and isinstance(func.value, ast.Name)
-        and func.value.id in {"ftl", "tl"}
+        and func.value.id == "ftl"
     )
 
 
@@ -532,8 +526,6 @@ def contains_tl_region_entry_call(node: ast.AST) -> bool:
         if func.attr in {
             "program_id",
             "num_programs",
-            "debug_collect_start",
-            "debug_collect_end",
         }:
             continue
         return True
@@ -686,8 +678,9 @@ def patch_pointwise_dynamic_codegen(root: Path, level: int, addr_level: int) -> 
     end_line = 'code.writeline("ftl.debug_collect_end()")'
     replacements = [
         (
-            "import triton.language as tl\n",
-            "import triton.language as tl\nimport flagtree.language as ftl\n",
+            '        code.writeline("from triton import language as tl")\n',
+            '        code.writeline("from triton import language as tl")\n'
+            '        code.writeline("import flagtree.language as ftl")\n',
             1,
         ),
         (

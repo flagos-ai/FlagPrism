@@ -15,8 +15,8 @@ Debugger 唯一的公开 Python 导入路径是：
 import flagtree.debugger as debugger
 ```
 
-不再提供 `triton.debugger` 公开命名空间。Triton JIT kernel 内的采集边界仍然是
-Triton language operation：
+不再提供 `triton.debugger` 公开命名空间。Triton JIT kernel 内的采集边界由
+FlagTree language 扩展提供：
 
 ```python
 ftl.debug_collect_start(level=1, addr_level=1)
@@ -76,9 +76,9 @@ from pathlib import Path
 import torch
 import torch_npu
 import triton
-import triton.language as tl
 import flagtree.debugger as debugger
 import flagtree.language as ftl
+import triton.language as tl
 
 
 debugger.configure(
@@ -432,7 +432,7 @@ FlagTree 主仓库仅保留必要的集成点：
 
 - `flagtree._flagprism`：Host API 2.x、capability 校验、Debugger 组件注册和
   编译/运行时生命周期边界。
-- `ftl.debug_collect_start/end`：`flagtree.language` 的采集 marker。
+- `flagtree.language.debug_collect_start/end`：FlagTree language 的采集 marker。
 - Ascend compiler/launcher hook：传递 Debugger metadata 和 hidden control pointer。
 - Tianshu/CoreX compiler/launcher hook：使用同一 metadata/hidden pointer 契约；runtime transfer
   通过 `libcuda.so.1` 兼容层动态解析。
