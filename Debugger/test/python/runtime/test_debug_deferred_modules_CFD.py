@@ -270,7 +270,7 @@ def _compile_design_example_with_hidden_debug_arg(monkeypatch):
     else:
         backend.add_stages(stages, options)
     current = stages["ttir"](current, metadata)
-    from triton._flagprism import emit_compiler_event
+    from flagtree._flagprism import emit_compiler_event
 
     emit_compiler_event(
         phase="post_override",

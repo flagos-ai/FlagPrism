@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from triton import __version__
-from triton._flagprism import register_component
+from flagtree._flagprism import register_component
 
 from . import compiler as _compiler_module
 from . import native as _native_module

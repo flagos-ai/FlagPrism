@@ -26,12 +26,21 @@ class FlagPrismBuildConfig:
     root: Path
 
     @classmethod
-    def from_environment(cls, project_root: Path) -> "FlagPrismBuildConfig":
-        relative_root = Path("third_party") / "FlagPrism"
+    def from_environment(
+        cls, project_root: Path, source_root: Path | None = None
+    ) -> "FlagPrismBuildConfig":
+        configured_root = os.getenv("FLAGPRISM_SOURCE_DIR")
+        root = Path(configured_root) if configured_root else source_root
+        if root is None:
+            root = Path("third_party") / "FlagPrism"
+        if not root.is_absolute():
+            root = project_root / root
+        root = root.resolve()
+        relative_root = Path(os.path.relpath(root, project_root.resolve()))
         return cls(
             enabled=_flagprism_enabled(),
             relative_root=relative_root,
-            root=project_root / relative_root,
+            root=root,
         )
 
     def validate_sources(self) -> None:
@@ -62,8 +71,12 @@ class FlagPrismBuildConfig:
         args = [
             "-DTRITON_BUILD_FLAGPRISM=" + ("ON" if self.enabled else "OFF"),
         ]
+        backend = os.getenv("FLAGPRISM_BACKEND", "").strip()
+        if backend:
+            args.append("-DFLAGPRISM_BACKEND=" + backend)
         if self.enabled:
             args.extend([
+                "-DFLAGPRISM_SOURCE_DIR=" + str(self.root),
                 "-DFLAGPRISM_PYTHON_DIR=" + os.path.abspath(build_lib),
                 "-DPYTHON_EXTENSION_SUFFIX=" + (sysconfig.get_config_var("EXT_SUFFIX") or ".so"),
             ])
@@ -155,7 +168,9 @@ class FlagPrismBuildConfig:
         ]
 
 
-def create_build_config(project_root: Path) -> FlagPrismBuildConfig:
-    config = FlagPrismBuildConfig.from_environment(project_root)
+def create_build_config(
+    project_root: Path, source_root: Path | None = None
+) -> FlagPrismBuildConfig:
+    config = FlagPrismBuildConfig.from_environment(project_root, source_root)
     config.validate_sources()
     return config

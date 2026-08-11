@@ -1,4 +1,5 @@
 import triton
+import flagtree.language as ftl
 import triton.language as tl
 from flagtree.debugger.native import compiler_binding
 from triton.backends.compiler import GPUTarget
@@ -63,10 +64,10 @@ def test_debug_collect_markers_stripped_from_persisted_ttir():
     @triton.jit
     def kernel(x_ptr):
         offsets = tl.arange(0, 4)
-        tl.debug_collect_start(level=1)
+        ftl.debug_collect_start(level=1)
         x = tl.load(x_ptr + offsets)
         tl.store(x_ptr + offsets, x)
-        tl.debug_collect_end()
+        ftl.debug_collect_end()
 
     out = triton.compile(_source(kernel), target=_target())
     ttir = out.asm["ttir"]
@@ -83,10 +84,10 @@ def test_debug_compile_metadata_keys():
     @triton.jit
     def kernel(x_ptr):
         offsets = tl.arange(0, 4)
-        tl.debug_collect_start(level=1)
+        ftl.debug_collect_start(level=1)
         x = tl.load(x_ptr + offsets)
         tl.store(x_ptr + offsets, x)
-        tl.debug_collect_end()
+        ftl.debug_collect_end()
 
     out = triton.compile(_source(kernel), target=_target())
     md = out.metadata
@@ -419,10 +420,10 @@ def test_debug_collect_illegal_nesting_raises():
 
     @triton.jit
     def kernel(x_ptr):
-        tl.debug_collect_start(level=1)
-        tl.debug_collect_start(level=1)
-        tl.debug_collect_end()
-        tl.debug_collect_end()
+        ftl.debug_collect_start(level=1)
+        ftl.debug_collect_start(level=1)
+        ftl.debug_collect_end()
+        ftl.debug_collect_end()
 
     with pytest.raises(Exception):
         triton.compile(_source(kernel), target=_target())
@@ -432,7 +433,7 @@ def test_debug_collect_missing_end_raises():
 
     @triton.jit
     def kernel(x_ptr):
-        tl.debug_collect_start(level=1)
+        ftl.debug_collect_start(level=1)
         tl.store(x_ptr + tl.arange(0, 1), tl.zeros([1], dtype=tl.float32))
 
     with pytest.raises(Exception):

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from triton import __version__
-from triton._flagprism import register_component
+from flagtree._flagprism import register_component
 
 from .scope import scope, cpu_timed_scope, enter_scope, exit_scope
 from .state import state, enter_state, exit_state

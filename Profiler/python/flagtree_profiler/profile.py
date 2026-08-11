@@ -29,23 +29,33 @@ def _is_cann_backend(backend: Optional[str]) -> bool:
     return str(backend or "").lower() in {"cann", "ascend", "npu"}
 
 
+def _is_tianshu_backend(backend: Optional[str]) -> bool:
+    return str(backend or "").lower() in {"tianshu", "corex", "iluvatar"}
+
+
 def _uses_default_ir_triton_hook(backend: Optional[str], hook: Optional[str]) -> bool:
     return (
         hook == "triton"
-        and _is_cann_backend(backend)
-        and not _env_flag_enabled(_CANN_TRITON_LEGACY_ENV)
+        and (_is_cann_backend(backend) or _is_tianshu_backend(backend))
+        and (
+            not _is_cann_backend(backend)
+            or not _env_flag_enabled(_CANN_TRITON_LEGACY_ENV)
+        )
     )
 
 
-def _mode_with_ir_triton_overrides(mode: Optional[str]) -> str:
+def _mode_with_ir_triton_overrides(
+    mode: Optional[str], backend: Optional[str]
+) -> str:
     tokens = [token for token in str(mode or "").split(":") if token]
-    tokens.extend([
-        "aclprof_runtime_enabled=false",
-        "aclprof_auto_export=false",
-        "mstx_enabled=false",
-        "aclprof_msproftx_enabled=false",
-        "runtime_host_timing_fallback=false",
-    ])
+    if _is_cann_backend(backend):
+        tokens.extend([
+            "aclprof_runtime_enabled=false",
+            "aclprof_auto_export=false",
+            "mstx_enabled=false",
+            "aclprof_msproftx_enabled=false",
+            "runtime_host_timing_fallback=false",
+        ])
     return ":".join(tokens)
 
 
@@ -63,14 +73,14 @@ def _instrumentation_record_capacity() -> int:
     return buffer_mb * 1024 * 1024 // _IR_RECORD_SIZE_BYTES
 
 
-def _activate_instrumentation() -> None:
+def _activate_instrumentation(backend: Optional[str] = None) -> None:
     import flagtree.debugger as debugger
 
     record_capacity = _instrumentation_record_capacity()
     debugger.clear_exported_runs()
     debugger.activate(
         record_level=1,
-        addr_level=0,
+        addr_level=1 if _is_tianshu_backend(backend) else 0,
         record_capacity=record_capacity,
         output_dir=None,
     )
@@ -280,7 +290,18 @@ def _synthetic_kernel_event_for_run(
     if not summary:
         return None
     kernel_name = str(run.get("debug_kernel_name") or f"instrumentation_run_{run_index}")
-    cycle_span = max(summary["duration_cycle"], 1.0)
+    host_start_ns = summary.get("host_start_time_ns", 0.0)
+    host_duration_ns = summary.get("host_duration_ns", 0.0)
+    if host_start_ns > 0 and host_duration_ns > 0:
+        event_ts = host_start_ns / 1000.0
+        event_duration = max(host_duration_ns / 1000.0, 0.001)
+        timestamp_unit = "host ns"
+        source = "flagtree_host_launch"
+    else:
+        event_ts = base_ts
+        event_duration = max(summary.get("duration_cycle", 0.0), 1.0)
+        timestamp_unit = "SYS_CNT cycles"
+        source = "flagtree_ir"
     tid = 500000 + run_index
     trace_events.append({
         "name": "thread_name",
@@ -290,14 +311,21 @@ def _synthetic_kernel_event_for_run(
         "args": {"name": f"flagtree ir kernel {run_index}"},
     })
     metrics = {
-        _ir_metric_name("start_cycle"): summary["start_cycle"],
-        _ir_metric_name("end_cycle"): summary["end_cycle"],
-        _ir_metric_name("duration_cycle"): summary["duration_cycle"],
         _ir_metric_name("op_event_count"): summary["op_event_count"],
         _ir_metric_name("memory_access_bytes"): summary["memory_access_bytes"],
         _ir_metric_name("memory_read_bytes"): summary["memory_read_bytes"],
         _ir_metric_name("memory_write_bytes"): summary["memory_write_bytes"],
     }
+    for name in (
+        "start_cycle",
+        "end_cycle",
+        "duration_cycle",
+        "host_start_time_ns",
+        "host_end_time_ns",
+        "host_duration_ns",
+    ):
+        if name in summary:
+            metrics[_ir_metric_name(name)] = summary[name]
     if "estimated_bandwidth_bytes_per_cycle" in summary:
         metrics[_ir_metric_name("estimated_bandwidth_bytes_per_cycle")] = summary[
             "estimated_bandwidth_bytes_per_cycle"
@@ -308,13 +336,13 @@ def _synthetic_kernel_event_for_run(
         "ph": "X",
         "pid": 0,
         "tid": tid,
-        "ts": base_ts,
-        "dur": cycle_span,
+        "ts": event_ts,
+        "dur": event_duration,
         "args": {
             "call_stack": ["ROOT", kernel_name],
-            "source": "flagtree_ir",
+            "source": source,
             "kernel_sequence_index": run_index,
-            "timestamp_unit": "SYS_CNT cycles",
+            "timestamp_unit": timestamp_unit,
             "metrics": metrics,
             **metrics,
         },
@@ -502,6 +530,18 @@ def _timeline_records(run: dict) -> list[dict]:
     ]
 
 
+def _host_time_bounds(run: dict) -> tuple[int, int] | tuple[None, None]:
+    runtime_metadata = run.get("runtime_metadata") or {}
+    start = int(runtime_metadata.get("host_start_time_ns", 0) or 0)
+    end = int(runtime_metadata.get("host_end_time_ns", 0) or 0)
+    duration = int(runtime_metadata.get("host_duration_ns", 0) or 0)
+    if start > 0 and end <= start and duration > 0:
+        end = start + duration
+    if start <= 0 or end <= start:
+        return None, None
+    return start, end
+
+
 def _run_cycle_bounds(run: dict) -> tuple[int, int] | tuple[None, None]:
     timeline_records = _timeline_records(run)
     if not timeline_records:
@@ -511,36 +551,49 @@ def _run_cycle_bounds(run: dict) -> tuple[int, int] | tuple[None, None]:
     return min(starts), max(ends)
 
 
-def _run_ir_summary(run: dict) -> dict[str, float]:
+def _run_ir_summary(run: dict) -> dict[str, float | int]:
     min_cycle, max_cycle = _run_cycle_bounds(run)
-    if min_cycle is None or max_cycle is None:
-        return {}
-    records = _timeline_records(run)
-    tracked = _tracked_by_op(run)
-    summary = {
-        "start_cycle": float(min_cycle),
-        "end_cycle": float(max_cycle),
-        "duration_cycle": float(max(0, max_cycle - min_cycle)),
-        "op_event_count": float(len(records)),
+    host_start_ns, host_end_ns = _host_time_bounds(run)
+    metrics_by_op = _internal_hatchet_metrics_for_run(run)
+    summary: dict[str, float] = {
+        "op_event_count": sum(
+            metrics.get(_ir_metric_name("count"), 0.0)
+            for metrics in metrics_by_op.values()
+        ),
         "memory_access_bytes": 0.0,
         "memory_read_bytes": 0.0,
         "memory_write_bytes": 0.0,
     }
-    for record in records:
-        entry = tracked.get(int(record.get("op_id", 0)), {})
-        bytes_per_instance = _memory_access_bytes_per_instance(entry)
-        if bytes_per_instance <= 0:
-            continue
-        summary["memory_access_bytes"] += bytes_per_instance
-        direction = _memory_direction(entry)
-        if direction == "read":
-            summary["memory_read_bytes"] += bytes_per_instance
-        elif direction == "write":
-            summary["memory_write_bytes"] += bytes_per_instance
-    if summary["duration_cycle"] > 0 and summary["memory_access_bytes"] > 0:
+    if min_cycle is not None and max_cycle is not None:
+        summary.update({
+            "start_cycle": float(min_cycle),
+            "end_cycle": float(max_cycle),
+            "duration_cycle": float(max(0, max_cycle - min_cycle)),
+        })
+    if host_start_ns is not None and host_end_ns is not None:
+        summary.update({
+            "host_start_time_ns": host_start_ns,
+            "host_end_time_ns": host_end_ns,
+            "host_duration_ns": host_end_ns - host_start_ns,
+        })
+    for metrics in metrics_by_op.values():
+        for name in (
+            "memory_access_bytes",
+            "memory_read_bytes",
+            "memory_write_bytes",
+        ):
+            summary[name] += metrics.get(_ir_metric_name(name), 0.0)
+    if summary.get("duration_cycle", 0.0) > 0 and summary["memory_access_bytes"] > 0:
         summary["estimated_bandwidth_bytes_per_cycle"] = (
             summary["memory_access_bytes"] / summary["duration_cycle"]
         )
+    if (
+        min_cycle is None
+        and host_start_ns is None
+        and summary["op_event_count"] <= 0
+        and summary["memory_access_bytes"] <= 0
+    ):
+        return {}
     return summary
 
 
@@ -550,6 +603,7 @@ def _internal_hatchet_metrics_for_run(run: dict) -> dict[int, dict[str, float]]:
     by_op: dict[int, dict[str, float]] = {}
     summary_counts: dict[int, dict[str, float]] = {}
     summary_values: dict[int, dict[str, list[float]]] = {}
+    observed_instances: dict[int, set[int]] = {}
     for record in records:
         if not isinstance(record, dict):
             continue
@@ -584,19 +638,37 @@ def _internal_hatchet_metrics_for_run(run: dict) -> dict[int, dict[str, float]]:
                 bucket[_ir_metric_name("max_duration_cycle")], duration
             )
         elif kind == "SUMMARY_COUNT_BUNDLE_U64":
+            observed_instances.setdefault(op_id, set()).add(
+                int(record.get("logical_instance_id", 0))
+            )
             bucket = summary_counts.setdefault(op_id, {})
             for name in ("nan_count", "inf_count", "zero_count", "element_count"):
                 if name in record:
                     metric = _op_metric_name(name)
                     bucket[metric] = bucket.get(metric, 0.0) + float(record[name])
         elif kind == "SUMMARY_VALUE_BUNDLE_F32":
+            observed_instances.setdefault(op_id, set()).add(
+                int(record.get("logical_instance_id", 0))
+            )
             bucket = summary_values.setdefault(op_id, {})
             for name in ("mean", "min", "max", "l2_norm"):
                 if name in record:
                     bucket.setdefault(_op_metric_name(name), []).append(float(record[name]))
-    for op_id, metrics in by_op.items():
+        elif kind == "MEMORY_EVENT":
+            observed_instances.setdefault(op_id, set()).add(
+                int(record.get("logical_instance_id", 0))
+            )
+    all_op_ids = set(by_op) | set(summary_counts) | set(summary_values) | set(
+        observed_instances
+    )
+    for op_id in all_op_ids:
+        metrics = by_op.setdefault(op_id, {})
+        observed_count = float(len(observed_instances.get(op_id, ())))
+        if observed_count > metrics.get(_op_metric_name("count"), 0.0):
+            metrics[_op_metric_name("count")] = observed_count
+            metrics[_ir_metric_name("count")] = observed_count
         count = metrics.get(_op_metric_name("count"), 0.0)
-        if count > 0:
+        if count > 0 and _op_metric_name("duration_cycle") in metrics:
             metrics[_op_metric_name("avg_duration_cycle")] = (
                 metrics[_op_metric_name("duration_cycle")] / count
             )
@@ -661,11 +733,20 @@ def _augment_hatchet(path: Path, runs: list[dict]) -> None:
         run_summary = _run_ir_summary(run)
         if run_summary:
             kernel_metrics = kernel_node.setdefault("metrics", {})
-            kernel_metrics.setdefault(
-                _ir_metric_name("kernel_elapsed_cycle"),
-                run_summary["duration_cycle"],
-            )
-            root_metrics.setdefault(_ir_metric_name("kernel_elapsed_cycle"), 0)
+            if "duration_cycle" in run_summary:
+                kernel_metrics.setdefault(
+                    _ir_metric_name("kernel_elapsed_cycle"),
+                    run_summary["duration_cycle"],
+                )
+                root_metrics.setdefault(_ir_metric_name("kernel_elapsed_cycle"), 0)
+            if "host_duration_ns" in run_summary:
+                kernel_metrics.setdefault(
+                    _ir_metric_name("host_launch_duration_ns"),
+                    run_summary["host_duration_ns"],
+                )
+                root_metrics.setdefault(
+                    _ir_metric_name("host_launch_duration_ns"), 0
+                )
             kernel_metrics.setdefault(
                 _ir_metric_name("op_event_count"),
                 run_summary["op_event_count"],
@@ -733,16 +814,24 @@ def _filter_default_ir_cann_reasons(reasons: object) -> list:
 
 def _augment_ir_meta(path: Path, runs: list[dict], ir_default_for_triton: bool) -> None:
     meta = _load_json_object(path, {"schema_version": 1})
+    backend = str(meta.get("backend") or "").lower()
+    summaries = [_run_ir_summary(run) for run in runs]
     config = meta.setdefault("config", {})
     config["flagtree_ir_enabled"] = "true"
     config["flagtree_ir_runs"] = str(len(runs))
     config["flagtree_ir_kernel_events"] = str(
+        sum(1 for summary in summaries if summary)
+    )
+    config["flagtree_ir_device_timeline_events"] = str(
         sum(1 for run in runs if _timeline_records(run))
+    )
+    config["flagtree_host_launch_events"] = str(
+        sum(1 for run in runs if _host_time_bounds(run)[0] is not None)
     )
     config["flagtree_ir_default_for_triton_hook"] = (
         "true" if ir_default_for_triton else "false"
     )
-    if ir_default_for_triton:
+    if ir_default_for_triton and _is_cann_backend(backend):
         meta["vendor_metrics_enabled"] = []
         config["cann_legacy_profiler_enabled"] = "false"
         config["aclprof_runtime_enabled"] = "false"
@@ -767,24 +856,34 @@ def _ir_associations_for_runs(runs: list[dict]) -> list[dict]:
         summary = _run_ir_summary(run)
         if not summary:
             continue
-        kernel_metrics = {
+        kernel_metrics: dict[str, object] = {
             "kernel_name": kernel_name,
-            "start_cycle": summary["start_cycle"],
-            "end_cycle": summary["end_cycle"],
-            "duration_cycle": summary["duration_cycle"],
             "op_event_count": summary["op_event_count"],
             "memory_access_bytes": summary["memory_access_bytes"],
             "memory_read_bytes": summary["memory_read_bytes"],
             "memory_write_bytes": summary["memory_write_bytes"],
         }
-        if "estimated_bandwidth_bytes_per_cycle" in summary:
-            kernel_metrics["estimated_bandwidth_bytes_per_cycle"] = summary[
-                "estimated_bandwidth_bytes_per_cycle"
-            ]
+        for name in (
+            "start_cycle",
+            "end_cycle",
+            "duration_cycle",
+            "host_start_time_ns",
+            "host_end_time_ns",
+            "host_duration_ns",
+            "estimated_bandwidth_bytes_per_cycle",
+        ):
+            if name in summary:
+                kernel_metrics[name] = summary[name]
+        host_start_ns = int(summary.get("host_start_time_ns", 0.0))
+        host_end_ns = int(summary.get("host_end_time_ns", 0.0))
         associations.append({
             "source": "flagtree_ir_kernel",
             "state": "collected",
-            "note": "Collected from FlagTree IR instrumentation runtime buffer.",
+            "note": (
+                "IR records correlated with synchronized host launch timing."
+                if host_end_ns > host_start_ns
+                else "Collected from FlagTree IR instrumentation runtime buffer."
+            ),
             "runtime_event": {
                 "correlation_id": run_index,
                 "device_id": 0,
@@ -792,8 +891,8 @@ def _ir_associations_for_runs(runs: list[dict]) -> list[dict]:
                 "task_id": run_index,
                 "scope_id": 0,
                 "op_name": kernel_name,
-                "start_time_ns": 0,
-                "end_time_ns": 0,
+                "start_time_ns": host_start_ns,
+                "end_time_ns": host_end_ns,
             },
             "metrics": kernel_metrics,
         })
@@ -828,12 +927,36 @@ def _ir_associations_for_runs(runs: list[dict]) -> list[dict]:
                     "task_id": run_index,
                     "scope_id": 0,
                     "op_name": kernel_name,
-                    "start_time_ns": 0,
-                    "end_time_ns": 0,
+                    "start_time_ns": host_start_ns,
+                    "end_time_ns": host_end_ns,
                 },
                 "metrics": op_metrics,
             })
     return associations
+
+
+def _refresh_vendor_summary(vendor: dict) -> None:
+    associations = [
+        association
+        for association in vendor.get("associations", [])
+        if isinstance(association, dict)
+    ]
+    counts_by_source: dict[str, int] = {}
+    counts_by_state: dict[str, int] = {}
+    timed_count = 0
+    for association in associations:
+        source = str(association.get("source") or "unknown")
+        state = str(association.get("state") or "unknown")
+        counts_by_source[source] = counts_by_source.get(source, 0) + 1
+        counts_by_state[state] = counts_by_state.get(state, 0) + 1
+        event = association.get("runtime_event") or {}
+        if int(event.get("end_time_ns", 0)) > int(event.get("start_time_ns", 0)):
+            timed_count += 1
+    summary = vendor.setdefault("summary", {})
+    summary["association_count"] = len(associations)
+    summary["timed_association_count"] = timed_count
+    summary["counts_by_source"] = counts_by_source
+    summary["counts_by_state"] = counts_by_state
 
 
 def _augment_ir_vendor(path: Path, runs: list[dict], ir_default_for_triton: bool) -> None:
@@ -847,15 +970,21 @@ def _augment_ir_vendor(path: Path, runs: list[dict], ir_default_for_triton: bool
         "degrade_reasons": [],
         "associations": [],
     })
-    if ir_default_for_triton:
+    backend = str(vendor.get("backend") or "").lower()
+    is_cann = _is_cann_backend(backend)
+    if ir_default_for_triton and is_cann:
         vendor["enabled_metrics"] = []
         vendor["degrade_reasons"] = _filter_default_ir_cann_reasons(
             vendor.get("degrade_reasons", [])
         )
     enabled = vendor.setdefault("enabled_metrics", [])
-    for metric in ("ir_timeline", "ir_memory"):
-        _append_unique(enabled, metric)
-    if ir_default_for_triton:
+    if any(_timeline_records(run) for run in runs):
+        _append_unique(enabled, "ir_timeline")
+    if any(_host_time_bounds(run)[0] is not None for run in runs):
+        _append_unique(enabled, "host_launch_timeline")
+    if any(_run_ir_summary(run).get("memory_access_bytes", 0.0) > 0 for run in runs):
+        _append_unique(enabled, "ir_memory")
+    if ir_default_for_triton and is_cann:
         reasons = vendor.setdefault("degrade_reasons", [])
         _append_unique(
             reasons,
@@ -865,10 +994,15 @@ def _augment_ir_vendor(path: Path, runs: list[dict], ir_default_for_triton: bool
         )
     associations = vendor.setdefault("associations", [])
     associations.extend(_ir_associations_for_runs(runs))
+    _refresh_vendor_summary(vendor)
     vendor["ir_summary"] = {
         "runs": len(runs),
-        "kernel_events": sum(1 for run in runs if _timeline_records(run)),
-        "source": "flagtree_ir",
+        "kernel_events": sum(1 for run in runs if _run_ir_summary(run)),
+        "device_timeline_events": sum(1 for run in runs if _timeline_records(run)),
+        "host_launch_events": sum(
+            1 for run in runs if _host_time_bounds(run)[0] is not None
+        ),
+        "source": "flagtree_ir_and_host_launch",
         "default_for_triton_hook": ir_default_for_triton,
     }
     path.write_text(json.dumps(vendor, indent=4, default=str) + "\n")
@@ -929,6 +1063,8 @@ def _select_backend() -> str:
         return "roctracer"
     elif backend in {"ascend", "npu"}:
         return "cann"
+    elif backend in {"tianshu", "corex", "iluvatar"}:
+        return "tianshu"
     else:
         raise ValueError("No backend is available for the current target.")
 
@@ -989,7 +1125,7 @@ def start(
         name (str, optional): The name (with path) of the profiling session.
                               If not provided, the default name is "~/profiler.hatchet".
         backend (str, optional): The backend to use for profiling.
-                     Available options are [None, "cupti", "cupti_pcsampling", "roctracer", "cann"].
+        Available options are [None, "cupti", "cupti_pcsampling", "roctracer", "cann", "tianshu"].
                                  Defaults to None, which automatically selects the backend matching the current active runtime.
         context (str, optional): The context to use for profiling.
                                  Available options are ["shadow", "python"].
@@ -1000,6 +1136,8 @@ def start(
         mode (str, optional): Backend-specific mode string.
                       For "cann", one supported example is
                       "runtime_base:vendor_metrics=aicore,bandwidth".
+                      For "tianshu", vendor metrics are imported from an
+                      ixKN CSV export when `ixkn_import_path` is provided.
         hook (str, optional): The hook to use for profiling.
                               Available options are [None, "triton", "instrumentation"].
                               Defaults to None.
@@ -1019,18 +1157,20 @@ def start(
     _check_env(backend)
 
     use_triton_hook = hook == "triton" or (
-        hook == "instrumentation" and _is_cann_backend(backend)
+        hook == "instrumentation"
+        and (_is_cann_backend(backend) or _is_tianshu_backend(backend))
     )
     ir_default_for_triton = _uses_default_ir_triton_hook(backend, hook)
     use_instrumentation_hook = (
-        _is_cann_backend(backend)
+        (_is_cann_backend(backend) or _is_tianshu_backend(backend))
         and (hook == "instrumentation" or ir_default_for_triton)
     )
     use_native_instrumentation_hook = backend == "instrumentation" or (
-        hook == "instrumentation" and not _is_cann_backend(backend)
+        hook == "instrumentation"
+        and not (_is_cann_backend(backend) or _is_tianshu_backend(backend))
     )
     effective_mode = (
-        _mode_with_ir_triton_overrides(mode)
+        _mode_with_ir_triton_overrides(mode, backend)
         if ir_default_for_triton
         else _get_mode_str(backend, mode)
     )
@@ -1041,7 +1181,7 @@ def start(
     )
     instrumentation_activated = use_instrumentation_hook and not instrumentation_was_active
     if instrumentation_activated:
-        _activate_instrumentation()
+        _activate_instrumentation(backend)
     session = None
     try:
         session = profiler_native.start(

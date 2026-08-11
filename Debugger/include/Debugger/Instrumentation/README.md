@@ -99,7 +99,7 @@ offset 和局部地址窗口；这些字段不得在报告中伪装为当前结�
   支持当前 pointer/mask pattern 时额外导出 full lane address。
 - 内存地址动态采集通过 debugger 专用 IR
   `flagtree_debug.capture_memory_address` 表达，不修改 Triton 原生
-  `tt.ptr_to_int` 语义。当前 CANN9 TTIR lowering 对可反向切片的 pointer 形态
+  `tt.ptr_to_int` 语义。当前 CANN9 与 Tianshu/CoreX 4.4 LLVM 22 TTIR lowering 对可反向切片的 pointer 形态
   生成 lane-wise 地址摘要，支持的基础形态包括
   `tt.addptr(tt.splat(base), offsets)`、嵌套 `tt.addptr`、`tt.bitcast` 以及简单
   reshape/broadcast/expand_dims。完整摘要要求 offset 可证明为连续 lane offset，

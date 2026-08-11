@@ -4,7 +4,7 @@
 
 这些头文件由 FlagTree 主 CMake graph 从 FlagPrism submodule 编译。Debugger native
 extension 与 `libtriton` 一起写入同一个 FlagTree wheel；主仓库通过 Host API 2.x
-和 capability 驱动的 `triton._flagprism` 组件接口调用该模块。
+和 capability 驱动的 `flagtree._flagprism` 组件接口调用该模块。
 
 目录划分：
 
@@ -42,9 +42,10 @@ metadata-only kernel 不改变原 launch ABI。
 import triton
 import triton.language as tl
 import flagtree.debugger as debugger
+import flagtree.language as ftl
 
 # 通常在 import 后配置并开启一次。后续哪些 Triton IR op 被记录，
-# 由 @triton.jit 内部的 tl.debug_collect_start/end 控制。
+# 由 @triton.jit 内部的 ftl.debug_collect_start/end 控制。
 debugger.configure(
     output_dir="/tmp/flagtree_debugger_manual",
     record_capacity=4096,
@@ -58,11 +59,11 @@ def kernel(x_ptr, y_ptr, n: tl.constexpr, BLOCK_SIZE: tl.constexpr):
     offsets = tl.program_id(0) * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n
 
-    tl.debug_collect_start(level=1, addr_level=1)
+    ftl.debug_collect_start(level=1, addr_level=1)
     x = tl.load(x_ptr + offsets, mask=mask, other=0.0)
     y = tl.abs(x)
     tl.store(y_ptr + offsets, y, mask=mask)
-    tl.debug_collect_end()
+    ftl.debug_collect_end()
 
 
 kernel[(grid,)](...)
@@ -112,9 +113,9 @@ python3 -m pip install . --no-build-isolation
 - `debugger.activate(level=1, addr_level=0)`：开启进程级 debugger 模式。通常
   在 import 后调用一次；`level` 控制数值采集等级，`addr_level` 控制动态地址
   采集，默认 `0` 表示不插入地址采集。
-- `tl.debug_collect_start/end`：在 `@triton.jit` 内界定实际采集范围。Python
+- `ftl.debug_collect_start/end`：在 `@triton.jit` 内界定实际采集范围。Python
   侧 `activate` 只开启 debugger pipeline，不会记录普通 PyTorch/torch_npu 语句。
-  `tl.debug_collect_start(level=..., addr_level=...)` 可覆盖当前 region 的地址
+  `ftl.debug_collect_start(level=..., addr_level=...)` 可覆盖当前 region 的地址
   采集等级；不传 `addr_level` 时继承 `debugger.activate(...)` 的配置。
 - `debugger.deactivate()`：关闭 debugger，并清理 launch hook。普通一次性脚本
   通常不需要调用；长进程、notebook 或测试套件中可用它避免影响后续 kernel。
@@ -126,7 +127,7 @@ python3 -m pip install . --no-build-isolation
 - summary record 的 device lowering 主要依赖通用 TTIR arithmetic/reduce/store。
 - memory address event 依赖 debugger 专用
   `flagtree_debug.capture_memory_address` lowering；只有 `addr_level > 0` 才会插入
-  该动态地址采集。当前 CANN9 路径在 `addr_level=1` 时会对可反向切片的
+  该动态地址采集。当前 CANN9 与 Tianshu/CoreX 4.4 LLVM 22 路径在 `addr_level=1` 时会对可反向切片的
   `tt.addptr(tt.splat(base), offsets)` 指针链生成地址摘要：
   `first_addr / last_addr / min_addr / max_addr / active_lane_count /
   address_span_bytes`。该路径要求 offset 可证明为连续 lane offset，mask 为空、
@@ -134,7 +135,7 @@ python3 -m pip install . --no-build-isolation
   退回到单条 base/last aligned address 事件，保证 debugger 不破坏正常编译。
   新增后端时需要验证或重写
   `flagtree_debug.capture_memory_address` lowering。`level=2, addr_level=2` 会在
-  CANN9 支持的 pointer/mask pattern 上额外导出完整 lane address `.npy`；不支持的
+  CANN9 与 Tianshu/CoreX 4.4 LLVM 22 支持的 pointer/mask pattern 上额外导出完整 lane address `.npy`；不支持的
   pattern 在编译期报错，不生成不完整 artifact。
 
 导出文件：

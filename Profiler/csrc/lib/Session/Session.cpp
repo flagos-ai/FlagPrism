@@ -778,7 +778,8 @@ std::unique_ptr<Session> SessionManager::makeSession(
     }
     if (toLower(dataName) != "tree") {
       vendorPlan.degradeReasons.push_back(
-          "backend=cann currently emits tree base data; requested data=" +
+          "backend=" + vendorAdapter->getName() +
+          " currently emits tree base data; requested data=" +
           dataName + " was ignored.");
     }
     auto *profiler = vendorAdapter->getRuntimeProfiler();

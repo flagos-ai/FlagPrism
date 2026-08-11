@@ -206,22 +206,29 @@ def copy_flaggems_source(src: Path, dest: Path) -> None:
     shutil.copytree(src, dest, symlinks=True, ignore=ignore)
 
 
-def is_tl_import_present(module: ast.Module) -> bool:
+def is_language_import_present(
+    module: ast.Module, package: str, alias_name: str
+) -> bool:
     for node in module.body:
         if isinstance(node, ast.Import):
             for alias in node.names:
-                if alias.name == "triton.language" and alias.asname == "tl":
+                if (
+                    alias.name == f"{package}.language"
+                    and alias.asname == alias_name
+                ):
                     return True
-        if isinstance(node, ast.ImportFrom) and node.module == "triton":
+        if isinstance(node, ast.ImportFrom) and node.module == package:
             for alias in node.names:
-                if alias.name == "language" and alias.asname == "tl":
+                if alias.name == "language" and alias.asname == alias_name:
                     return True
     return False
 
 
-def insert_tl_import(module: ast.Module) -> None:
+def insert_language_import(
+    module: ast.Module, package: str, alias_name: str
+) -> None:
     import_node = ast.Import(
-        names=[ast.alias(name="triton.language", asname="tl")]
+        names=[ast.alias(name=f"{package}.language", asname=alias_name)]
     )
     index = 0
     if (
@@ -245,6 +252,22 @@ def insert_tl_import(module: ast.Module) -> None:
         index += 1
 
     module.body.insert(index, import_node)
+
+
+def is_tl_import_present(module: ast.Module) -> bool:
+    return is_language_import_present(module, "triton", "tl")
+
+
+def insert_tl_import(module: ast.Module) -> None:
+    insert_language_import(module, "triton", "tl")
+
+
+def is_ftl_import_present(module: ast.Module) -> bool:
+    return is_language_import_present(module, "flagtree", "ftl")
+
+
+def insert_ftl_import(module: ast.Module) -> None:
+    insert_language_import(module, "flagtree", "ftl")
 
 
 class ExtLaunchIdNormalizer(ast.NodeTransformer):
@@ -342,7 +365,7 @@ def is_debug_collect_call(node: ast.AST) -> bool:
         isinstance(func, ast.Attribute)
         and func.attr in {"debug_collect_start", "debug_collect_end"}
         and isinstance(func.value, ast.Name)
-        and func.value.id == "tl"
+        and func.value.id in {"ftl", "tl"}
     )
 
 
@@ -391,7 +414,7 @@ def make_debug_start(level: int, addr_level: int) -> ast.Expr:
     return ast.Expr(
         value=ast.Call(
             func=ast.Attribute(
-                value=ast.Name(id="tl", ctx=ast.Load()),
+                value=ast.Name(id="ftl", ctx=ast.Load()),
                 attr="debug_collect_start",
                 ctx=ast.Load(),
             ),
@@ -408,7 +431,7 @@ def make_debug_end() -> ast.Expr:
     return ast.Expr(
         value=ast.Call(
             func=ast.Attribute(
-                value=ast.Name(id="tl", ctx=ast.Load()),
+                value=ast.Name(id="ftl", ctx=ast.Load()),
                 attr="debug_collect_end",
                 ctx=ast.Load(),
             ),
@@ -624,8 +647,8 @@ def instrument_file(
             record["instrumented"] = True
             classifications.append(record)
 
-    if changed > 0 and not is_tl_import_present(module):
-        insert_tl_import(module)
+    if changed > 0 and not is_ftl_import_present(module):
+        insert_ftl_import(module)
 
     if changed > 0:
         ast.fix_missing_locations(module)
@@ -653,15 +676,20 @@ def patch_pointwise_dynamic_codegen(root: Path, level: int, addr_level: int) -> 
     if not path.exists():
         return False
     text = read_text(path)
-    if "tl.debug_collect_start(level=" in text:
+    if "ftl.debug_collect_start(level=" in text:
         return False
 
     start_line = (
-        f'code.writeline("tl.debug_collect_start(level={level}, '
+        f'code.writeline("ftl.debug_collect_start(level={level}, '
         f'addr_level={addr_level})")'
     )
-    end_line = 'code.writeline("tl.debug_collect_end()")'
+    end_line = 'code.writeline("ftl.debug_collect_end()")'
     replacements = [
+        (
+            "import triton.language as tl\n",
+            "import triton.language as tl\nimport flagtree.language as ftl\n",
+            1,
+        ),
         (
             '        code.writeline("# loads")\n'
             '        for i in range(schema.num_input_tensors()):\n',
@@ -1215,7 +1243,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=True,
         help_text=(
             "Patch the copied FlagGems pointwise_dynamic code generator so "
-            "generated wrapper kernels contain tl.debug_collect_start/end."
+            "generated wrapper kernels contain ftl.debug_collect_start/end."
         ),
     )
     parser.add_argument("--export-raw-records", action="store_true")

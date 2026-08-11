@@ -3,6 +3,7 @@
 
 #include "Utility/String.h"
 #include "Utility/Traits.h"
+#include <cstdint>
 #include <variant>
 #include <vector>
 

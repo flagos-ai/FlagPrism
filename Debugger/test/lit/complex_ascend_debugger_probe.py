@@ -55,6 +55,7 @@ def ensure_import_paths() -> None:
 ensure_import_paths()
 
 import triton
+import flagtree.language as ftl
 import triton.language as tl
 
 
@@ -68,7 +69,7 @@ def _complex_debug_kernel(x_ptr, y_ptr, a_ptr, b_ptr, c_ptr, n, BLOCK_SIZE: tl.c
     b = tl.load(b_ptr + offsets, mask=mask, other=0.0)
     c = tl.load(c_ptr + offsets, mask=mask, other=0.0)
 
-    tl.debug_collect_start(level=1)
+    ftl.debug_collect_start(level=1)
 
     p = a * b
     q = p + x
@@ -76,7 +77,7 @@ def _complex_debug_kernel(x_ptr, y_ptr, a_ptr, b_ptr, c_ptr, n, BLOCK_SIZE: tl.c
     s = r * r
     y = s + q
 
-    tl.debug_collect_end()
+    ftl.debug_collect_end()
 
     tl.store(y_ptr + offsets, y, mask=mask)
 

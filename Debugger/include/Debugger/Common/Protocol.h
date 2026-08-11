@@ -31,6 +31,7 @@ enum class BackendKind : uint16_t {
   HIP = 2,
   MUSA = 3,
   CANN = 4,
+  TIANSHU = 5,
 };
 
 enum class RecordKind : uint16_t {

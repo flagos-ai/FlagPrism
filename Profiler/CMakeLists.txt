@@ -16,7 +16,11 @@ if(FLAGTREE_PROFILER_STANDALONE)
 else()
   # Do not let a reused build tree retain a source path from the former
   # component directory name.
-  set(FLAGTREE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+  if(FLAGPRISM_FLAGTREE_SOURCE_DIR)
+    set(FLAGTREE_SOURCE_DIR "${FLAGPRISM_FLAGTREE_SOURCE_DIR}")
+  else()
+    set(FLAGTREE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../..")
+  endif()
 endif()
 set(FLAGTREE_BUILD_DIR "" CACHE PATH
     "FlagTree build tree containing generated compiler headers")
@@ -26,10 +30,13 @@ set(FLAGTREE_LIBTRITON "" CACHE FILEPATH
 set(PROFILER_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/csrc")
 set(PROFILER_COMMON_DIR "${CMAKE_CURRENT_SOURCE_DIR}/common")
 
-# FlagTree's Ascend compiler defines CUDA/HIP compatibility macros for shared
-# Triton code. Select Profiler runtime sources from the actual backend instead.
-set(FLAGTREE_PROFILER_GPU_RUNTIME ON)
-if(FLAGTREE_BACKEND STREQUAL "ascend")
+# FlagTree's Ascend/Tianshu paths use vendor APIs loaded at runtime instead of
+# compiling against CUDA/CUPTI/ROCtracer headers. Keep the switch explicit so
+# CoreX/Tianshu builds can validate the component without CUDA SDK packages.
+option(FLAGTREE_PROFILER_GPU_RUNTIME
+       "Build the CUDA/HIP profiler runtime adapters" ON)
+if(FLAGTREE_BACKEND MATCHES "^(ascend|tianshu)$" OR
+   FLAGPRISM_BACKEND MATCHES "^(ascend|tianshu)$")
   set(FLAGTREE_PROFILER_GPU_RUNTIME OFF)
 endif()
 
@@ -106,6 +113,7 @@ function(add_profiler_library name)
 
   target_compile_definitions(${name} PRIVATE
     FLAGTREE_PROFILER_GPU_RUNTIME=$<BOOL:${FLAGTREE_PROFILER_GPU_RUNTIME}>)
+  flagprism_apply_backend_compile_definitions(${name})
   if(FLAGTREE_PROFILER_GPU_RUNTIME)
     # If HIP is AMD-based.
     target_compile_definitions(${name} PRIVATE __HIP_PLATFORM_AMD__)

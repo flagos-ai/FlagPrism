@@ -3,10 +3,12 @@ include_guard(GLOBAL)
 # FlagPrism: keep all build policy for the bundled Debugger and
 # Profiler at this boundary. Call sites in the main CMake file should only add
 # components at the compiler lifecycle point where their targets are needed.
-set(FLAGPRISM_SOURCE_DIR
-    "${PROJECT_SOURCE_DIR}/third_party/FlagPrism")
-get_filename_component(FLAGPRISM_FLAGTREE_SOURCE_DIR
-                       "${FLAGPRISM_SOURCE_DIR}/../.." ABSOLUTE)
+if(NOT FLAGPRISM_SOURCE_DIR)
+  set(FLAGPRISM_SOURCE_DIR
+      "${PROJECT_SOURCE_DIR}/third_party/FlagPrism")
+endif()
+get_filename_component(FLAGPRISM_SOURCE_DIR "${FLAGPRISM_SOURCE_DIR}" ABSOLUTE)
+set(FLAGPRISM_FLAGTREE_SOURCE_DIR "${PROJECT_SOURCE_DIR}")
 
 if(FLAGTREE_BACKEND)
   set(_flagprism_default OFF)
@@ -17,6 +19,53 @@ endif()
 option(TRITON_BUILD_FLAGPRISM
        "Build the bundled FlagPrism debugger and profiler"
        ${_flagprism_default})
+
+set(_flagprism_supported_backends all ascend tianshu)
+set(_flagprism_backend_default "all")
+if(FLAGTREE_BACKEND STREQUAL "ascend")
+  set(_flagprism_backend_default "ascend")
+elseif(FLAGTREE_BACKEND STREQUAL "tianshu" OR
+       FLAGTREE_BACKEND STREQUAL "iluvatar" OR
+       FLAGTREE_BACKEND STREQUAL "corex")
+  set(_flagprism_backend_default "tianshu")
+endif()
+if(NOT FLAGPRISM_BACKEND)
+  set(FLAGPRISM_BACKEND "${_flagprism_backend_default}" CACHE STRING
+      "FlagPrism vendor backend to compile (all, ascend, or tianshu)" FORCE)
+endif()
+string(TOLOWER "${FLAGPRISM_BACKEND}" FLAGPRISM_BACKEND)
+set_property(CACHE FLAGPRISM_BACKEND PROPERTY STRINGS all ascend tianshu)
+if(NOT FLAGPRISM_BACKEND IN_LIST _flagprism_supported_backends)
+  message(FATAL_ERROR
+    "Unsupported FLAGPRISM_BACKEND='${FLAGPRISM_BACKEND}'. "
+    "Choose all, ascend, or tianshu.")
+endif()
+set(FLAGPRISM_BUILD_VENDOR_LOWERING OFF)
+if(FLAGPRISM_BACKEND STREQUAL "all")
+  set(FLAGPRISM_BUILD_VENDOR_LOWERING ON)
+endif()
+message(STATUS "FlagPrism vendor backend: ${FLAGPRISM_BACKEND}")
+
+function(flagprism_apply_backend_compile_definitions target)
+  if(FLAGPRISM_BACKEND STREQUAL "tianshu")
+    target_compile_definitions(${target}
+      PRIVATE FLAGPRISM_BACKEND_TIANSHU=1)
+  elseif(FLAGPRISM_BACKEND STREQUAL "ascend")
+    target_compile_definitions(${target}
+      PRIVATE FLAGPRISM_BACKEND_ASCEND=1)
+  endif()
+endfunction()
+
+function(flagprism_enable_debugger_runtime target)
+  if(FLAGPRISM_BACKEND STREQUAL "tianshu")
+    flagtree_debugger_enable_corex(${target})
+  elseif(FLAGPRISM_BACKEND STREQUAL "ascend")
+    flagtree_debugger_enable_cann(${target})
+  else()
+    flagtree_debugger_enable_cann(${target})
+    flagtree_debugger_enable_corex(${target})
+  endif()
+endfunction()
 
 function(flagprism_validate_sources)
   set(_required_sources)

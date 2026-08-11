@@ -22,6 +22,7 @@ pytest.importorskip("triton.backends.nvidia.driver")
 
 import triton
 import flagtree.debugger as debugger
+import flagtree.language as ftl
 import triton.language as tl
 
 
@@ -43,9 +44,9 @@ def test_module_a_phase1_collect_kernel_compiles_and_runs(fresh_triton_cache):
     try:
         @triton.jit
         def kernel(out_ptr, n: tl.constexpr):
-            tl.debug_collect_start(level=1)
+            ftl.debug_collect_start(level=1)
             tl.store(out_ptr + tl.arange(0, n), tl.full([n], 1.0, dtype=tl.float32))
-            tl.debug_collect_end()
+            ftl.debug_collect_end()
 
         n = 16
         out = torch.empty(n, device="cuda", dtype=torch.float32)

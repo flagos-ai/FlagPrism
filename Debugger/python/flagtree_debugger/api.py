@@ -11,6 +11,7 @@ from pathlib import Path
 import pprint
 import re
 import sys
+import time
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 
@@ -786,13 +787,29 @@ def _default_launch_prepare_hook(metadata: Any, stream: int, launch_metadata: An
     handle = _load_binding().prepare_launch(
         metadata_dict, int(stream), runtime_metadata
     )
+    host_start_time_ns = time.time_ns()
 
     def finalize(error: Optional[BaseException]) -> None:
         if error is not None and not _active_config.export_on_error:
             handle.release()
             return
 
+        host_end_time_ns = time.time_ns()
         exported_run = handle.finish()
+        exported_runtime_metadata = dict(
+            exported_run.get("runtime_metadata", {})
+        )
+        exported_runtime_metadata.setdefault(
+            "host_start_time_ns", host_start_time_ns
+        )
+        exported_runtime_metadata.setdefault(
+            "host_end_time_ns", host_end_time_ns
+        )
+        exported_runtime_metadata.setdefault(
+            "host_duration_ns",
+            max(0, host_end_time_ns - host_start_time_ns),
+        )
+        exported_run["runtime_metadata"] = exported_runtime_metadata
         exported_run = _finalize_exported_run(exported_run, metadata_dict)
         _exported_runs.append(exported_run)
         if _active_config.export_handler is not None:
@@ -835,11 +852,18 @@ def prepare_metadata_only_kernel_launch(
         runtime_metadata.setdefault("record_layout", metadata_dict["debug_record_layout"])
     if metadata_dict.get("debug_record_plan") is not None:
         runtime_metadata.setdefault("record_plan", metadata_dict["debug_record_plan"])
+    host_start_time_ns = time.time_ns()
 
     def finalize(error: Optional[BaseException]) -> None:
         if error is not None and not _active_config.export_on_error:
             return
 
+        host_end_time_ns = time.time_ns()
+        runtime_metadata["host_start_time_ns"] = host_start_time_ns
+        runtime_metadata["host_end_time_ns"] = host_end_time_ns
+        runtime_metadata["host_duration_ns"] = max(
+            0, host_end_time_ns - host_start_time_ns
+        )
         exported_run = _metadata_only_exported_run(metadata_dict, runtime_metadata)
         exported_run = _finalize_exported_run(exported_run, metadata_dict)
         _exported_runs.append(exported_run)
@@ -1039,14 +1063,19 @@ def launch_context(
             )
         yield hidden_args
         if has_hidden_arg:
-            if backend not in {"ascend", "cann", "npu"}:
+            if backend in {"ascend", "cann", "npu"}:
+                import torch_npu
+
+                torch_npu.npu.synchronize()
+            elif backend in {"tianshu", "corex", "iluvatar"}:
+                import torch
+
+                torch.cuda.synchronize()
+            else:
                 raise RuntimeError(
                     f"FlagPrism has no hidden-argument synchronization adapter "
                     f"for backend {backend!r}"
                 )
-            import torch_npu
-
-            torch_npu.npu.synchronize()
     except BaseException as error:
         launch_error = error
         raise

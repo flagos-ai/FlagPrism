@@ -24,6 +24,7 @@ pytest.importorskip("torch")
 
 import triton
 import flagtree.debugger as debugger
+import flagtree.language as ftl
 import triton.language as tl
 from triton.backends.compiler import GPUTarget
 from triton.compiler import ASTSource
@@ -75,10 +76,10 @@ def _kernel_collect():
     @triton.jit
     def kernel(x_ptr):
         offsets = tl.arange(0, 4)
-        tl.debug_collect_start(level=1)
+        ftl.debug_collect_start(level=1)
         x = tl.load(x_ptr + offsets)
         tl.store(x_ptr + offsets, x)
-        tl.debug_collect_end()
+        ftl.debug_collect_end()
 
     return kernel
 
@@ -146,10 +147,10 @@ def test_module_a_A2_zero_record_collect_disables_hidden_arg(fresh_triton_cache,
 
     @triton.jit
     def kernel(x_ptr):
-        tl.debug_collect_start(level=1)
+        ftl.debug_collect_start(level=1)
         offsets = tl.arange(0, 4)
         y = offsets + 1
-        tl.debug_collect_end()
+        ftl.debug_collect_end()
         tl.store(x_ptr + offsets, y.to(tl.float32))
 
     src = _source(kernel)

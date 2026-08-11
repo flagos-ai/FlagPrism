@@ -55,3 +55,7 @@ interfaces.
 On Ascend, the default `backend="cann", hook="triton"` IR collection path reuses
 the Debugger instrumentation runtime. Debugger and Profiler are therefore built
 and distributed together as one tool suite.
+
+Tianshu/CoreX is available as `backend="tianshu"`. Its in-process Debugger
+runtime uses the CUDA-compatible CoreX driver surface; ixKN vendor metrics are
+collected with the external `ixkn-cli` wrapper and imported from CSV.

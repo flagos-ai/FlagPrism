@@ -13,5 +13,7 @@ add_triton_library(ProtonGPUToLLVM
     ProtonAnalysis
 )
 
-add_subdirectory(ProtonNvidiaGPUToLLVM)
-add_subdirectory(ProtonAMDGPUToLLVM)
+if(FLAGPRISM_BUILD_VENDOR_LOWERING)
+  add_subdirectory(ProtonNvidiaGPUToLLVM)
+  add_subdirectory(ProtonAMDGPUToLLVM)
+endif()

@@ -66,6 +66,8 @@ std::string toString(BackendKind value) {
     return "MUSA";
   case BackendKind::CANN:
     return "CANN";
+  case BackendKind::TIANSHU:
+    return "TIANSHU";
   }
   return unknownEnum("BackendKind", value);
 }

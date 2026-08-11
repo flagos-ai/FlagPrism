@@ -142,13 +142,23 @@ def test_activate_installs_default_prepare_hook(monkeypatch):
         debugger.finalize_prepared_launch(prepared, None)
         assert seen["finished"] is True
         runs = debugger.take_exported_runs()
-        assert runs == [{
-            "meta": {"kernel_id": 1},
-            "raw_buffer": b"",
-            "debug_kernel_name": "debug_kernel",
-            "debug_tracked_table": [{"op_id": 7, "mlir_op": "tt.load"}],
-            "decoded": {"header": {}, "records": []},
-        }]
+        assert len(runs) == 1
+        assert runs[0]["meta"] == {"kernel_id": 1}
+        assert runs[0]["raw_buffer"] == b""
+        assert runs[0]["debug_kernel_name"] == "debug_kernel"
+        assert runs[0]["debug_tracked_table"] == [
+            {"op_id": 7, "mlir_op": "tt.load"}
+        ]
+        assert runs[0]["decoded"] == {"header": {}, "records": []}
+        runtime_metadata = runs[0]["runtime_metadata"]
+        assert runtime_metadata["host_start_time_ns"] > 0
+        assert runtime_metadata["host_end_time_ns"] >= runtime_metadata[
+            "host_start_time_ns"
+        ]
+        assert runtime_metadata["host_duration_ns"] == (
+            runtime_metadata["host_end_time_ns"]
+            - runtime_metadata["host_start_time_ns"]
+        )
     finally:
         _reset_debugger_state()
 

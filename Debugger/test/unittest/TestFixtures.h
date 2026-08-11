@@ -33,6 +33,8 @@ inline const char *testBackendName(BackendKind backendKind) {
     return "musa";
   case BackendKind::CANN:
     return "cann";
+  case BackendKind::TIANSHU:
+    return "tianshu";
   case BackendKind::UNKNOWN:
   default:
     return "unknown";

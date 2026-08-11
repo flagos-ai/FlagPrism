@@ -80,7 +80,14 @@ def _target_backend(metadata: dict) -> str:
 
 
 def _debug_launch_hidden_arg_enabled(metadata: dict) -> bool:
-    if _target_backend(metadata) not in {"ascend", "cann", "npu"}:
+    if _target_backend(metadata) not in {
+        "ascend",
+        "cann",
+        "npu",
+        "tianshu",
+        "corex",
+        "iluvatar",
+    }:
         return False
     # Keep the environment variable as a compatibility hook for subprocesses
     # and older scripts, but make the Python debugger API the normal path.
@@ -101,6 +108,8 @@ def _kernel_internal_timeline_supported() -> bool:
         backend = str(triton.runtime.driver.active.get_current_target().backend).lower()
     except Exception:
         return False
+    # Tianshu/CoreX does not expose the Ascend SYS_CNT instruction used by the
+    # current device-cycle timeline implementation.
     return backend in {"ascend", "npu", "cann"}
 
 
@@ -178,10 +187,9 @@ def run_ttir_debug_passes_if_needed(mod, metadata: dict) -> None:
     fd.set_debug_kernel_id_seed(mod, str(metadata.get("hash") or ""))
     fd.set_debug_hidden_arg_abi_enabled(mod, bool(metadata["debug_launch_hidden_arg"]))
     fd.set_debug_addr_level(mod, int(metadata["debug_addr_level"]))
-    fd.set_debug_timeline_enabled(
-        mod, bool(auto_collect and _kernel_internal_timeline_supported())
-    )
-    fd.set_debug_timeline_only(mod, bool(auto_collect))
+    timeline_supported = _kernel_internal_timeline_supported()
+    fd.set_debug_timeline_enabled(mod, bool(auto_collect and timeline_supported))
+    fd.set_debug_timeline_only(mod, bool(auto_collect and timeline_supported))
 
     if _finish_metadata_only_tensor_pointer_debug(fd, mod, metadata):
         return

@@ -27,12 +27,22 @@ PyObject *_Py_XNewRef(PyObject *obj) {
 
 PyCodeObject *getFrameCodeObject(PyFrameObject *frame) {
   assert(frame != nullptr);
+#if PY_VERSION_HEX < 0x03090000
+  return frame->f_code;
+#else
   return PyFrame_GetCode(frame);
+#endif
 }
 
 PyFrameObject *getFrameBack(PyFrameObject *frame) {
   assert(frame != nullptr);
+#if PY_VERSION_HEX < 0x03090000
+  PyFrameObject *back = frame->f_back;
+  Py_XINCREF(back);
+  return back;
+#else
   return PyFrame_GetBack(frame);
+#endif
 }
 
 std::string unpackPyobject(PyObject *pyObject) {

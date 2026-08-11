@@ -16,6 +16,7 @@
 - 分配并管理 control block / ring buffer。
 - 初始化 `RingBufferHeader`。
 - 为启用 hidden-argument ABI 的 launch 返回 `__debug_ctrl_ptr` 设备地址。
+- Tianshu/CoreX 通过 CUDA-compatible driver API 提供同等的设备内存、拷贝和 stream 同步能力。
 - 在 kernel 结束后把原始字节流导出给 D。
 - 维护 runtime tensor / buffer 注册表，供 D 做动态实例解释。
 

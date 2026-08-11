@@ -45,7 +45,8 @@ void parseSelectIds(llvm::StringRef selectIds,
       break;
   }
   llvm::sort(selectIdVec);
-  selectIdVec.erase(llvm::unique(selectIdVec), selectIdVec.end());
+  selectIdVec.erase(std::unique(selectIdVec.begin(), selectIdVec.end()),
+                    selectIdVec.end());
 }
 
 template <typename T, typename OP> bool hasOperator(T *o) {
@@ -268,9 +269,11 @@ public:
     }
 
     Value buffer;
-    auto ctaLayout =
-        triton::gpu::CTALayoutAttr::get(context, /*CTAsPerCGA=*/{1},
-                                        /*CTASplitNum=*/{1}, /*CTAOrder=*/{0});
+    llvm::SmallVector<unsigned, 1> ctasPerCGA{1};
+    llvm::SmallVector<unsigned, 1> ctaSplitNum{1};
+    llvm::SmallVector<unsigned, 1> ctaOrder{0};
+    auto ctaLayout = triton::gpu::CTAEncodingAttr::fromSplitParams(
+        context, ctasPerCGA, ctaSplitNum, ctaOrder);
     auto encoding = triton::gpu::SwizzledSharedEncodingAttr::get(
         context, 1, 1, 1, {0}, ctaLayout);
 
