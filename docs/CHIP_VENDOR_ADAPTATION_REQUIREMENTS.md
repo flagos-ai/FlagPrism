@@ -169,13 +169,56 @@ public:
 };
 ```
 
-这三个结构体由 FlagPrism 定义，含义如下：
+这三个结构体由 FlagPrism 定义。省略默认值后，结构如下：
 
-| 参数 | 含义 |
-| --- | --- |
-| `metadata` | 本次采集的基本信息，例如后端名称、设备信息、session 名称和运行配置 |
-| `plan` | 本次需要采集的指标、厂商参数和原始结果位置 |
-| 返回值 | 解析后的 kernel 事件、硬件指标、原始文件列表和错误原因 |
+```cpp
+// 本次采集的基本信息，由 FlagPrism 传给厂商 Importer。
+struct SessionProfileMetadata {
+  uint32_t schemaVersion;                    // 数据格式版本
+  std::string runId;                         // 本次运行 ID
+  std::string sessionName;                   // session 名称
+  std::string backend;                       // 芯片后端名称
+  std::string profilerName;                  // Profiler 名称
+  std::string context;                       // 上下文模式
+  std::string data;                          // 输出数据类型
+  std::string hook;                          // hook 类型
+  std::string mode;                          // 用户传入的原始采集模式
+  bool runtimeBaseEnabled;                   // 是否采集 kernel 基础运行信息
+  std::vector<std::string> vendorMetricsRequested; // 用户请求的厂商指标
+  std::vector<std::string> vendorMetricsEnabled;   // 本次实际启用的厂商指标
+  std::vector<std::string> degradeReasons;   // 已知的降级原因
+  std::map<std::string, std::string> config; // 厂商配置和原始结果位置
+  RuntimeVersionInfo versions;               // 驱动和 Runtime 版本
+  DeviceSnapshot device;                     // 设备 ID、名称和架构等信息
+};
+
+// 本次实际执行的采集配置，由 makePlan() 生成。
+struct VendorProfilePlan {
+  VendorProfileOptions requested;            // 用户原始请求和厂商参数
+  bool runtimeBaseEnabled;                   // 是否采集 kernel 基础运行信息
+  std::vector<std::string> enabledVendorMetrics;  // 实际启用的指标
+  std::vector<std::string> disabledVendorMetrics; // 无法启用的指标
+  std::vector<std::string> degradeReasons;   // 无法启用的原因
+};
+
+// 厂商 Importer 返回的统一结果。
+struct VendorProfileArtifact {
+  uint32_t schemaVersion;                    // 数据格式版本
+  std::string backend;                       // 芯片后端名称
+  std::string importer;                      // Importer 名称
+  std::vector<VendorMetricRequest> requestedMetrics; // 用户请求的指标
+  std::vector<std::string> enabledMetrics;   // 实际采集的指标
+  std::vector<std::string> rawInputs;        // 读取的厂商原始文件
+  std::vector<std::string> degradeReasons;   // 解析和关联失败原因
+  std::vector<VendorMetricAssociation> associations; // kernel 事件及其指标
+};
+```
+
+其中：
+
+- `VendorProfileOptions` 包含用户原始模式、指标列表和厂商参数；
+- `VendorMetricAssociation` 包含一个 kernel 事件、采集状态、指标列表和错误说明；
+- kernel 事件包含 kernel 名称、device ID、stream ID、task/correlation ID，以及开始和结束时间。
 
 返回结果中的每条 kernel 记录包含：kernel 名称、device ID、stream ID、开始时间、结束时间、指标列表、采集状态和错误说明。
 
