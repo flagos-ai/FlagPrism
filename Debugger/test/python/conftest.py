@@ -12,6 +12,9 @@ _MARKERS = {
     "module_a_ctt1": "Module A scope validation coverage",
     "module_a_ctt3": "Module A hidden-argument contract coverage",
     "module_a_smoke": "Module A compile-and-run smoke coverage",
+    "ascend_debugger_operator": "Ascend debugger operator coverage",
+    "ascend_debugger_metrics": "Ascend FlagPrism runtime metric coverage",
+    "ascend_debugger_ci": "Complete Ascend FlagPrism debugger CI coverage",
 }
 
 
