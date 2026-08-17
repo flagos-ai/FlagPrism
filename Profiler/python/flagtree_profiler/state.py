@@ -1,8 +1,9 @@
+from functools import wraps
+
+from .flags import get_profiling_on
 from .native import runtime_binding
 
 profiler_native = runtime_binding()
-from .flags import get_profiling_on
-from functools import wraps
 
 
 class state:

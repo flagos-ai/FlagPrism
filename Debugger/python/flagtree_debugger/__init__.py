@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from triton import __version__
 from flagtree._flagprism import register_component
+from triton import __version__
 
-from . import compiler as _compiler_module
-from . import native as _native_module
-from . import runtime as _runtime_module
+from . import compiler as compiler
+from . import native as native
+from . import runtime as runtime
 from .api import *  # noqa: F403
-from .api import __all__
+from .api import __all__ as __all__
 
 
 class _DebuggerComponent:
