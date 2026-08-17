@@ -109,7 +109,8 @@ import flagtree.profiler as profiler
 
 
 @triton.jit
-def _vector_add_kernel(x_ptr, y_ptr, out_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
+def _vector_add_kernel(x_ptr, y_ptr, out_ptr, n_elements,
+                       BLOCK_SIZE: tl.constexpr):
     pid = tl.program_id(axis=0)
     offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
@@ -143,10 +144,10 @@ def main() -> int:
     block = 1024
     warmup = 2
     iters = 10
-    x = torch.randn((n,), device=device, dtype=torch.float32)
-    y = torch.randn((n,), device=device, dtype=torch.float32)
+    x = torch.randn((n, ), device=device, dtype=torch.float32)
+    y = torch.randn((n, ), device=device, dtype=torch.float32)
     result = torch.empty_like(x)
-    grid = (triton.cdiv(n, block),)
+    grid = (triton.cdiv(n, block), )
 
     for _ in range(warmup):
         _vector_add_kernel[grid](x, y, result, n, BLOCK_SIZE=block)
@@ -158,13 +159,11 @@ def main() -> int:
         data="tree",
         backend="cann",
         hook="triton",
-        mode=(
-            "runtime_base:"
-            "device_id=1:"
-            "vendor_metrics=aicore,bandwidth:"
-            "mstx_enabled=true:"
-            "mstx_domain=flagtree_profiler"
-        ),
+        mode=("runtime_base:"
+              "device_id=1:"
+              "vendor_metrics=aicore,bandwidth:"
+              "mstx_enabled=true:"
+              "mstx_domain=flagtree_profiler"),
     )
     try:
         for _ in range(iters):

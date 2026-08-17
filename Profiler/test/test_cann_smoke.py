@@ -25,6 +25,7 @@ import triton.knobs as knobs
 import flagtree.profiler as profiler
 from triton.compiler import LazyDict
 from flagtree.profiler.native import runtime_binding
+
 profiler_native = runtime_binding()
 
 profiler_profile = importlib.import_module("flagtree.profiler.profile")
@@ -43,16 +44,14 @@ def _finalize_cann_import(base, import_root, monkeypatch, metrics="aicore"):
         data="tree",
         hook="triton",
         backend="cann",
-        mode=(
-            "runtime_base:"
-            f"vendor_metrics={metrics}:"
-            f"aclprof_output_path={import_root}:"
-            "runtime_host_timing_fallback=false:"
-            "aclprof_runtime_enabled=false:"
-            "aclprof_auto_export=false:"
-            "mstx_enabled=false:"
-            "aclprof_msproftx_enabled=false"
-        ),
+        mode=("runtime_base:"
+              f"vendor_metrics={metrics}:"
+              f"aclprof_output_path={import_root}:"
+              "runtime_host_timing_fallback=false:"
+              "aclprof_runtime_enabled=false:"
+              "aclprof_auto_export=false:"
+              "mstx_enabled=false:"
+              "aclprof_msproftx_enabled=false"),
     )
     profiler.finalize(session_id)
     return json.loads(base.with_suffix(".vendor.json").read_text())
@@ -60,8 +59,7 @@ def _finalize_cann_import(base, import_root, monkeypatch, metrics="aicore"):
 
 def _op_summary_associations(vendor_json):
     return [
-        assoc
-        for assoc in vendor_json.get("associations", [])
+        assoc for assoc in vendor_json.get("associations", [])
         if assoc.get("source") == "aclprof_op_summary"
     ]
 
@@ -99,7 +97,8 @@ def test_ir_record_capacity_is_part_of_cache_mode(monkeypatch):
         assert get_instrumentation_mode() == "debugger_auto"
         options = {}
         apply_compile_options(options)
-        assert '"debug_record_capacity":524288' in options["instrumentation_mode"]
+        assert '"debug_record_capacity":524288' in options[
+            "instrumentation_mode"]
     finally:
         profiler_profile._deactivate_instrumentation()
     assert get_instrumentation_mode() == ""
@@ -121,8 +120,7 @@ def test_native_instrumentation_preserves_mode_and_default_hook(monkeypatch):
         profiler_profile.triton.runtime.driver,
         "_active",
         SimpleNamespace(
-            get_current_target=lambda: SimpleNamespace(backend="cuda"),
-        ),
+            get_current_target=lambda: SimpleNamespace(backend="cuda"), ),
     )
     monkeypatch.setattr(profiler_profile, "set_profiling_on", lambda: None)
     monkeypatch.setattr(profiler_profile, "is_command_line", lambda: False)
@@ -134,7 +132,8 @@ def test_native_instrumentation_preserves_mode_and_default_hook(monkeypatch):
     monkeypatch.setattr(
         profiler_profile.HookManager,
         "register",
-        staticmethod(lambda hook, session: calls.setdefault("hook", (hook, session))),
+        staticmethod(
+            lambda hook, session: calls.setdefault("hook", (hook, session))),
     )
     profiler_profile._active_sessions.clear()
     try:
@@ -152,11 +151,9 @@ def test_native_instrumentation_preserves_mode_and_default_hook(monkeypatch):
 
 def test_finalize_preserves_data_specific_default_format(monkeypatch):
     calls = {}
-    runtime = SimpleNamespace(
-        finalize=lambda session, output_format: calls.setdefault(
-            "finalize", (session, output_format)
-        ),
-    )
+    runtime = SimpleNamespace(finalize=lambda session, output_format: calls.
+                              setdefault("finalize", (session, output_format)),
+                              )
     monkeypatch.setattr(profiler_profile, "profiler_native", runtime)
     monkeypatch.setattr(profiler_profile, "set_profiling_off", lambda: None)
     monkeypatch.setattr(profiler_profile, "is_command_line", lambda: False)
@@ -184,7 +181,9 @@ def real_cann_direct_run(tmp_path_factory):
     env.setdefault("FLAGTREE_PROFILER_CANN_TRITON_HOOK_LEGACY", "1")
     cmd = [
         sys.executable,
-        str(repo / "third_party/FlagPrism/Profiler/scripts/cann_operator_profile_suite.py"),
+        str(repo /
+            "third_party/FlagPrism/Profiler/scripts/cann_operator_profile_suite.py"
+            ),
         "--workload",
         "--name",
         str(profile_base),
@@ -212,13 +211,18 @@ def real_cann_direct_run(tmp_path_factory):
         pytest.fail(result.stdout)
 
     return {
-        "out": out,
-        "stdout": result.stdout,
-        "meta": json.loads(profile_base.with_suffix(".meta.json").read_text()),
-        "vendor": json.loads(profile_base.with_suffix(".vendor.json").read_text()),
-        "timeline": json.loads(
-            profile_base.with_suffix(".timeline.json").read_text().splitlines()[0]
-        ),
+        "out":
+        out,
+        "stdout":
+        result.stdout,
+        "meta":
+        json.loads(profile_base.with_suffix(".meta.json").read_text()),
+        "vendor":
+        json.loads(profile_base.with_suffix(".vendor.json").read_text()),
+        "timeline":
+        json.loads(
+            profile_base.with_suffix(
+                ".timeline.json").read_text().splitlines()[0]),
     }
 
 
@@ -233,14 +237,12 @@ def test_cann_backend_smoke(tmp_path):
         data="tree",
         hook="triton",
         backend="cann",
-        mode=(
-            "runtime_base:"
-            "vendor_metrics=aicore,bandwidth:"
-            f"aclprof_output_path={vendor_output}:"
-            "runtime_host_timing_fallback=true:"
-            "aclprof_runtime_enabled=false:"
-            "aclprof_auto_export=false"
-        ),
+        mode=("runtime_base:"
+              "vendor_metrics=aicore,bandwidth:"
+              f"aclprof_output_path={vendor_output}:"
+              "runtime_host_timing_fallback=true:"
+              "aclprof_runtime_enabled=false:"
+              "aclprof_auto_export=false"),
     )
 
     scope_id = profiler_native.record_scope()
@@ -286,17 +288,18 @@ def test_cann_hatchet_preserves_custom_scope_data(tmp_path):
         context="python",
         data="tree",
         backend="cann",
-        mode=(
-            "runtime_base:"
-            "aclprof_runtime_enabled=false:"
-            "aclprof_auto_export=false:"
-            "runtime_host_timing_fallback=false:"
-            "mstx_enabled=false"
-        ),
+        mode=("runtime_base:"
+              "aclprof_runtime_enabled=false:"
+              "aclprof_auto_export=false:"
+              "runtime_host_timing_fallback=false:"
+              "mstx_enabled=false"),
     )
     with profiler.scope(
-        "custom_scope",
-        {"custom_metric": 1.5, "custom_property (pty)": "kept"},
+            "custom_scope",
+        {
+            "custom_metric": 1.5,
+            "custom_property (pty)": "kept"
+        },
     ):
         pass
     profiler.finalize(session_id)
@@ -320,15 +323,12 @@ def test_cann_imports_exported_msprof_tx_csv(tmp_path, monkeypatch):
     import_dir = tmp_path / "msprof" / "PROF_000001" / "mindstudio_profiler_output"
     import_dir.mkdir(parents=True, exist_ok=True)
     msprof_tx_csv = import_dir / "msprof_tx_0.csv"
-    msprof_tx_csv.write_text(
-        "\n".join(
-            [
-                "Name,Start Time(us),Duration(us),Domain",
-                "flagtree_profiler_cann_mstx_range,1000,25,flagtree_profiler",
-            ]
-        )
-    )
-    monkeypatch.setenv("FLAGTREE_PROFILER_CANN_IMPORT_PATH", str(tmp_path / "msprof"))
+    msprof_tx_csv.write_text("\n".join([
+        "Name,Start Time(us),Duration(us),Domain",
+        "flagtree_profiler_cann_mstx_range,1000,25,flagtree_profiler",
+    ]))
+    monkeypatch.setenv("FLAGTREE_PROFILER_CANN_IMPORT_PATH",
+                       str(tmp_path / "msprof"))
 
     base = tmp_path / "profile_run_msprof_tx"
     session_id = profiler.start(
@@ -337,27 +337,27 @@ def test_cann_imports_exported_msprof_tx_csv(tmp_path, monkeypatch):
         data="tree",
         hook="triton",
         backend="cann",
-        mode=(
-            "runtime_base:"
-            "vendor_metrics=aicore:"
-            "runtime_host_timing_fallback=false:"
-            "aclprof_runtime_enabled=false:"
-            "aclprof_auto_export=false"
-        ),
+        mode=("runtime_base:"
+              "vendor_metrics=aicore:"
+              "runtime_host_timing_fallback=false:"
+              "aclprof_runtime_enabled=false:"
+              "aclprof_auto_export=false"),
     )
     profiler.finalize(session_id)
 
     vendor = base.with_suffix(".vendor.json")
     vendor_json = json.loads(vendor.read_text())
-    assert any("msprof_tx_0.csv" in path for path in vendor_json.get("raw_inputs", []))
+    assert any("msprof_tx_0.csv" in path
+               for path in vendor_json.get("raw_inputs", []))
     assert any(
         assoc.get("source") == "msprof_mstx"
-        for assoc in vendor_json.get("associations", [])
-    )
+        for assoc in vendor_json.get("associations", []))
 
 
-def test_cann_defaults_host_timing_fallback_and_temporary_output(tmp_path, monkeypatch):
-    monkeypatch.delenv("FLAGTREE_PROFILER_CANN_RUNTIME_HOST_FALLBACK", raising=False)
+def test_cann_defaults_host_timing_fallback_and_temporary_output(
+        tmp_path, monkeypatch):
+    monkeypatch.delenv("FLAGTREE_PROFILER_CANN_RUNTIME_HOST_FALLBACK",
+                       raising=False)
     monkeypatch.delenv("FLAGTREE_PROFILER_CANN_PROFILE_OUTPUT", raising=False)
 
     base = tmp_path / "profile_run_defaults"
@@ -367,13 +367,11 @@ def test_cann_defaults_host_timing_fallback_and_temporary_output(tmp_path, monke
         data="tree",
         hook="triton",
         backend="cann",
-        mode=(
-            "runtime_base:"
-            "vendor_metrics=aicore:"
-            "aclprof_runtime_enabled=false:"
-            "aclprof_auto_export=false:"
-            "mstx_enabled=false"
-        ),
+        mode=("runtime_base:"
+              "vendor_metrics=aicore:"
+              "aclprof_runtime_enabled=false:"
+              "aclprof_auto_export=false:"
+              "mstx_enabled=false"),
     )
     profiler.finalize(session_id)
 
@@ -386,73 +384,57 @@ def test_cann_defaults_host_timing_fallback_and_temporary_output(tmp_path, monke
 def test_cann_import_path_does_not_scan_session_parent(tmp_path, monkeypatch):
     import_dir = tmp_path / "import_only"
     import_dir.mkdir()
-    (import_dir / "op_summary_0.csv").write_text(
-        "\n".join(
-            [
-                "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "wanted_kernel,1,1,0,1000,10",
-            ]
-        )
-    )
-    (tmp_path / "op_summary_stale.csv").write_text(
-        "\n".join(
-            [
-                "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "stale_kernel,2,1,0,2000,10",
-            ]
-        )
-    )
+    (import_dir / "op_summary_0.csv").write_text("\n".join([
+        "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "wanted_kernel,1,1,0,1000,10",
+    ]))
+    (tmp_path / "op_summary_stale.csv").write_text("\n".join([
+        "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "stale_kernel,2,1,0,2000,10",
+    ]))
 
     vendor_json = _finalize_cann_import(
-        tmp_path / "profile_run_import_isolated", import_dir, monkeypatch
-    )
+        tmp_path / "profile_run_import_isolated", import_dir, monkeypatch)
     raw_inputs = vendor_json.get("raw_inputs", [])
     assert raw_inputs
     assert all(str(import_dir) in path for path in raw_inputs)
     assert not any("op_summary_stale.csv" in path for path in raw_inputs)
 
 
-def test_cann_csv_discovery_skips_unreadable_subdirectories(tmp_path, monkeypatch):
+def test_cann_csv_discovery_skips_unreadable_subdirectories(
+        tmp_path, monkeypatch):
     import_dir = tmp_path / "import_with_unreadable"
     import_dir.mkdir()
     readable_csv = import_dir / "op_summary_0.csv"
-    readable_csv.write_text(
-        "\n".join(
-            [
-                "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "readable_kernel,1,1,0,1000,10",
-            ]
-        )
-    )
+    readable_csv.write_text("\n".join([
+        "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "readable_kernel,1,1,0,1000,10",
+    ]))
     unreadable_dir = import_dir / "unreadable"
     unreadable_dir.mkdir()
-    (unreadable_dir / "op_summary_hidden.csv").write_text(readable_csv.read_text())
+    (unreadable_dir / "op_summary_hidden.csv").write_text(
+        readable_csv.read_text())
     unreadable_dir.chmod(0)
     try:
         vendor_json = _finalize_cann_import(
-            tmp_path / "profile_run_unreadable", import_dir, monkeypatch
-        )
+            tmp_path / "profile_run_unreadable", import_dir, monkeypatch)
     finally:
         unreadable_dir.chmod(0o700)
 
-    assert any(
-        "op_summary_0.csv" in path
-        for path in vendor_json.get("raw_inputs", [])
-    )
+    assert any("op_summary_0.csv" in path
+               for path in vendor_json.get("raw_inputs", []))
 
 
 def test_cann_backend_rejects_overlapping_sessions(tmp_path):
     first = tmp_path / "first"
     second = tmp_path / "second"
-    mode = (
-        "runtime_base:"
-        "vendor_metrics=aicore:"
-        f"aclprof_output_path={tmp_path / 'msprof'}:"
-        "runtime_host_timing_fallback=false:"
-        "aclprof_runtime_enabled=false:"
-        "aclprof_auto_export=false:"
-        "mstx_enabled=false"
-    )
+    mode = ("runtime_base:"
+            "vendor_metrics=aicore:"
+            f"aclprof_output_path={tmp_path / 'msprof'}:"
+            "runtime_host_timing_fallback=false:"
+            "aclprof_runtime_enabled=false:"
+            "aclprof_auto_export=false:"
+            "mstx_enabled=false")
     session_id = profiler.start(
         name=str(first),
         context="shadow",
@@ -479,15 +461,13 @@ def test_finalize_session_restores_triton_hook(tmp_path):
     original_enter = list(knobs.runtime.launch_enter_hook.calls)
     original_exit = list(knobs.runtime.launch_exit_hook.calls)
     base = tmp_path / "profile_run_hook_cleanup"
-    mode = (
-        "runtime_base:"
-        "vendor_metrics=aicore:"
-        f"aclprof_output_path={tmp_path / 'msprof'}:"
-        "runtime_host_timing_fallback=false:"
-        "aclprof_runtime_enabled=false:"
-        "aclprof_auto_export=false:"
-        "mstx_enabled=false"
-    )
+    mode = ("runtime_base:"
+            "vendor_metrics=aicore:"
+            f"aclprof_output_path={tmp_path / 'msprof'}:"
+            "runtime_host_timing_fallback=false:"
+            "aclprof_runtime_enabled=false:"
+            "aclprof_auto_export=false:"
+            "mstx_enabled=false")
     session_id = profiler.start(
         name=str(base),
         context="shadow",
@@ -505,7 +485,8 @@ def test_finalize_session_restores_triton_hook(tmp_path):
     assert knobs.runtime.launch_exit_hook.calls == original_exit
 
 
-def test_triton_hook_chains_and_restores_existing_hooks_after_failed_start(tmp_path):
+def test_triton_hook_chains_and_restores_existing_hooks_after_failed_start(
+        tmp_path):
     original_enter = list(knobs.runtime.launch_enter_hook.calls)
     original_exit = list(knobs.runtime.launch_exit_hook.calls)
     calls = []
@@ -519,15 +500,13 @@ def test_triton_hook_chains_and_restores_existing_hooks_after_failed_start(tmp_p
     knobs.runtime.launch_enter_hook.add(previous_enter)
     knobs.runtime.launch_exit_hook.add(previous_exit)
 
-    mode = (
-        "runtime_base:"
-        "vendor_metrics=aicore:"
-        f"aclprof_output_path={tmp_path / 'msprof'}:"
-        "runtime_host_timing_fallback=false:"
-        "aclprof_runtime_enabled=false:"
-        "aclprof_auto_export=false:"
-        "mstx_enabled=false"
-    )
+    mode = ("runtime_base:"
+            "vendor_metrics=aicore:"
+            f"aclprof_output_path={tmp_path / 'msprof'}:"
+            "runtime_host_timing_fallback=false:"
+            "aclprof_runtime_enabled=false:"
+            "aclprof_auto_export=false:"
+            "mstx_enabled=false")
     session_id = None
     try:
         session_id = profiler.start(
@@ -551,11 +530,16 @@ def test_triton_hook_chains_and_restores_existing_hooks_after_failed_start(tmp_p
                 mode=mode,
             )
         assert previous_enter in knobs.runtime.launch_enter_hook.calls
-        assert len(knobs.runtime.launch_enter_hook.calls) > len(original_enter) + 1
+        assert len(
+            knobs.runtime.launch_enter_hook.calls) > len(original_enter) + 1
         profiler.finalize(session_id)
         session_id = None
-        assert knobs.runtime.launch_enter_hook.calls == original_enter + [previous_enter]
-        assert knobs.runtime.launch_exit_hook.calls == original_exit + [previous_exit]
+        assert knobs.runtime.launch_enter_hook.calls == original_enter + [
+            previous_enter
+        ]
+        assert knobs.runtime.launch_exit_hook.calls == original_exit + [
+            previous_exit
+        ]
     finally:
         if session_id is not None:
             profiler.finalize(session_id)
@@ -569,26 +553,17 @@ def test_triton_hook_chains_and_restores_existing_hooks_after_failed_start(tmp_p
 def test_cann_correlates_op_summary_by_correlation_id(tmp_path, monkeypatch):
     csv_dir = tmp_path / "summary"
     csv_dir.mkdir(parents=True, exist_ok=True)
-    (csv_dir / "op_summary_0.csv").write_text(
-        "\n".join(
-            [
-                "Op Name,Correlation ID,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us),aicoreTimeMs,totalCycle",
-                "summary_kernel,9001,77,1,0,2000,50,0.2,12345",
-            ]
-        )
-    )
-    (csv_dir / "task_time_0.csv").write_text(
-        "\n".join(
-            [
-                "Kernel Name,Correlation ID,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "runtime_kernel_by_corr,9001,999,8,0,900000,10",
-            ]
-        )
-    )
+    (csv_dir / "op_summary_0.csv").write_text("\n".join([
+        "Op Name,Correlation ID,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us),aicoreTimeMs,totalCycle",
+        "summary_kernel,9001,77,1,0,2000,50,0.2,12345",
+    ]))
+    (csv_dir / "task_time_0.csv").write_text("\n".join([
+        "Kernel Name,Correlation ID,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "runtime_kernel_by_corr,9001,999,8,0,900000,10",
+    ]))
 
-    vendor_json = _finalize_cann_import(
-        tmp_path / "profile_run_corr", csv_dir, monkeypatch
-    )
+    vendor_json = _finalize_cann_import(tmp_path / "profile_run_corr", csv_dir,
+                                        monkeypatch)
     associations = _op_summary_associations(vendor_json)
     assert len(associations) == 1
     assoc = associations[0]
@@ -601,19 +576,14 @@ def test_cann_correlates_op_summary_by_correlation_id(tmp_path, monkeypatch):
 def test_cann_derives_bandwidth_from_op_summary_bytes(tmp_path, monkeypatch):
     csv_dir = tmp_path / "summary"
     csv_dir.mkdir(parents=True, exist_ok=True)
-    (csv_dir / "op_summary_0.csv").write_text(
-        "\n".join(
-            [
-                "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us),HBM Read(MB),HBM Write(MB)",
-                "bandwidth_kernel,11,1,0,1000,10,2,1",
-            ]
-        )
-    )
+    (csv_dir / "op_summary_0.csv").write_text("\n".join([
+        "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us),HBM Read(MB),HBM Write(MB)",
+        "bandwidth_kernel,11,1,0,1000,10,2,1",
+    ]))
 
     base = tmp_path / "profile_run_bandwidth"
-    vendor_json = _finalize_cann_import(
-        base, csv_dir, monkeypatch, "aicore,bandwidth"
-    )
+    vendor_json = _finalize_cann_import(base, csv_dir, monkeypatch,
+                                        "aicore,bandwidth")
     associations = _op_summary_associations(vendor_json)
     assert len(associations) == 1
     metrics = associations[0]["metrics"]
@@ -622,15 +592,11 @@ def test_cann_derives_bandwidth_from_op_summary_bytes(tmp_path, monkeypatch):
     assert metrics["memory_access_bytes"] == 3_000_000
     assert metrics["bandwidth_gb_s"] == 300
     assert metrics["bandwidth_source"].startswith(
-        "derived_from_bytes_and_task_duration"
-    )
+        "derived_from_bytes_and_task_duration")
 
     timeline = json.loads(base.with_suffix(".timeline.json").read_text())
-    event = next(
-        event
-        for event in timeline["traceEvents"]
-        if str(event.get("name", "")).startswith("bandwidth_kernel")
-    )
+    event = next(event for event in timeline["traceEvents"]
+                 if str(event.get("name", "")).startswith("bandwidth_kernel"))
     assert event["cat"] == "cann_runtime:aclprof_op_summary"
     assert event["args"]["cann.bandwidth_gb_s"] == 300
     assert event["args"]["metrics"]["cann.memory_access_bytes"] == 3_000_000
@@ -644,13 +610,8 @@ def test_cann_derives_bandwidth_from_op_summary_bytes(tmp_path, monkeypatch):
             collect(child)
 
     collect(hatchet[0])
-    bandwidth_node = next(
-        node
-        for node in nodes
-        if str(node.get("frame", {}).get("name", "")).startswith(
-            "bandwidth_kernel"
-        )
-    )
+    bandwidth_node = next(node for node in nodes if str(
+        node.get("frame", {}).get("name", "")).startswith("bandwidth_kernel"))
     assert bandwidth_node["metrics"]["cann.bandwidth_gb_s"] == 300
     assert isinstance(bandwidth_node["metrics"]["device_id"], str)
 
@@ -658,14 +619,10 @@ def test_cann_derives_bandwidth_from_op_summary_bytes(tmp_path, monkeypatch):
 def test_cann_imports_direct_bandwidth_supplemental_csv(tmp_path, monkeypatch):
     csv_dir = tmp_path / "summary"
     csv_dir.mkdir(parents=True, exist_ok=True)
-    (csv_dir / "bandwidth_0.csv").write_text(
-        "\n".join(
-            [
-                "Kernel Name,Task Start Time(us),Task Duration(us),Memory Bandwidth(GB/s)",
-                "bandwidth_direct_kernel,1000,20,123.5",
-            ]
-        )
-    )
+    (csv_dir / "bandwidth_0.csv").write_text("\n".join([
+        "Kernel Name,Task Start Time(us),Task Duration(us),Memory Bandwidth(GB/s)",
+        "bandwidth_direct_kernel,1000,20,123.5",
+    ]))
 
     vendor_json = _finalize_cann_import(
         tmp_path / "profile_run_direct_bandwidth",
@@ -674,28 +631,24 @@ def test_cann_imports_direct_bandwidth_supplemental_csv(tmp_path, monkeypatch):
         "bandwidth",
     )
     associations = [
-        assoc
-        for assoc in vendor_json.get("associations", [])
+        assoc for assoc in vendor_json.get("associations", [])
         if assoc.get("source") == "msprof_bandwidth"
     ]
     assert len(associations) == 1
     metrics = associations[0]["metrics"]
     assert metrics["memory_bandwidth_gb_s"] == 123.5
     assert metrics["bandwidth_gb_s"] == 123.5
-    assert metrics["bandwidth_source"] == "direct_csv_column:memory_bandwidth_gb_s"
+    assert metrics[
+        "bandwidth_source"] == "direct_csv_column:memory_bandwidth_gb_s"
 
 
 def test_cann_imports_hbm_read_write_bandwidth_csv(tmp_path, monkeypatch):
     csv_dir = tmp_path / "summary"
     csv_dir.mkdir(parents=True, exist_ok=True)
-    (csv_dir / "hbm_0.csv").write_text(
-        "\n".join(
-            [
-                "Device_id,Metric,Read(MB/s),Write(MB/s)",
-                "0,Average,11.25,7.75",
-            ]
-        )
-    )
+    (csv_dir / "hbm_0.csv").write_text("\n".join([
+        "Device_id,Metric,Read(MB/s),Write(MB/s)",
+        "0,Average,11.25,7.75",
+    ]))
 
     vendor_json = _finalize_cann_import(
         tmp_path / "profile_run_hbm_bandwidth",
@@ -704,8 +657,7 @@ def test_cann_imports_hbm_read_write_bandwidth_csv(tmp_path, monkeypatch):
         "bandwidth",
     )
     associations = [
-        assoc
-        for assoc in vendor_json.get("associations", [])
+        assoc for assoc in vendor_json.get("associations", [])
         if assoc.get("source") == "msprof_bandwidth"
     ]
     assert len(associations) == 1
@@ -713,61 +665,45 @@ def test_cann_imports_hbm_read_write_bandwidth_csv(tmp_path, monkeypatch):
     assert metrics["memory_read_bandwidth_gb_s"] == 0.01125
     assert metrics["memory_write_bandwidth_gb_s"] == 0.00775
     assert metrics["bandwidth_gb_s"] == 0.019
-    assert metrics["bandwidth_source"] == "direct_csv_column:memory_read_write_bandwidth"
+    assert metrics[
+        "bandwidth_source"] == "direct_csv_column:memory_read_write_bandwidth"
 
 
 def test_cann_correlates_op_summary_by_task_id(tmp_path, monkeypatch):
     csv_dir = tmp_path / "summary"
     csv_dir.mkdir(parents=True, exist_ok=True)
-    (csv_dir / "op_summary_0.csv").write_text(
-        "\n".join(
-            [
-                "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "summary_kernel_task,7007,4,0,1200,30",
-            ]
-        )
-    )
-    (csv_dir / "task_time_0.csv").write_text(
-        "\n".join(
-            [
-                "Kernel Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "runtime_kernel_by_task,7007,9,0,800000,15",
-            ]
-        )
-    )
+    (csv_dir / "op_summary_0.csv").write_text("\n".join([
+        "Op Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "summary_kernel_task,7007,4,0,1200,30",
+    ]))
+    (csv_dir / "task_time_0.csv").write_text("\n".join([
+        "Kernel Name,Task ID,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "runtime_kernel_by_task,7007,9,0,800000,15",
+    ]))
 
-    vendor_json = _finalize_cann_import(
-        tmp_path / "profile_run_task", csv_dir, monkeypatch
-    )
+    vendor_json = _finalize_cann_import(tmp_path / "profile_run_task", csv_dir,
+                                        monkeypatch)
     associations = _op_summary_associations(vendor_json)
     assert len(associations) == 1
     assert associations[0]["state"] == "collected"
     assert "task_id" in associations[0]["note"]
 
 
-def test_cann_correlates_op_summary_by_strict_runtime_key(tmp_path, monkeypatch):
+def test_cann_correlates_op_summary_by_strict_runtime_key(
+        tmp_path, monkeypatch):
     csv_dir = tmp_path / "summary"
     csv_dir.mkdir(parents=True, exist_ok=True)
-    (csv_dir / "op_summary_0.csv").write_text(
-        "\n".join(
-            [
-                "Op Name,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "strict_kernel,3,2,1000,40",
-            ]
-        )
-    )
-    (csv_dir / "task_time_0.csv").write_text(
-        "\n".join(
-            [
-                "Kernel Name,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "strict_kernel,3,2,1001,39",
-            ]
-        )
-    )
+    (csv_dir / "op_summary_0.csv").write_text("\n".join([
+        "Op Name,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "strict_kernel,3,2,1000,40",
+    ]))
+    (csv_dir / "task_time_0.csv").write_text("\n".join([
+        "Kernel Name,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "strict_kernel,3,2,1001,39",
+    ]))
 
-    vendor_json = _finalize_cann_import(
-        tmp_path / "profile_run_strict", csv_dir, monkeypatch
-    )
+    vendor_json = _finalize_cann_import(tmp_path / "profile_run_strict",
+                                        csv_dir, monkeypatch)
     associations = _op_summary_associations(vendor_json)
     assert len(associations) == 1
     assert associations[0]["state"] == "collected"
@@ -777,26 +713,17 @@ def test_cann_correlates_op_summary_by_strict_runtime_key(tmp_path, monkeypatch)
 def test_cann_fuzzy_match_requires_timestamp_window(tmp_path, monkeypatch):
     csv_dir = tmp_path / "summary"
     csv_dir.mkdir(parents=True, exist_ok=True)
-    (csv_dir / "op_summary_0.csv").write_text(
-        "\n".join(
-            [
-                "Op Name,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "vendor_only_kernel,1,0,1000,30",
-            ]
-        )
-    )
-    (csv_dir / "task_time_0.csv").write_text(
-        "\n".join(
-            [
-                "Kernel Name,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
-                "different_runtime_kernel,9,0,50000,20",
-            ]
-        )
-    )
+    (csv_dir / "op_summary_0.csv").write_text("\n".join([
+        "Op Name,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "vendor_only_kernel,1,0,1000,30",
+    ]))
+    (csv_dir / "task_time_0.csv").write_text("\n".join([
+        "Kernel Name,Stream ID,Device ID,Task Start Time(us),Task Duration(us)",
+        "different_runtime_kernel,9,0,50000,20",
+    ]))
 
-    vendor_json = _finalize_cann_import(
-        tmp_path / "profile_run_unmatched", csv_dir, monkeypatch
-    )
+    vendor_json = _finalize_cann_import(tmp_path / "profile_run_unmatched",
+                                        csv_dir, monkeypatch)
     associations = _op_summary_associations(vendor_json)
     assert len(associations) == 1
     assert associations[0]["state"] == "unmatched"
@@ -810,55 +737,45 @@ def test_cann_real_direct_exports_bandwidth(real_cann_direct_run):
     assert any("hbm" in path for path in raw_inputs)
 
     bandwidth_associations = [
-        assoc
-        for assoc in vendor_json.get("associations", [])
+        assoc for assoc in vendor_json.get("associations", [])
         if "bandwidth_gb_s" in assoc.get("metrics", {})
     ]
     assert bandwidth_associations
     assert any(
         assoc.get("source") == "aclprof_op_summary"
         and "memory_access_bytes" in assoc.get("metrics", {})
-        for assoc in bandwidth_associations
-    )
+        for assoc in bandwidth_associations)
     assert any(
         assoc.get("source") == "msprof_bandwidth"
-        for assoc in bandwidth_associations
-    )
+        for assoc in bandwidth_associations)
 
 
 def test_cann_real_direct_imports_aicore_op_summary(real_cann_direct_run):
     associations = _op_summary_associations(real_cann_direct_run["vendor"])
     assert associations
     triton_associations = [
-        assoc
-        for assoc in associations
+        assoc for assoc in associations
         if assoc.get("metrics", {}).get("op_type") == "_vector_add_kernel"
     ]
     assert triton_associations
-    assert any(
-        "aicore_time_us" in assoc.get("metrics", {})
-        or "aicore_time_ms" in assoc.get("metrics", {})
-        for assoc in triton_associations
-    )
+    assert any("aicore_time_us" in assoc.get("metrics", {})
+               or "aicore_time_ms" in assoc.get("metrics", {})
+               for assoc in triton_associations)
 
 
 def test_cann_real_direct_imports_mstx_timeline(real_cann_direct_run):
     vendor_json = real_cann_direct_run["vendor"]
     assert any(
         assoc.get("source") == "msprof_mstx"
-        and assoc.get("metrics", {}).get("message")
-        == "flagtree_profiler_cann_triton::triton_vector_add_fp32"
-        for assoc in vendor_json.get("associations", [])
-    )
+        and assoc.get("metrics", {}).get("message") ==
+        "flagtree_profiler_cann_triton::triton_vector_add_fp32"
+        for assoc in vendor_json.get("associations", []))
 
     events = real_cann_direct_run["timeline"].get("traceEvents", [])
     assert any(
         str(event.get("name", "")).startswith(
-            "flagtree_profiler_cann_triton::triton_vector_add_fp32"
-        )
-        for event in events
-    )
+            "flagtree_profiler_cann_triton::triton_vector_add_fp32")
+        for event in events)
     assert any(
         assoc.get("source") == "aclprof_op_summary"
-        for assoc in vendor_json.get("associations", [])
-    )
+        for assoc in vendor_json.get("associations", []))

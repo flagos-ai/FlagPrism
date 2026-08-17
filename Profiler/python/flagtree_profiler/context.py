@@ -1,11 +1,10 @@
-from typing import Optional
+from .flags import get_profiling_on
 from .native import runtime_binding
 
 profiler_native = runtime_binding()
-from .flags import get_profiling_on
 
 
-def depth(session: Optional[int] = 0) -> Optional[int]:
+def depth(session: int | None = 0) -> int | None:
     """
     Get the depth of the context.
 

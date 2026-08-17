@@ -59,7 +59,8 @@ struct AscendApi {
         candidates.push_back(base + "/lib64/libascendcl.so");
       }
     }
-    candidates.push_back("/usr/local/Ascend/ascend-toolkit/latest/lib64/libascendcl.so");
+    candidates.push_back(
+        "/usr/local/Ascend/ascend-toolkit/latest/lib64/libascendcl.so");
 
     for (const auto &candidate : candidates) {
       lib = dlopen(candidate.c_str(), RTLD_LOCAL | RTLD_LAZY);
@@ -102,8 +103,8 @@ Device getDevice(uint64_t index) {
 #if defined(__linux__)
   auto &ascendApi = api();
   if (!ascendApi.load()) {
-    return Device(DeviceType::ASCEND, index, clockRate, memoryClockRate, busWidth,
-                  numSms, arch);
+    return Device(DeviceType::ASCEND, index, clockRate, memoryClockRate,
+                  busWidth, numSms, arch);
   }
 
   uint32_t deviceCount = 0;
@@ -120,7 +121,8 @@ Device getDevice(uint64_t index) {
     if (ascendApi.getDeviceCapability) {
       int64_t value = 0;
       if (ascendApi.getDeviceCapability(static_cast<uint32_t>(index),
-                                        kAclDevAttrAiCoreCoreNum, &value) == 0 &&
+                                        kAclDevAttrAiCoreCoreNum,
+                                        &value) == 0 &&
           value > 0) {
         numSms = static_cast<uint64_t>(value);
       }
@@ -158,7 +160,6 @@ Device getDevice(uint64_t index) {
         busWidth = static_cast<uint64_t>(value);
       }
     }
-
   }
 #endif
 

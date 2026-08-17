@@ -9,7 +9,8 @@ from types import SimpleNamespace
 import pytest
 
 _unit = Path(__file__).resolve().parents[1]
-_spec = importlib.util.spec_from_file_location("_module_a_doc", _unit / "_module_a_doc.py")
+_spec = importlib.util.spec_from_file_location("_module_a_doc",
+                                               _unit / "_module_a_doc.py")
 _mad = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 _spec.loader.exec_module(_mad)
@@ -61,8 +62,10 @@ def test_module_a_A3_cuda_launcher_forwards_original_arguments(monkeypatch):
     )
     monkeypatch.setattr(nvidia_driver, "library_dirs", lambda: [])
 
-    launcher = nvidia_driver.CudaLauncher(_launcher_src(), _launcher_metadata())
-    launcher(2, 1, 1, object(), object(), object(), {"grid": (2, 1, 1)}, None, None, 99)
+    launcher = nvidia_driver.CudaLauncher(_launcher_src(),
+                                          _launcher_metadata())
+    launcher(2, 1, 1, object(), object(), object(), {"grid": (2, 1, 1)}, None,
+             None, 99)
 
     assert launch_module.seen[-1] == 99
     assert not hasattr(launcher, "debug_launch_hidden_arg")

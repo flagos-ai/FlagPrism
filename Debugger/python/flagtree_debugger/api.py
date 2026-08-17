@@ -30,7 +30,8 @@ class DebuggerConfig:
     export_on_error: bool = False
     output_dir: str | None = "/tmp/flagtree_debugger_manual"
     export_raw_records: bool = False
-    runtime_metadata_builder: Optional[Callable[[Any, Any, Sequence[Any]], Any]] = None
+    runtime_metadata_builder: Optional[Callable[[Any, Any, Sequence[Any]],
+                                                Any]] = None
     export_handler: Optional[Callable[[dict[str, Any]], None]] = None
 
 
@@ -58,47 +59,39 @@ _CONFIG_KEYS = frozenset({
 })
 _DISABLED_BUILD_MESSAGE = (
     "FlagPrism debugger native support is unavailable. Reinstall FlagTree with "
-    "`TRITON_BUILD_FLAGPRISM=ON`."
-)
+    "`TRITON_BUILD_FLAGPRISM=ON`.")
 
 
 def _normalize_kernel_args(kernel_args: Any) -> tuple[int, ...]:
     if kernel_args is None:
         return ()
     if isinstance(kernel_args, int):
-        return (int(kernel_args),)
+        return (int(kernel_args), )
     if isinstance(kernel_args, Sequence):
         return tuple(int(arg) for arg in kernel_args)
     raise TypeError(
         "debugger launch hook must return an int, a sequence of ints, or "
-        "PreparedKernelLaunch"
-    )
+        "PreparedKernelLaunch")
 
 
 def _wrap_launch_prepare_hook(hook: Callable[..., Any]) -> Callable[..., Any]:
     signature = inspect.signature(hook)
     positional = [
-        parameter
-        for parameter in signature.parameters.values()
+        parameter for parameter in signature.parameters.values()
         if parameter.kind in (
             inspect.Parameter.POSITIONAL_ONLY,
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
         )
     ]
-    accepts_varargs = any(
-        parameter.kind == inspect.Parameter.VAR_POSITIONAL
-        for parameter in signature.parameters.values()
-    )
+    accepts_varargs = any(parameter.kind == inspect.Parameter.VAR_POSITIONAL
+                          for parameter in signature.parameters.values())
     if accepts_varargs or len(positional) >= 4:
         return hook
     if len(positional) == 3:
         return lambda metadata, stream, launch_metadata, kernel_args: hook(
-            metadata, stream, launch_metadata
-        )
-    raise TypeError(
-        "debugger launch hook must accept "
-        "(metadata, stream, launch_metadata[, kernel_args])"
-    )
+            metadata, stream, launch_metadata)
+    raise TypeError("debugger launch hook must accept "
+                    "(metadata, stream, launch_metadata[, kernel_args])")
 
 
 def _load_binding():
@@ -144,7 +137,8 @@ def configure(config: Mapping[str, Any] | None = None, **kwargs: Any) -> None:
 
     unknown = sorted(set(updates) - _CONFIG_KEYS)
     if unknown:
-        raise TypeError(f"unknown debugger config key(s): {', '.join(unknown)}")
+        raise TypeError(
+            f"unknown debugger config key(s): {', '.join(unknown)}")
 
     if "output_dir" in updates:
         _output_dir = _normalize_output_dir(updates["output_dir"])
@@ -217,7 +211,8 @@ def _derive_kernel_id(metadata_dict: dict[str, Any]) -> int:
         kernel_id = int(kernel_hash[:8], 16)
         return kernel_id or 1
 
-    digest = hashlib.sha256(repr(sorted(metadata_dict.items())).encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(
+        repr(sorted(metadata_dict.items())).encode("utf-8")).hexdigest()
     kernel_id = int(digest[:8], 16)
     return kernel_id or 1
 
@@ -311,8 +306,7 @@ def _build_report_path(output_dir: Path, exported_run: dict[str, Any],
     return output_dir / f"{script_stem}_{kernel_name}_{timestamp}_run{run_id}.txt"
 
 
-def _render_raw_records(exported_run: dict[str, Any],
-                        decoded: dict[str, Any],
+def _render_raw_records(exported_run: dict[str, Any], decoded: dict[str, Any],
                         metadata_dict: dict[str, Any]) -> str:
     meta = _exported_run_meta(exported_run)
     lines = [
@@ -331,11 +325,9 @@ def _render_raw_records(exported_run: dict[str, Any],
 
 
 def _is_full_dump_run(metadata_dict: dict[str, Any]) -> bool:
-    return (
-        int(metadata_dict.get("debug_record_level", 1)) == 2
-        and int(metadata_dict.get("debug_full_dump_payload_bytes_per_instance", 0)) > 0
-        and bool(metadata_dict.get("debug_full_dump_plan"))
-    )
+    return (int(metadata_dict.get("debug_record_level", 1)) == 2 and int(
+        metadata_dict.get("debug_full_dump_payload_bytes_per_instance", 0)) > 0
+            and bool(metadata_dict.get("debug_full_dump_plan")))
 
 
 def _record_level_id(value: Any) -> int:
@@ -364,24 +356,33 @@ def _empty_debug_raw_buffer(metadata_dict: Mapping[str, Any]) -> bytes:
         0,
         0,
     )
-    return b"".join(int(field).to_bytes(4, "little", signed=False) for field in fields)
+    return b"".join(
+        int(field).to_bytes(4, "little", signed=False) for field in fields)
 
 
-def _metadata_only_exported_run(metadata_dict: dict[str, Any],
-                                runtime_metadata: Mapping[str, Any]) -> dict[str, Any]:
+def _metadata_only_exported_run(
+        metadata_dict: dict[str, Any],
+        runtime_metadata: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "meta": {
-            "run_id": len(_exported_runs) + 1,
-            "device_id": int(metadata_dict.get("debug_device_id", 0) or 0),
-            "kernel_id": int(
-                metadata_dict.get("debug_kernel_id", _derive_kernel_id(metadata_dict))
-            ),
-            "protocol_version": int(metadata_dict.get("debug_protocol_version", 2) or 2),
-            "record_level": _record_level_id(metadata_dict.get("debug_record_level", 1)),
-            "export_mode": _export_mode_id(
-                metadata_dict.get("debug_export_mode", _active_config.export_mode)
-            ),
-            "backend_kind": 0,
+            "run_id":
+            len(_exported_runs) + 1,
+            "device_id":
+            int(metadata_dict.get("debug_device_id", 0) or 0),
+            "kernel_id":
+            int(
+                metadata_dict.get("debug_kernel_id",
+                                  _derive_kernel_id(metadata_dict))),
+            "protocol_version":
+            int(metadata_dict.get("debug_protocol_version", 2) or 2),
+            "record_level":
+            _record_level_id(metadata_dict.get("debug_record_level", 1)),
+            "export_mode":
+            _export_mode_id(
+                metadata_dict.get("debug_export_mode",
+                                  _active_config.export_mode)),
+            "backend_kind":
+            0,
         },
         "runtime_metadata": dict(runtime_metadata),
         "raw_buffer": _empty_debug_raw_buffer(metadata_dict),
@@ -408,11 +409,13 @@ def _npy_dtype_element_bytes(dtype: str) -> int:
     raise ValueError(f"unsupported debugger artifact dtype: {dtype}")
 
 
-def _write_npy(path: Path, payload: bytes, dtype: str, shape: Sequence[int]) -> None:
+def _write_npy(path: Path, payload: bytes, dtype: str,
+               shape: Sequence[int]) -> None:
     descr = _npy_dtype_descriptor(dtype)
     dims = tuple(int(dim) for dim in shape)
     if any(dim < 0 for dim in dims):
-        raise ValueError("debugger artifact shape cannot contain negative dimensions")
+        raise ValueError(
+            "debugger artifact shape cannot contain negative dimensions")
     element_count = 1
     for dim in dims:
         element_count *= dim
@@ -431,15 +434,13 @@ def _write_npy(path: Path, payload: bytes, dtype: str, shape: Sequence[int]) -> 
     header_bytes = header_bytes + b" " * padding + b"\n"
     if len(header_bytes) > 0xFFFF:
         raise ValueError("debugger artifact .npy header is too large")
-    path.write_bytes(
-        b"\x93NUMPY\x01\x00"
-        + len(header_bytes).to_bytes(2, "little")
-        + header_bytes
-        + payload
-    )
+    path.write_bytes(b"\x93NUMPY\x01\x00" +
+                     len(header_bytes).to_bytes(2, "little") + header_bytes +
+                     payload)
 
 
-def _full_dump_plan_by_record(metadata_dict: dict[str, Any]) -> dict[int, dict[str, Any]]:
+def _full_dump_plan_by_record(
+        metadata_dict: dict[str, Any]) -> dict[int, dict[str, Any]]:
     plan = metadata_dict.get("debug_full_dump_plan") or []
     result = {}
     for entry in plan:
@@ -449,23 +450,28 @@ def _full_dump_plan_by_record(metadata_dict: dict[str, Any]) -> dict[int, dict[s
     return result
 
 
-def _record_index_for_slot(slot_index: int, runtime_metadata: Mapping[str, Any]) -> int:
-    records_per_instance = int(runtime_metadata.get("records_per_instance") or 0)
+def _record_index_for_slot(slot_index: int,
+                           runtime_metadata: Mapping[str, Any]) -> int:
+    records_per_instance = int(
+        runtime_metadata.get("records_per_instance") or 0)
     if records_per_instance <= 0:
         return slot_index
     return slot_index % records_per_instance
 
 
-def _write_full_dump_artifacts(report_path: Path,
-                               exported_run: dict[str, Any],
-                               decoded: dict[str, Any],
-                               metadata_dict: dict[str, Any]) -> list[dict[str, Any]]:
+def _write_full_dump_artifacts(
+        report_path: Path, exported_run: dict[str, Any], decoded: dict[str,
+                                                                       Any],
+        metadata_dict: dict[str, Any]) -> list[dict[str, Any]]:
     runtime_metadata = dict(exported_run.get("runtime_metadata") or {})
     plan_by_record = _full_dump_plan_by_record(metadata_dict)
     raw_buffer = bytes(exported_run.get("raw_buffer", b""))
     header = decoded.get("header", {})
-    if int(header.get("overflow_count", 0)) != 0 or int(header.get("flags", 0)) & 1:
-        raise RuntimeError("level-2 debugger full dump cannot export from an overflowed debug buffer")
+    if int(header.get("overflow_count",
+                      0)) != 0 or int(header.get("flags", 0)) & 1:
+        raise RuntimeError(
+            "level-2 debugger full dump cannot export from an overflowed debug buffer"
+        )
 
     artifact_dir = report_path.with_suffix("")
     artifact_dir = artifact_dir.with_name(f"{artifact_dir.name}_artifacts")
@@ -474,28 +480,32 @@ def _write_full_dump_artifacts(report_path: Path,
     artifacts: list[dict[str, Any]] = []
     records = decoded.get("records", [])
     for slot_index, record in enumerate(records):
-        if not isinstance(record, Mapping) or record.get("record_kind") != "FULL_VALUE":
+        if not isinstance(
+                record, Mapping) or record.get("record_kind") != "FULL_VALUE":
             continue
         record_index = _record_index_for_slot(slot_index, runtime_metadata)
         plan = plan_by_record.get(record_index)
         if plan is None:
-            raise RuntimeError(f"missing full-dump plan for record_index={record_index}")
+            raise RuntimeError(
+                f"missing full-dump plan for record_index={record_index}")
         payload_offset = int(record.get("payload_offset", 0))
         payload_length = int(record.get("payload_length", 0))
         if payload_length <= 0:
-            raise RuntimeError(f"empty full-dump payload for record_index={record_index}")
-        if payload_offset < 0 or payload_offset + payload_length > len(raw_buffer):
-            raise RuntimeError(f"full-dump payload range is outside raw buffer for record_index={record_index}")
+            raise RuntimeError(
+                f"empty full-dump payload for record_index={record_index}")
+        if payload_offset < 0 or payload_offset + payload_length > len(
+                raw_buffer):
+            raise RuntimeError(
+                f"full-dump payload range is outside raw buffer for record_index={record_index}"
+            )
         payload = raw_buffer[payload_offset:payload_offset + payload_length]
         dtype = str(plan.get("artifact_dtype", ""))
         shape = plan.get("shape") or [int(plan.get("element_count", 0))]
         kind = str(plan.get("kind", "value"))
         op_id = int(record.get("op_id", plan.get("op_id", 0)))
         instance_id = int(record.get("logical_instance_id", 0))
-        stem = (
-            f"op{op_id}_inst{instance_id}_rec{record_index}_"
-            f"{_safe_filename_component(kind, 'dump')}.npy"
-        )
+        stem = (f"op{op_id}_inst{instance_id}_rec{record_index}_"
+                f"{_safe_filename_component(kind, 'dump')}.npy")
         artifact_path = artifact_dir / stem
         _write_npy(artifact_path, payload, dtype, shape)
         artifacts.append({
@@ -513,14 +523,20 @@ def _write_full_dump_artifacts(report_path: Path,
 
     expected_records = len(plan_by_record)
     if expected_records and not artifacts:
-        raise RuntimeError("level-2 debugger did not produce any full-dump artifacts")
+        raise RuntimeError(
+            "level-2 debugger did not produce any full-dump artifacts")
 
     index_path = artifact_dir / "tensor_index.json"
     index = {
-        "kernel_name": metadata_dict.get("debug_kernel_name") or metadata_dict.get("name") or "",
-        "kernel_id": metadata_dict.get("debug_kernel_id", 0),
-        "run_id": _exported_run_meta(exported_run).get("run_id", 0),
-        "artifacts": artifacts,
+        "kernel_name":
+        metadata_dict.get("debug_kernel_name") or metadata_dict.get("name")
+        or "",
+        "kernel_id":
+        metadata_dict.get("debug_kernel_id", 0),
+        "run_id":
+        _exported_run_meta(exported_run).get("run_id", 0),
+        "artifacts":
+        artifacts,
     }
     index_path.write_text(json.dumps(index, indent=2, sort_keys=True))
     runtime_metadata["full_dump_artifacts"] = artifacts
@@ -533,12 +549,12 @@ def _write_full_dump_artifacts(report_path: Path,
 def _finalize_exported_run(exported_run: dict[str, Any],
                            metadata_dict: dict[str, Any]) -> dict[str, Any]:
     exported_run["debug_kernel_name"] = str(
-        metadata_dict.get("debug_kernel_name") or metadata_dict.get("name") or ""
-    )
+        metadata_dict.get("debug_kernel_name") or metadata_dict.get("name")
+        or "")
     tracked_table = metadata_dict.get("debug_tracked_table")
-    if isinstance(tracked_table, Sequence) and not isinstance(
-        tracked_table, (str, bytes, bytearray)
-    ):
+    if isinstance(tracked_table,
+                  Sequence) and not isinstance(tracked_table,
+                                               (str, bytes, bytearray)):
         exported_run["debug_tracked_table"] = list(tracked_table)
 
     binding = _load_binding()
@@ -549,12 +565,15 @@ def _finalize_exported_run(exported_run: dict[str, Any],
     report_path = None
     if output_dir is not None:
         output_dir.mkdir(parents=True, exist_ok=True)
-        report_path = _build_report_path(output_dir, exported_run, metadata_dict)
+        report_path = _build_report_path(output_dir, exported_run,
+                                         metadata_dict)
 
     if _is_full_dump_run(metadata_dict):
         if report_path is None:
-            raise RuntimeError("level-2 debugger full dump requires debugger output_dir")
-        _write_full_dump_artifacts(report_path, exported_run, decoded, metadata_dict)
+            raise RuntimeError(
+                "level-2 debugger full dump requires debugger output_dir")
+        _write_full_dump_artifacts(report_path, exported_run, decoded,
+                                   metadata_dict)
 
     summary = _render_export_summary(exported_run, decoded, metadata_dict)
     report = ""
@@ -563,45 +582,39 @@ def _finalize_exported_run(exported_run: dict[str, Any],
     op_log_json_report = ""
     metadata_json = metadata_dict.get("debug_metadata_json")
     if metadata_json:
-        render_text_statement_report = getattr(
-            binding, "render_text_statement_report", None
-        )
+        render_text_statement_report = getattr(binding,
+                                               "render_text_statement_report",
+                                               None)
         if callable(render_text_statement_report):
-            report = render_text_statement_report(
-                exported_run, str(metadata_json)
-            )
+            report = render_text_statement_report(exported_run,
+                                                  str(metadata_json))
         else:
-            report = binding.render_text_report(exported_run, str(metadata_json))
+            report = binding.render_text_report(exported_run,
+                                                str(metadata_json))
         exported_run["report"] = report
 
-        render_text_op_log_report = getattr(
-            binding, "render_text_op_log_report", None
-        )
+        render_text_op_log_report = getattr(binding,
+                                            "render_text_op_log_report", None)
         if callable(render_text_op_log_report):
-            op_log_report = render_text_op_log_report(
-                exported_run, str(metadata_json)
-            )
+            op_log_report = render_text_op_log_report(exported_run,
+                                                      str(metadata_json))
             exported_run["op_log_report"] = op_log_report
 
-        render_json_statement_report = getattr(
-            binding, "render_json_statement_report", None
-        )
-        render_json_report = (
-            render_json_statement_report
-            if callable(render_json_statement_report)
-            else getattr(binding, "render_json_report", None)
-        )
+        render_json_statement_report = getattr(binding,
+                                               "render_json_statement_report",
+                                               None)
+        render_json_report = (render_json_statement_report
+                              if callable(render_json_statement_report) else
+                              getattr(binding, "render_json_report", None))
         if callable(render_json_report):
             json_report = render_json_report(exported_run, str(metadata_json))
             exported_run["json_report"] = json_report
 
-        render_json_op_log_report = getattr(
-            binding, "render_json_op_log_report", None
-        )
+        render_json_op_log_report = getattr(binding,
+                                            "render_json_op_log_report", None)
         if callable(render_json_op_log_report):
             op_log_json_report = render_json_op_log_report(
-                exported_run, str(metadata_json)
-            )
+                exported_run, str(metadata_json))
             exported_run["op_log_json_report"] = op_log_json_report
 
     report_text = summary
@@ -619,8 +632,7 @@ def _finalize_exported_run(exported_run: dict[str, Any],
         exported_run["report_path"] = str(report_path)
         if op_log_report:
             op_log_report_path = report_path.with_name(
-                f"{report_path.stem}_op_log.txt"
-            )
+                f"{report_path.stem}_op_log.txt")
             op_log_report_path.write_text(op_log_report_text)
             exported_run["op_log_report_path"] = str(op_log_report_path)
         if json_report:
@@ -629,19 +641,15 @@ def _finalize_exported_run(exported_run: dict[str, Any],
             exported_run["json_report_path"] = str(json_report_path)
         if op_log_json_report:
             op_log_json_report_path = report_path.with_name(
-                f"{report_path.stem}_op_log.json"
-            )
+                f"{report_path.stem}_op_log.json")
             op_log_json_report_path.write_text(op_log_json_report)
             exported_run["op_log_json_report_path"] = str(
-                op_log_json_report_path
-            )
+                op_log_json_report_path)
         if _active_config.export_raw_records:
             raw_records_path = report_path.with_name(
-                f"{report_path.stem}_raw_records.txt"
-            )
+                f"{report_path.stem}_raw_records.txt")
             raw_records_path.write_text(
-                _render_raw_records(exported_run, decoded, metadata_dict)
-            )
+                _render_raw_records(exported_run, decoded, metadata_dict))
             exported_run["raw_records_path"] = str(raw_records_path)
 
     return exported_run
@@ -681,7 +689,8 @@ def _materialize_launch_metadata(launch_metadata: Any) -> Any:
     return launch_metadata
 
 
-def _normalize_launch_grid(launch_metadata: Any) -> tuple[int, int, int] | None:
+def _normalize_launch_grid(
+        launch_metadata: Any) -> tuple[int, int, int] | None:
     if not isinstance(launch_metadata, Mapping):
         return None
     grid = launch_metadata.get("grid")
@@ -701,65 +710,53 @@ def _build_launch_metadata_dict(metadata: Any) -> dict[str, Any]:
     metadata_dict = _metadata_to_dict(metadata)
     target = metadata_dict.get("target")
     target_name = _target_to_name(target)
-    backend_name = (
-        metadata_dict.get("debug_backend_name")
-        or os.environ.get("FLAGTREE_BACKEND")
-        or metadata_dict.get("backend_name")
-        or _target_backend(target)
-        or ""
-    )
+    backend_name = (metadata_dict.get("debug_backend_name")
+                    or os.environ.get("FLAGTREE_BACKEND")
+                    or metadata_dict.get("backend_name")
+                    or _target_backend(target) or "")
     backend_name = _normalize_backend_name(backend_name)
 
     launch_dict = dict(metadata_dict)
     launch_dict["debug_enabled"] = True
     launch_dict["debug_protocol_version"] = int(
-        metadata_dict.get("debug_protocol_version", 2)
-    )
+        metadata_dict.get("debug_protocol_version", 2))
     launch_dict["debug_record_level"] = int(
-        metadata_dict.get("debug_record_level", _active_config.record_level)
-    )
+        metadata_dict.get("debug_record_level", _active_config.record_level))
     launch_dict["debug_addr_level"] = _normalize_addr_level(
-        metadata_dict.get("debug_addr_level", _active_config.addr_level)
-    )
+        metadata_dict.get("debug_addr_level", _active_config.addr_level))
     launch_dict["debug_export_mode"] = _normalize_export_mode(
-        metadata_dict.get("debug_export_mode", _active_config.export_mode)
-    )
+        metadata_dict.get("debug_export_mode", _active_config.export_mode))
     launch_dict["debug_record_capacity"] = int(
-        metadata_dict.get("debug_record_capacity", _active_config.record_capacity)
-    )
+        metadata_dict.get("debug_record_capacity",
+                          _active_config.record_capacity))
     launch_dict["debug_record_size"] = int(
-        metadata_dict.get("debug_record_size", 32)
-    )
+        metadata_dict.get("debug_record_size", 32))
     launch_dict["debug_kernel_id"] = int(
-        metadata_dict.get("debug_kernel_id", _derive_kernel_id(metadata_dict))
-    )
+        metadata_dict.get("debug_kernel_id", _derive_kernel_id(metadata_dict)))
     launch_dict["debug_kernel_name"] = str(
-        metadata_dict.get("debug_kernel_name", metadata_dict.get("name", ""))
-    )
+        metadata_dict.get("debug_kernel_name", metadata_dict.get("name", "")))
     launch_dict["debug_backend_name"] = str(backend_name)
     launch_dict["debug_target_name"] = str(
-        metadata_dict.get("debug_target_name", target_name)
-    )
+        metadata_dict.get("debug_target_name", target_name))
     try:
         from triton.runtime.driver import driver
 
         launch_dict["debug_device_id"] = _normalize_device_id(
-            driver.active.get_current_device()
-        )
+            driver.active.get_current_device())
     except Exception:
         launch_dict["debug_device_id"] = 0
     return launch_dict
 
 
-def _default_launch_prepare_hook(metadata: Any, stream: int, launch_metadata: Any,
-                                 kernel_args: Sequence[Any]) -> PreparedKernelLaunch:
+def _default_launch_prepare_hook(
+        metadata: Any, stream: int, launch_metadata: Any,
+        kernel_args: Sequence[Any]) -> PreparedKernelLaunch:
     launch_metadata = _materialize_launch_metadata(launch_metadata)
     metadata_dict = _build_launch_metadata_dict(metadata)
     runtime_metadata = {}
     if _active_config.runtime_metadata_builder is not None:
         built_runtime_metadata = _active_config.runtime_metadata_builder(
-            metadata, launch_metadata, kernel_args
-        )
+            metadata, launch_metadata, kernel_args)
         if built_runtime_metadata is not None:
             runtime_metadata = dict(built_runtime_metadata)
     grid = _normalize_launch_grid(launch_metadata)
@@ -767,25 +764,23 @@ def _default_launch_prepare_hook(metadata: Any, stream: int, launch_metadata: An
         runtime_metadata.setdefault("grid", grid)
     records_per_instance = metadata_dict.get("debug_records_per_instance")
     if records_per_instance is not None:
-        runtime_metadata.setdefault(
-            "records_per_instance", int(records_per_instance)
-        )
+        runtime_metadata.setdefault("records_per_instance",
+                                    int(records_per_instance))
     if metadata_dict.get("debug_record_layout"):
-        runtime_metadata.setdefault(
-            "record_layout", metadata_dict["debug_record_layout"]
-        )
+        runtime_metadata.setdefault("record_layout",
+                                    metadata_dict["debug_record_layout"])
     if metadata_dict.get("debug_record_plan") is not None:
-        runtime_metadata.setdefault("record_plan", metadata_dict["debug_record_plan"])
+        runtime_metadata.setdefault("record_plan",
+                                    metadata_dict["debug_record_plan"])
     if _is_full_dump_run(metadata_dict):
         if _output_dir is None:
-            raise RuntimeError("level-2 debugger full dump requires debugger output_dir")
+            raise RuntimeError(
+                "level-2 debugger full dump requires debugger output_dir")
         runtime_metadata.setdefault(
-            "full_dump_plan", metadata_dict.get("debug_full_dump_plan", [])
-        )
+            "full_dump_plan", metadata_dict.get("debug_full_dump_plan", []))
 
-    handle = _load_binding().prepare_launch(
-        metadata_dict, int(stream), runtime_metadata
-    )
+    handle = _load_binding().prepare_launch(metadata_dict, int(stream),
+                                            runtime_metadata)
 
     def finalize(error: Optional[BaseException]) -> None:
         if error is not None and not _active_config.export_on_error:
@@ -799,7 +794,7 @@ def _default_launch_prepare_hook(metadata: Any, stream: int, launch_metadata: An
             _active_config.export_handler(exported_run)
 
     return PreparedKernelLaunch(
-        kernel_args=(int(handle.hidden_arg_value),),
+        kernel_args=(int(handle.hidden_arg_value), ),
         finalize=finalize,
     )
 
@@ -811,7 +806,8 @@ def prepare_metadata_only_kernel_launch(
     kernel_args: Optional[Sequence[Any]] = None,
 ) -> Optional[PreparedKernelLaunch]:
     del stream
-    enabled = bool(getattr(metadata, "debug_enabled", False)) or _active_config.enabled
+    enabled = bool(getattr(metadata, "debug_enabled",
+                           False)) or _active_config.enabled
     if not enabled:
         return None
 
@@ -820,8 +816,7 @@ def prepare_metadata_only_kernel_launch(
     runtime_metadata: dict[str, Any] = {}
     if _active_config.runtime_metadata_builder is not None:
         built_runtime_metadata = _active_config.runtime_metadata_builder(
-            metadata, launch_metadata, tuple(kernel_args or ())
-        )
+            metadata, launch_metadata, tuple(kernel_args or ()))
         if built_runtime_metadata is not None:
             runtime_metadata = dict(built_runtime_metadata)
     grid = _normalize_launch_grid(launch_metadata)
@@ -832,15 +827,18 @@ def prepare_metadata_only_kernel_launch(
         int(metadata_dict.get("debug_records_per_instance", 0) or 0),
     )
     if metadata_dict.get("debug_record_layout"):
-        runtime_metadata.setdefault("record_layout", metadata_dict["debug_record_layout"])
+        runtime_metadata.setdefault("record_layout",
+                                    metadata_dict["debug_record_layout"])
     if metadata_dict.get("debug_record_plan") is not None:
-        runtime_metadata.setdefault("record_plan", metadata_dict["debug_record_plan"])
+        runtime_metadata.setdefault("record_plan",
+                                    metadata_dict["debug_record_plan"])
 
     def finalize(error: Optional[BaseException]) -> None:
         if error is not None and not _active_config.export_on_error:
             return
 
-        exported_run = _metadata_only_exported_run(metadata_dict, runtime_metadata)
+        exported_run = _metadata_only_exported_run(metadata_dict,
+                                                   runtime_metadata)
         exported_run = _finalize_exported_run(exported_run, metadata_dict)
         _exported_runs.append(exported_run)
         if _active_config.export_handler is not None:
@@ -871,7 +869,8 @@ def current_compile_config() -> dict[str, Any]:
         "debug_protocol_version": 2,
         "debug_record_level": int(_active_config.record_level),
         "debug_addr_level": int(_active_config.addr_level),
-        "debug_export_mode": _normalize_export_mode(_active_config.export_mode),
+        "debug_export_mode":
+        _normalize_export_mode(_active_config.export_mode),
         "debug_record_capacity": int(_active_config.record_capacity),
     }
 
@@ -886,7 +885,8 @@ def activate(
     export_on_error: Any = _USE_CURRENT_CONFIG,
     output_dir: Any = _USE_CURRENT_OUTPUT_DIR,
     export_raw_records: Any = _USE_CURRENT_CONFIG,
-    runtime_metadata_builder: Optional[Callable[[Any, Any, Sequence[Any]], Any]] = None,
+    runtime_metadata_builder: Optional[Callable[[Any, Any, Sequence[Any]],
+                                                Any]] = None,
     export_handler: Optional[Callable[[dict[str, Any]], None]] = None,
 ) -> None:
     global _active_config
@@ -900,28 +900,19 @@ def activate(
     if effective_level is None:
         effective_level = 1
     effective_addr_level = _normalize_addr_level(addr_level)
-    effective_export_mode = (
-        _export_mode
-        if export_mode is _USE_CURRENT_CONFIG
-        else _normalize_export_mode(export_mode)
-    )
-    effective_record_capacity = (
-        _record_capacity
-        if record_capacity is _USE_CURRENT_CONFIG
-        else int(record_capacity)
-    )
+    effective_export_mode = (_export_mode if export_mode is _USE_CURRENT_CONFIG
+                             else _normalize_export_mode(export_mode))
+    effective_record_capacity = (_record_capacity
+                                 if record_capacity is _USE_CURRENT_CONFIG else
+                                 int(record_capacity))
     if effective_record_capacity <= 0:
         raise ValueError("debugger record capacity must be positive")
-    effective_export_on_error = (
-        _export_on_error
-        if export_on_error is _USE_CURRENT_CONFIG
-        else bool(export_on_error)
-    )
-    effective_export_raw_records = (
-        _raw_record_export_enabled
-        if export_raw_records is _USE_CURRENT_CONFIG
-        else bool(export_raw_records)
-    )
+    effective_export_on_error = (_export_on_error
+                                 if export_on_error is _USE_CURRENT_CONFIG else
+                                 bool(export_on_error))
+    effective_export_raw_records = (_raw_record_export_enabled if
+                                    export_raw_records is _USE_CURRENT_CONFIG
+                                    else bool(export_raw_records))
 
     _active_config = DebuggerConfig(
         enabled=True,
@@ -966,18 +957,21 @@ def take_exported_runs() -> list[dict[str, Any]]:
     return exported_runs
 
 
-def prepare_kernel_launch(metadata: Any, stream: int, launch_metadata: Any = None,
-                          kernel_args: Optional[Sequence[Any]] = None
-                          ) -> Optional[PreparedKernelLaunch]:
-    enabled = bool(getattr(metadata, "debug_enabled", False)) or _active_config.enabled
+def prepare_kernel_launch(
+    metadata: Any,
+    stream: int,
+    launch_metadata: Any = None,
+    kernel_args: Optional[Sequence[Any]] = None
+) -> Optional[PreparedKernelLaunch]:
+    enabled = bool(getattr(metadata, "debug_enabled",
+                           False)) or _active_config.enabled
     if not enabled:
         return None
 
     if _launch_prepare_hook is None:
         raise RuntimeError(
             "debug-enabled kernel launch requires "
-            "flagtree.debugger.register_launch_prepare_hook(...)"
-        )
+            "flagtree.debugger.register_launch_prepare_hook(...)")
 
     prepared = _launch_prepare_hook(
         metadata,
@@ -988,8 +982,7 @@ def prepare_kernel_launch(metadata: Any, stream: int, launch_metadata: Any = Non
     if prepared is None:
         raise RuntimeError(
             "debugger launch prepare hook returned None for a debug-enabled "
-            "kernel"
-        )
+            "kernel")
     if isinstance(prepared, PreparedKernelLaunch):
         return PreparedKernelLaunch(
             kernel_args=_normalize_kernel_args(prepared.kernel_args),
@@ -1035,15 +1028,13 @@ def launch_context(
         if len(hidden_args) != expected:
             raise RuntimeError(
                 f"instrumented {backend} kernel requires {expected} debugger hidden "
-                f"argument(s), but the debugger prepared {len(hidden_args)}"
-            )
+                f"argument(s), but the debugger prepared {len(hidden_args)}")
         yield hidden_args
         if has_hidden_arg:
             if backend not in {"ascend", "cann", "npu"}:
                 raise RuntimeError(
                     f"FlagPrism has no hidden-argument synchronization adapter "
-                    f"for backend {backend!r}"
-                )
+                    f"for backend {backend!r}")
             import torch_npu
 
             torch_npu.npu.synchronize()
@@ -1062,9 +1053,8 @@ def ascend_launch_context(
     kernel_args: Optional[Sequence[Any]] = None,
 ):
     """Compatibility alias for callers predating the generic host gateway."""
-    return launch_context(
-        "ascend", metadata, grid, stream, launch_metadata, kernel_args
-    )
+    return launch_context("ascend", metadata, grid, stream, launch_metadata,
+                          kernel_args)
 
 
 __all__ = (

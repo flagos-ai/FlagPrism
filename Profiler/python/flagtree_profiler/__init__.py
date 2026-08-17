@@ -16,7 +16,6 @@ from .profile import (
 )
 from . import context, specs, mode
 
-
 __all__ = (
     "DEFAULT_PROFILE_NAME",
     "activate",
@@ -48,5 +47,6 @@ class _ProfilerComponent:
         from .native import compiler_binding
 
         compiler_binding().load_dialects(context)
+
 
 component = register_component("profiler", _ProfilerComponent())

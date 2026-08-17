@@ -26,15 +26,19 @@ def _format_number(value: float | None, width: int, precision: int = 3) -> str:
 def _display_name(name: str) -> str:
     for suffix in (" mix", " aiv", " aic"):
         if name.endswith(suffix):
-            return name[: -len(suffix)]
+            return name[:-len(suffix)]
     return name
 
 
 def _has_numeric_metrics(node: dict[str, Any]) -> bool:
-    return any(isinstance(v, (int, float)) and v != 0 for v in node.get("metrics", {}).values())
+    return any(
+        isinstance(v, (int, float)) and v != 0
+        for v in node.get("metrics", {}).values())
 
 
-def _node_values(node: dict[str, Any]) -> tuple[float | None, float | None, float | None]:
+def _node_values(
+        node: dict[str,
+                   Any]) -> tuple[float | None, float | None, float | None]:
     metrics = node.get("metrics", {})
     bandwidth_gb_s = _metric(
         metrics,
@@ -82,7 +86,8 @@ def _aggregate_children(
     has_gpu = False
     has_cpu = False
     for child in node.get("children", []):
-        tbps, gpu_ms, cpu_ms = _aggregate_children(child, fallback, occurrence_counts)
+        tbps, gpu_ms, cpu_ms = _aggregate_children(child, fallback,
+                                                   occurrence_counts)
         if tbps is not None and gpu_ms is not None:
             tbps_num += tbps * gpu_ms
             tbps_den_ms += gpu_ms
@@ -95,9 +100,9 @@ def _aggregate_children(
 
     own_tbps, own_gpu_ms, own_cpu_ms = _node_values(node)
     if not node.get("children"):
-        if not _has_numeric_metrics(node) or (
-            own_tbps is None and own_gpu_ms is None and own_cpu_ms is None
-        ):
+        if not _has_numeric_metrics(node) or (own_tbps is None
+                                              and own_gpu_ms is None
+                                              and own_cpu_ms is None):
             return _fallback_values(node, fallback, occurrence_counts)
         return own_tbps, own_gpu_ms, own_cpu_ms
 
@@ -118,7 +123,8 @@ def _print_node(
 ):
     frame = node.get("frame", {})
     name = _display_name(frame.get("name", ""))
-    tbps, gpu_ms, cpu_ms = _aggregate_children(node, fallback, occurrence_counts)
+    tbps, gpu_ms, cpu_ms = _aggregate_children(node, fallback,
+                                               occurrence_counts)
     if root:
         line_prefix = ""
         label = name or "ROOT"
@@ -129,12 +135,10 @@ def _print_node(
         label = name
         child_prefix = prefix + ("   " if is_last else "|  ")
 
-    print(
-        f"{line_prefix}{label:<42}"
-        f"{_format_number(tbps, 14)}"
-        f"{_format_number(gpu_ms, 12)}"
-        f"{_format_number(cpu_ms, 12)}"
-    )
+    print(f"{line_prefix}{label:<42}"
+          f"{_format_number(tbps, 14)}"
+          f"{_format_number(gpu_ms, 12)}"
+          f"{_format_number(cpu_ms, 12)}")
 
     children = node.get("children", [])
     for index, child in enumerate(children):
@@ -151,7 +155,9 @@ def _print_node(
 def _contains_named_scope(node: dict[str, Any], scope_name: str) -> bool:
     if node.get("frame", {}).get("name") == scope_name:
         return True
-    return any(_contains_named_scope(child, scope_name) for child in node.get("children", []))
+    return any(
+        _contains_named_scope(child, scope_name)
+        for child in node.get("children", []))
 
 
 def _count_scoped_leaves(node: dict[str, Any], counts: dict[str, int]):
@@ -165,7 +171,9 @@ def _count_scoped_leaves(node: dict[str, Any], counts: dict[str, int]):
         _count_scoped_leaves(child, counts)
 
 
-def _build_fallback(root: dict[str, Any]) -> dict[str, tuple[float | None, float | None, float | None]]:
+def _build_fallback(
+    root: dict[str, Any]
+) -> dict[str, tuple[float | None, float | None, float | None]]:
     fallback = {}
     for child in root.get("children", []):
         if child.get("children"):
@@ -193,11 +201,16 @@ def main() -> int:
                 _count_scoped_leaves(child, occurrence_counts)
         root = {
             **root,
-            "children": [child for child in root.get("children", []) if child.get("children")],
+            "children": [
+                child for child in root.get("children", [])
+                if child.get("children")
+            ],
         }
     if args.title:
         print(args.title)
-    print(f"{'phase/node':<45}{'TBPS(tbyte/s)':>14}{'GPU(ms)':>12}{'CPU(ms)':>12}")
+    print(
+        f"{'phase/node':<45}{'TBPS(tbyte/s)':>14}{'GPU(ms)':>12}{'CPU(ms)':>12}"
+    )
     _print_node(
         root,
         prefix="",

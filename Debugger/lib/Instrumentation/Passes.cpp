@@ -3384,10 +3384,10 @@ struct InsertInstrumentationPass
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(InsertInstrumentationPass);
 
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry.insert<FlagTreeDebugDialect, arith::ArithDialect,
-                    math::MathDialect, memref::MemRefDialect, ptr::PtrDialect,
-                    scf::SCFDialect, tensor::TensorDialect,
-                    triton::TritonDialect>();
+    registry
+        .insert<FlagTreeDebugDialect, arith::ArithDialect, math::MathDialect,
+                memref::MemRefDialect, ptr::PtrDialect, scf::SCFDialect,
+                tensor::TensorDialect, triton::TritonDialect>();
   }
 
   void runOnOperation() override {

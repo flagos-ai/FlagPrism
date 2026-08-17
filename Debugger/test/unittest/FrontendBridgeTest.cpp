@@ -17,7 +17,8 @@ TEST(FrontendBridgeTest, AttachKernelMetadataCopiesFrontendIdentity) {
   request.options.exportMode = ExportMode::STREAMING_EXPORT;
 
   DebugKernelArtifacts artifacts;
-  bridge->attachKernelMetadata(request, artifacts, makeTestKernelDebugMetadata());
+  bridge->attachKernelMetadata(request, artifacts,
+                               makeTestKernelDebugMetadata());
 
   EXPECT_EQ(artifacts.bufferPlan.recordCapacity, 2048u);
   EXPECT_EQ(artifacts.bufferPlan.recordSize, kDefaultRecordSize);
@@ -36,7 +37,8 @@ TEST(FrontendBridgeTest, PrepareLaunchNormalizesUnsetRuntimeFields) {
   request.options.exportMode = ExportMode::STREAMING_EXPORT;
 
   DebugKernelArtifacts artifacts;
-  bridge->attachKernelMetadata(request, artifacts, makeTestKernelDebugMetadata());
+  bridge->attachKernelMetadata(request, artifacts,
+                               makeTestKernelDebugMetadata());
 
   BufferMeta meta{};
   meta.runId = 17;
@@ -66,7 +68,8 @@ TEST(FrontendBridgeTest, PrepareOwnedLaunchCreatesBackendAwareTransferEngine) {
       makeTestCompileRequest("cuda_kernel", BackendKind::CUDA);
 
   DebugKernelArtifacts artifacts;
-  bridge->attachKernelMetadata(request, artifacts, makeTestKernelDebugMetadata());
+  bridge->attachKernelMetadata(request, artifacts,
+                               makeTestKernelDebugMetadata());
 
   BufferMeta meta = makeTestBufferMeta();
   meta.backendKind = BackendKind::UNKNOWN;
@@ -74,9 +77,8 @@ TEST(FrontendBridgeTest, PrepareOwnedLaunchCreatesBackendAwareTransferEngine) {
   meta.recordLevel = static_cast<RecordLevel>(0);
   meta.exportMode = static_cast<ExportMode>(0);
 
-  PreparedDebugLaunch prepared =
-      bridge->prepareOwnedLaunch(artifacts, meta, makeTestRuntimeMetadata(),
-                                 0x1234);
+  PreparedDebugLaunch prepared = bridge->prepareOwnedLaunch(
+      artifacts, meta, makeTestRuntimeMetadata(), 0x1234);
 
   ASSERT_TRUE(prepared.transferEngine != nullptr);
   EXPECT_EQ(prepared.transferOptions.driverKind, TransferDriverKind::HOST);
@@ -88,9 +90,9 @@ TEST(FrontendBridgeTest, PrepareOwnedLaunchCreatesBackendAwareTransferEngine) {
   EXPECT_EQ(prepared.request.bufferMeta.exportMode,
             ExportMode::POST_KERNEL_EXPORT);
   EXPECT_EQ(prepared.request.launchContext.streamHandle, 0x1234u);
-  EXPECT_EQ(prepared.request.hiddenArgValue, reinterpret_cast<uint64_t>(
-                                                prepared.request.launchContext
-                                                    .deviceCtrlPtr));
+  EXPECT_EQ(
+      prepared.request.hiddenArgValue,
+      reinterpret_cast<uint64_t>(prepared.request.launchContext.deviceCtrlPtr));
 
   prepared.transferEngine->release(prepared.request.launchContext);
 }
@@ -102,7 +104,8 @@ TEST(FrontendBridgeTest, PrepareLaunchCanDeriveCannBackendFromArtifacts) {
       makeTestCompileRequest("cann_kernel", BackendKind::CANN);
 
   DebugKernelArtifacts artifacts;
-  bridge->attachKernelMetadata(request, artifacts, makeTestKernelDebugMetadata());
+  bridge->attachKernelMetadata(request, artifacts,
+                               makeTestKernelDebugMetadata());
 
   BufferMeta meta = makeTestBufferMeta();
   meta.backendKind = BackendKind::UNKNOWN;

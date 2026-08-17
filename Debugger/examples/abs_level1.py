@@ -9,9 +9,7 @@ import flagtree.debugger as debugger
 import flagtree.language as ftl
 import triton.language as tl
 
-
 OUTPUT_DIR = Path("/tmp/flagtree_debugger_level1_example")
-
 
 debugger.configure(
     output_dir=OUTPUT_DIR,
@@ -42,7 +40,7 @@ def main():
     x = torch.linspace(-8, 7, n, dtype=torch.float32, device=device)
     y = torch.empty_like(x)
     print("ready")
-    debug_abs_kernel[(1,)](x, y, n, BLOCK_SIZE=block)
+    debug_abs_kernel[(1, )](x, y, n, BLOCK_SIZE=block)
     torch_npu.npu.synchronize()
 
     expected = torch.abs(x) + 1.0

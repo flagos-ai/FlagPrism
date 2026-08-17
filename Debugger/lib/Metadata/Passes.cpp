@@ -1312,9 +1312,8 @@ LogicalResult assignDebugOpIdsAndMetadataWithoutPassManager(ModuleOp module) {
   std::string trackedJson = serializeTrackedOpTableToJson(table);
   std::string metadataJson = serializeKernelDebugMetadataToJson(metadata);
 
-  module->setAttr(
-      kAttrKernelId,
-      builder.getI64IntegerAttr(static_cast<int64_t>(metadata.debugKernelId)));
+  module->setAttr(kAttrKernelId, builder.getI64IntegerAttr(static_cast<int64_t>(
+                                     metadata.debugKernelId)));
   module->setAttr(kAttrTrackedOpCount,
                   builder.getI32IntegerAttr(metadata.trackedOpCount));
   module->setAttr(kAttrTrackedTableJson, builder.getStringAttr(trackedJson));

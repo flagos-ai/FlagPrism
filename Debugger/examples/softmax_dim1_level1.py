@@ -9,9 +9,7 @@ import flagtree.debugger as debugger
 import flagtree.language as ftl
 import triton.language as tl
 
-
 OUTPUT_DIR = Path("/tmp/flagtree_debugger_softmax_level1_example")
-
 
 debugger.configure(
     output_dir=OUTPUT_DIR,
@@ -22,7 +20,8 @@ debugger.activate(level=1, addr_level=1)
 
 
 @triton.jit
-def debug_softmax_dim1_kernel(x_ptr, y_ptr, n_cols: tl.constexpr, BLOCK_SIZE: tl.constexpr):
+def debug_softmax_dim1_kernel(x_ptr, y_ptr, n_cols: tl.constexpr,
+                              BLOCK_SIZE: tl.constexpr):
     row = tl.program_id(0)
     cols = tl.arange(0, BLOCK_SIZE)
     mask = cols < n_cols
@@ -49,7 +48,7 @@ def main():
     x = torch.randn((rows, cols), dtype=torch.float32, device=device)
     y = torch.empty_like(x)
 
-    debug_softmax_dim1_kernel[(rows,)](x, y, cols, BLOCK_SIZE=block)
+    debug_softmax_dim1_kernel[(rows, )](x, y, cols, BLOCK_SIZE=block)
     torch_npu.npu.synchronize()
 
     expected = torch.nn.functional.softmax(x, dim=1)

@@ -26,8 +26,8 @@ static void initProfiler(pybind11::module &&m) {
          const std::string &mode, const std::string &profilerPath,
          const std::string &hookName) {
         auto sessionId = SessionManager::instance().addSession(
-            path, profilerName, profilerPath, contextSourceName, dataName,
-            mode, hookName);
+            path, profilerName, profilerPath, contextSourceName, dataName, mode,
+            hookName);
         SessionManager::instance().activateSession(sessionId);
         return sessionId;
       },

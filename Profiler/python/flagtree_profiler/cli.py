@@ -7,21 +7,53 @@ from .flags import set_command_line
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="FlagTree Profiler command utility for scripts and pytest tests.", usage="""
+        description=
+        "FlagTree Profiler command utility for scripts and pytest tests.",
+        usage="""
     flagtree-profiler [options] script.py [script_args] [script_options]
     flagtree-profiler [options] pytest [pytest_args] [script_options]
     python -m flagtree.profiler.cli [options] script.py [script_args] [script_options]
-""", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("-n", "--name", type=str, help="Name of the profiling session")
-    parser.add_argument("-b", "--backend", type=str, help="Profiling backend", default=None,
-                        choices=["cupti", "cupti_pcsampling", "roctracer", "instrumentation", "cann"])
-    parser.add_argument("-c", "--context", type=str, help="Profiling context", default="shadow",
+""",
+        formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("-n",
+                        "--name",
+                        type=str,
+                        help="Name of the profiling session")
+    parser.add_argument("-b",
+                        "--backend",
+                        type=str,
+                        help="Profiling backend",
+                        default=None,
+                        choices=[
+                            "cupti", "cupti_pcsampling", "roctracer",
+                            "instrumentation", "cann"
+                        ])
+    parser.add_argument("-c",
+                        "--context",
+                        type=str,
+                        help="Profiling context",
+                        default="shadow",
                         choices=["shadow", "python"])
-    parser.add_argument("-m", "--mode", type=str, help="Profiling mode", default=None)
-    parser.add_argument("-d", "--data", type=str, help="Profiling data", default="tree", choices=["tree", "trace"])
-    parser.add_argument("-k", "--hook", type=str, help="Profiling hook", default=None,
+    parser.add_argument("-m",
+                        "--mode",
+                        type=str,
+                        help="Profiling mode",
+                        default=None)
+    parser.add_argument("-d",
+                        "--data",
+                        type=str,
+                        help="Profiling data",
+                        default="tree",
+                        choices=["tree", "trace"])
+    parser.add_argument("-k",
+                        "--hook",
+                        type=str,
+                        help="Profiling hook",
+                        default=None,
                         choices=["triton", "instrumentation"])
-    parser.add_argument('target_args', nargs=argparse.REMAINDER, help='Subcommand and its arguments')
+    parser.add_argument('target_args',
+                        nargs=argparse.REMAINDER,
+                        help='Subcommand and its arguments')
     args = parser.parse_args()
     return args, args.target_args
 
@@ -73,7 +105,11 @@ def do_setup_and_execute(target_args):
 def run_profiling(args, target_args):
     backend = args.backend if args.backend else _select_backend()
 
-    start(args.name, context=args.context, data=args.data, backend=backend, hook=args.hook)
+    start(args.name,
+          context=args.context,
+          data=args.data,
+          backend=backend,
+          hook=args.hook)
 
     do_setup_and_execute(target_args)
 

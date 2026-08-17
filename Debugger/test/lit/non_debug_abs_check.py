@@ -19,9 +19,10 @@ def main():
     n = 16
     x = torch.linspace(-8, 7, n, dtype=torch.float32, device="npu")
     y = torch.empty_like(x)
-    abs_kernel[(1,)](x, y, n, BLOCK_SIZE=16)
+    abs_kernel[(1, )](x, y, n, BLOCK_SIZE=16)
     torch_npu.npu.synchronize()
-    print("non_debug_allclose", torch.allclose(y.cpu(), (torch.abs(x) + 1.0).cpu()))
+    print("non_debug_allclose",
+          torch.allclose(y.cpu(), (torch.abs(x) + 1.0).cpu()))
 
 
 if __name__ == "__main__":

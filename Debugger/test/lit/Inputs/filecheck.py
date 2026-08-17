@@ -8,11 +8,9 @@ import sys
 def _read_checks(path):
     marker = re.compile(r"^\s*(?://|#|;)\s*(CHECK(?:-[A-Z]+)?):\s*(.*)$")
     with open(path, "r", encoding="utf-8") as stream:
-        return [
-            (match.group(1), match.group(2), line_no)
-            for line_no, line in enumerate(stream, 1)
-            if (match := marker.match(line.rstrip("\n")))
-        ]
+        return [(match.group(1), match.group(2), line_no)
+                for line_no, line in enumerate(stream, 1)
+                if (match := marker.match(line.rstrip("\n")))]
 
 
 def _compile_pattern(pattern, variables):
@@ -47,8 +45,8 @@ def _compile_pattern(pattern, variables):
             continue
 
         next_markers = [
-            position
-            for position in (pattern.find("{{", cursor), pattern.find("[[", cursor))
+            position for position in (pattern.find("{{", cursor),
+                                      pattern.find("[[", cursor))
             if position >= 0
         ]
         end = min(next_markers) if next_markers else len(pattern)
@@ -72,7 +70,9 @@ def _fail(path, line_no, message, pattern=None):
 
 
 def main(argv):
-    positional = [arg for arg in argv[1:] if not arg.startswith("--check-prefix")]
+    positional = [
+        arg for arg in argv[1:] if not arg.startswith("--check-prefix")
+    ]
     unsupported = [arg for arg in positional if arg.startswith("--")]
     if unsupported or len(positional) != 1:
         print("usage: filecheck.py CHECK_FILE", file=sys.stderr)
@@ -104,22 +104,29 @@ def main(argv):
             continue
 
         if kind == "CHECK-SAME":
-            match = regex.search(text[line_start:line_end], max(0, line_cursor - line_start))
+            match = regex.search(text[line_start:line_end],
+                                 max(0, line_cursor - line_start))
             if match is None:
-                return _fail(check_file, line_no, "CHECK-SAME pattern not found on current line", pattern)
+                return _fail(check_file, line_no,
+                             "CHECK-SAME pattern not found on current line",
+                             pattern)
             absolute_start = line_start + match.start()
             absolute_end = line_start + match.end()
         elif kind in ("CHECK", "CHECK-LABEL"):
             match = regex.search(text, cursor)
             if match is None:
-                return _fail(check_file, line_no, f"{kind} pattern not found", pattern)
+                return _fail(check_file, line_no, f"{kind} pattern not found",
+                             pattern)
             absolute_start, absolute_end = match.start(), match.end()
         else:
-            return _fail(check_file, line_no, f"unsupported directive {kind}", pattern)
+            return _fail(check_file, line_no, f"unsupported directive {kind}",
+                         pattern)
 
         for not_regex, not_pattern, not_line in pending_not:
             if not_regex.search(text[cursor:absolute_start]):
-                return _fail(check_file, not_line, "CHECK-NOT pattern found before next match", not_pattern)
+                return _fail(check_file, not_line,
+                             "CHECK-NOT pattern found before next match",
+                             not_pattern)
         pending_not.clear()
 
         for name in definitions:
@@ -130,7 +137,9 @@ def main(argv):
 
     for not_regex, not_pattern, not_line in pending_not:
         if not_regex.search(text[cursor:]):
-            return _fail(check_file, not_line, "CHECK-NOT pattern found after last match", not_pattern)
+            return _fail(check_file, not_line,
+                         "CHECK-NOT pattern found after last match",
+                         not_pattern)
     return 0
 
 

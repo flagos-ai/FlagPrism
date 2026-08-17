@@ -118,9 +118,8 @@ public:
       request.hiddenArgValue = 0;
       return request;
     }
-    request.launchContext =
-        transferEngine.prepare(normalizedMeta, artifacts.bufferPlan,
-                               runtimeMetadata);
+    request.launchContext = transferEngine.prepare(
+        normalizedMeta, artifacts.bufferPlan, runtimeMetadata);
     transferEngine.initHeader(request.launchContext);
     request.hiddenArgValue = transferEngine.hiddenArg(request.launchContext);
     return request;

@@ -40,8 +40,8 @@ public:
     return writeRaw(&record, sizeof(record));
   }
 
-  RecordWriteResult writeFullValueRef(
-      const FullValueRefRecord &record) override {
+  RecordWriteResult
+  writeFullValueRef(const FullValueRefRecord &record) override {
     return writeRaw(&record, sizeof(record));
   }
 
@@ -56,8 +56,7 @@ private:
       return r;
     }
 
-    const size_t offset =
-        static_cast<size_t>(count_) * kDefaultRecordSize;
+    const size_t offset = static_cast<size_t>(count_) * kDefaultRecordSize;
     if (offset + kDefaultRecordSize > sizeBytes_) {
       RecordWriteResult r;
       r.status = RecordWriteStatus::OVERFLOW;
@@ -84,8 +83,8 @@ private:
 
 // ─── RingBufferSink ──────────────────────────────────────────────────────────
 // Wraps the existing appendRecord* helpers.  `ctrlPtr` must point to an
-// already-initialised RingBufferHeader (call initializeRingBufferStorage first).
-// Overflow counter and RB_FLAG_OVERFLOW semantics are preserved.
+// already-initialised RingBufferHeader (call initializeRingBufferStorage
+// first). Overflow counter and RB_FLAG_OVERFLOW semantics are preserved.
 class RingBufferSink final : public RecordSink {
 public:
   RingBufferSink(void *ctrlPtr, size_t bufferSize)
@@ -105,8 +104,8 @@ public:
     return r;
   }
 
-  RecordWriteResult writeFullValueRef(
-      const FullValueRefRecord &record) override {
+  RecordWriteResult
+  writeFullValueRef(const FullValueRefRecord &record) override {
     auto r = appendFullValueRefRecord(ctrlPtr_, bufferSize_, record);
     if (r.status == RecordWriteStatus::WRITTEN)
       ++count_;

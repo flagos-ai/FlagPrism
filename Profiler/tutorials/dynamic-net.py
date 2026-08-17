@@ -83,9 +83,15 @@ def run():
 
 argparser = argparse.ArgumentParser()
 argparser.add_argument("--profile", action="store_true")
-argparser.add_argument("--engine", default="torch", choices=["torch", "torchinductor"])
-argparser.add_argument("--context", default="shadow", choices=["shadow", "python"])
-argparser.add_argument("--backend", default=None, choices=["cupti", "roctracer"])
+argparser.add_argument("--engine",
+                       default="torch",
+                       choices=["torch", "torchinductor"])
+argparser.add_argument("--context",
+                       default="shadow",
+                       choices=["shadow", "python"])
+argparser.add_argument("--backend",
+                       default=None,
+                       choices=["cupti", "roctracer"])
 argparser.add_argument("--mode", default=None)
 
 args = argparser.parse_args()
@@ -93,7 +99,11 @@ args = argparser.parse_args()
 engine = args.engine
 
 if args.profile:
-    func = profiler.profile(run, name="dynamic_net", context=args.context, backend=args.backend, mode=args.mode)
+    func = profiler.profile(run,
+                            name="dynamic_net",
+                            context=args.context,
+                            backend=args.backend,
+                            mode=args.mode)
 else:
     func = run
 

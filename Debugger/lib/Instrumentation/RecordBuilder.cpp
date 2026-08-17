@@ -56,7 +56,8 @@ MemoryEventRecord buildMemoryEventRecord(uint32_t opId,
                                          uint64_t addr, MemoryEventKind kind,
                                          uint32_t ext0) {
   MemoryEventRecord record{};
-  record.header = buildHeader(RecordKind::MEMORY_EVENT, opId, logicalInstanceId);
+  record.header =
+      buildHeader(RecordKind::MEMORY_EVENT, opId, logicalInstanceId);
   record.addr = addr;
   record.eventKind = kind;
   record.reserved1 = 0;

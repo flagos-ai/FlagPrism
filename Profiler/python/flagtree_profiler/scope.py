@@ -36,7 +36,9 @@ class scope:
         metrics (dict[str, float], optional): The metrics of the scope. Default is None.
     """
 
-    def __init__(self, name: str, metrics: Optional[dict[str, MetricValueType]] = None) -> None:
+    def __init__(self,
+                 name: str,
+                 metrics: Optional[dict[str, MetricValueType]] = None) -> None:
         self.name = name
         self.metrics = metrics
         self.id = None
@@ -83,7 +85,9 @@ class cpu_timed_scope(scope):
         metrics (dict[str, float], optional): Additional metrics to add. Default is None.
     """
 
-    def __init__(self, name: str, metrics: Optional[dict[str, float]] = None) -> None:
+    def __init__(self,
+                 name: str,
+                 metrics: Optional[dict[str, float]] = None) -> None:
         super().__init__(name, metrics)
         self.start_time = None
         if metrics and "cpu_time" in metrics:
@@ -101,10 +105,14 @@ class cpu_timed_scope(scope):
         super()._exit_scope()
         if self.start_time is not None:
             cpu_time = time.time_ns() - self.start_time
-            profiler_native.add_metrics(self.id, {"cpu_time (ns)(exc)": cpu_time})
+            profiler_native.add_metrics(self.id,
+                                        {"cpu_time (ns)(exc)": cpu_time})
 
 
-def enter_scope(name: str, *, metrics: Optional[dict[str, MetricValueType]] = None) -> Optional[int]:
+def enter_scope(
+        name: str,
+        *,
+        metrics: Optional[dict[str, MetricValueType]] = None) -> Optional[int]:
     if not get_profiling_on():
         return None
     id = profiler_native.record_scope()
@@ -116,7 +124,10 @@ def enter_scope(name: str, *, metrics: Optional[dict[str, MetricValueType]] = No
     return id
 
 
-def exit_scope(name: Optional[str] = None, *, metrics: Optional[dict[str, MetricValueType]] = None) -> Optional[int]:
+def exit_scope(
+        name: Optional[str] = None,
+        *,
+        metrics: Optional[dict[str, MetricValueType]] = None) -> Optional[int]:
     # `name` is an optional argument here, only to match the counterpart in enter_scope to make the API consistent with `profiler.language.exit_scope`
     if not get_profiling_on():
         return None

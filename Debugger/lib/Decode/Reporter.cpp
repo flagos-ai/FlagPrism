@@ -1,8 +1,8 @@
 #include "Debugger/Decode/Reporter.h"
 
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/JSON.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/StringRef.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -625,9 +625,9 @@ size_t maxLabelWidth(const std::vector<TextMetricRow> &rows) {
   return width;
 }
 
-bool hasFallbackMemoryEvents(const InstanceReportGroup &instance,
-                             std::optional<uint32_t> ext0Filter =
-                                 std::nullopt) {
+bool hasFallbackMemoryEvents(
+    const InstanceReportGroup &instance,
+    std::optional<uint32_t> ext0Filter = std::nullopt) {
   for (const MemoryEventView &event : instance.memoryEvents) {
     if (!memoryEventMatchesExt0(event, ext0Filter))
       continue;
@@ -689,8 +689,8 @@ void renderFallbackMemoryEventsByInstance(
       if (isAddressSummaryMemoryEventKind(event.kind)) {
         continue;
       }
-      os << rowIndent << "  [" << eventIndex++ << "] kind="
-         << toString(event.kind)
+      os << rowIndent << "  [" << eventIndex++
+         << "] kind=" << toString(event.kind)
          << " addr=" << hexValue(event.addr) << " ext0=" << event.ext0 << "\n";
       std::string addressIndent = std::string(rowIndent) + "    ";
       renderRuntimeAddressContext(os, run, trackedOp, event.addr,
@@ -1041,10 +1041,9 @@ findCaptureGroup(const StatementValueInfo &value,
   return captureIt == byOp.end() ? nullptr : &captureIt->second;
 }
 
-bool shouldRenderStatementValue(
-    const StatementValueInfo &value,
-    const std::map<uint32_t, OpReportGroup> &byOp,
-    const std::string &referenceLabel) {
+bool shouldRenderStatementValue(const StatementValueInfo &value,
+                                const std::map<uint32_t, OpReportGroup> &byOp,
+                                const std::string &referenceLabel) {
   if (isStatementResult(value) || !referenceLabel.empty() || value.isConstant)
     return true;
   return hasStatementRuntimeDetails(findCaptureGroup(value, byOp));
@@ -1075,14 +1074,14 @@ bool isMemoryAddressOperandRole(llvm::StringRef role) {
          role == "src" || role == "dst";
 }
 
-std::vector<MemoryUseTarget> memoryUseTargetsForEntry(
-    const TrackedOpEntry &entry) {
+std::vector<MemoryUseTarget>
+memoryUseTargetsForEntry(const TrackedOpEntry &entry) {
   std::vector<MemoryUseTarget> targets;
   const std::string accessKind = memoryAccessKind(entry);
   for (const OperandStaticInfo &operand : entry.operands) {
     if (isMemoryAddressOperandRole(operand.operandRole))
-      targets.push_back(MemoryUseTarget{operand.operandIndex,
-                                        operand.operandRole});
+      targets.push_back(
+          MemoryUseTarget{operand.operandIndex, operand.operandRole});
   }
   if (targets.empty())
     targets.push_back(MemoryUseTarget{0, ""});
@@ -1100,9 +1099,9 @@ findStatementMemoryUses(uint32_t opId,
   return &it->second;
 }
 
-StatementRenderIndex buildStatementRenderIndex(
-    const KernelDebugMetadata &metadata,
-    const std::map<uint32_t, OpReportGroup> &byOp) {
+StatementRenderIndex
+buildStatementRenderIndex(const KernelDebugMetadata &metadata,
+                          const std::map<uint32_t, OpReportGroup> &byOp) {
   StatementRenderIndex index;
   std::map<std::string, uint32_t> resultCounts =
       countStatementResultsByName(metadata);
@@ -1195,7 +1194,8 @@ void renderMemoryAccess(std::ostringstream &os, const DecodedDebugRun &run,
   for (const auto &row : addressRows)
     updateColumnWidths(columnWidths, row.cells);
 
-  os << indent << "instances: " << renderAlignedArray(instanceCells, columnWidths)
+  os << indent
+     << "instances: " << renderAlignedArray(instanceCells, columnWidths)
      << "\n";
   renderMetricRows(os, addressSummaryLabel.c_str(), addressRows, columnWidths,
                    indent, rowIndent.c_str());
@@ -1257,8 +1257,7 @@ void renderStatementRecords(std::ostringstream &os, const DecodedDebugRun &run,
     return;
 
   std::map<uint32_t, OpReportGroup> byOp = buildOpReportGroups(run, metadata);
-  StatementRenderIndex renderIndex =
-      buildStatementRenderIndex(metadata, byOp);
+  StatementRenderIndex renderIndex = buildStatementRenderIndex(metadata, byOp);
 
   renderSectionHeading(os, "Triton Statement Records");
   bool firstStatement = true;
@@ -1277,8 +1276,10 @@ void renderStatementRecords(std::ostringstream &os, const DecodedDebugRun &run,
 
     for (const StatementValueInfo &value : entry.statementValues) {
       if (isStatementResult(value)) {
-        std::string resultLabel = "[result " + stringOrNA(value.sourceName) + "]";
-        auto labelIt = renderIndex.resultLabelsByCaptureOp.find(value.captureOpId);
+        std::string resultLabel =
+            "[result " + stringOrNA(value.sourceName) + "]";
+        auto labelIt =
+            renderIndex.resultLabelsByCaptureOp.find(value.captureOpId);
         if (labelIt != renderIndex.resultLabelsByCaptureOp.end())
           resultLabel = labelIt->second;
         renderStatementValue(os, run, value, byOp, resultLabel,
@@ -1303,11 +1304,11 @@ void renderStatementRecords(std::ostringstream &os, const DecodedDebugRun &run,
   }
 }
 
-void renderRecordsByOp(std::ostringstream &os, const DecodedDebugRun &run,
-                       const KernelDebugMetadata &metadata,
-                       const char *sectionName = "IR Op Log Records",
-                       const char *staticOnlySectionName =
-                           "IR Op Log Static Only Ops") {
+void renderRecordsByOp(
+    std::ostringstream &os, const DecodedDebugRun &run,
+    const KernelDebugMetadata &metadata,
+    const char *sectionName = "IR Op Log Records",
+    const char *staticOnlySectionName = "IR Op Log Static Only Ops") {
   std::map<uint32_t, OpReportGroup> byOp = buildOpReportGroups(run, metadata);
 
   renderSectionHeading(os, sectionName);
@@ -1703,7 +1704,8 @@ llvm::json::Object jsonMemoryAccessReport(const DecodedDebugRun &run,
                            : std::nullopt;
     runtime["instances"] = jsonInstanceIds(use.runtime->instances);
     if (!addJsonAddressSummary(runtime, use.runtime->instances, ext0Filter))
-      runtime["address_summary"] = llvm::json::Object{{"status", "not_captured"}};
+      runtime["address_summary"] =
+          llvm::json::Object{{"status", "not_captured"}};
     llvm::json::Array memoryEvents = jsonMemoryEventsByInstance(
         run, use.accessOp, use.runtime->instances, ext0Filter);
     if (!memoryEvents.empty())
@@ -1713,8 +1715,7 @@ llvm::json::Object jsonMemoryAccessReport(const DecodedDebugRun &run,
   return object;
 }
 
-llvm::json::Object
-jsonStatementRuntimeReport(const OpReportGroup *opGroup) {
+llvm::json::Object jsonStatementRuntimeReport(const OpReportGroup *opGroup) {
   if (!opGroup || opGroup->instances.empty())
     return llvm::json::Object{{"status", "not_captured"}};
 
@@ -1740,8 +1741,7 @@ jsonStatementRuntimeReport(const OpReportGroup *opGroup) {
   llvm::json::Array fullValueRefsByInstance =
       jsonFullValueRefsByInstance(opGroup->instances);
   if (!fullValueRefsByInstance.empty())
-    object["full_value_refs_by_instance"] =
-        std::move(fullValueRefsByInstance);
+    object["full_value_refs_by_instance"] = std::move(fullValueRefsByInstance);
 
   return object;
 }
@@ -1815,8 +1815,7 @@ jsonStatementRecords(const DecodedDebugRun &run,
                      const KernelDebugMetadata &metadata,
                      const std::map<uint32_t, OpReportGroup> &byOp) {
   llvm::json::Array statements;
-  StatementRenderIndex renderIndex =
-      buildStatementRenderIndex(metadata, byOp);
+  StatementRenderIndex renderIndex = buildStatementRenderIndex(metadata, byOp);
   for (const TrackedOpEntry &entry : metadata.trackedOps) {
     if (entry.isSyntheticStatementCapture || entry.statementValues.empty())
       continue;
@@ -1858,9 +1857,9 @@ llvm::json::Object jsonStaticOnlyOp(const TrackedOpEntry &trackedOp) {
   };
 }
 
-llvm::json::Object
-jsonOpLog(const DecodedDebugRun &run, const KernelDebugMetadata &metadata,
-          const std::map<uint32_t, OpReportGroup> &byOp) {
+llvm::json::Object jsonOpLog(const DecodedDebugRun &run,
+                             const KernelDebugMetadata &metadata,
+                             const std::map<uint32_t, OpReportGroup> &byOp) {
   llvm::json::Array recordsByOp;
   for (const auto &entry : byOp) {
     recordsByOp.push_back(jsonOpReportGroup(run, entry.second));

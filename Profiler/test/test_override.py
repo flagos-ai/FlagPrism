@@ -23,7 +23,10 @@ def test_override(tmp_path: pathlib.Path):
     first_env["TRITON_KERNEL_DUMP"] = "1"
     first_env["TRITON_DUMP_DIR"] = str(tmp_path)
 
-    subprocess.run(["python3", dir_path + "/override_helper.py", str(tmp_path)], env=first_env)
+    subprocess.run(
+        ["python3", dir_path + "/override_helper.py",
+         str(tmp_path)],
+        env=first_env)
 
     ttir_files = list(tmp_path.rglob("*.ttir"))
     ttgir_files = list(tmp_path.rglob("*.ttgir"))
@@ -68,12 +71,16 @@ def test_override(tmp_path: pathlib.Path):
                 #insert after the line
                 line = line + '    proton.record start "load_ops" loc(#loc)\n'
                 line = line + '    proton.record start "load_x" loc(#loc)\n'
-            elif ("tt.load" in line and isFirstLoad) or ("amdgpu.buffer_load" in line and isFirstLoad):
+            elif ("tt.load" in line
+                  and isFirstLoad) or ("amdgpu.buffer_load" in line
+                                       and isFirstLoad):
                 #insert after the line
                 line = line + '    proton.record end "load_x" loc(#loc)\n'
                 line = line + '    proton.record start "load_y" loc(#loc)\n'
                 isFirstLoad = False
-            elif ("tt.load" in line and not isFirstLoad) or ("amdgpu.buffer_load" in line and not isFirstLoad):
+            elif ("tt.load" in line
+                  and not isFirstLoad) or ("amdgpu.buffer_load" in line
+                                           and not isFirstLoad):
                 #insert after the line
                 line = line + '    proton.record end "load_y" loc(#loc)\n'
                 line = line + '    proton.record end "load_ops" loc(#loc)\n'
@@ -87,7 +94,10 @@ def test_override(tmp_path: pathlib.Path):
     second_env["TRITON_ALWAYS_COMPILE"] = "1"
     second_env["TRITON_KERNEL_OVERRIDE"] = "1"
     second_env["TRITON_OVERRIDE_DIR"] = str(tmp_path)
-    subprocess.run(["python3", dir_path + "/override_helper.py", str(tmp_path)], env=second_env)
+    subprocess.run(
+        ["python3", dir_path + "/override_helper.py",
+         str(tmp_path)],
+        env=second_env)
 
     temp_file = tmp_path / "test_override.hatchet"
 

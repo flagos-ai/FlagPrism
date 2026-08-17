@@ -33,9 +33,8 @@ void init_flagtree_debugger_compiler(py::module_ &m) {
   registerFlagTreeDebuggerMetadataPasses();
   registerFlagTreeDebuggerInstrumentationPasses();
 
-  m.def("load_dialects", [](MLIRContext &context) {
-    loadDebuggerDialect(context);
-  });
+  m.def("load_dialects",
+        [](MLIRContext &context) { loadDebuggerDialect(context); });
   // Store builders return no Python IR value, so the optional plugin owns the
   // insertion-point lookup instead of extending FlagTree's core IR bindings.
   m.def(
@@ -71,8 +70,7 @@ void init_flagtree_debugger_compiler(py::module_ &m) {
                                    ? IntegerAttr()
                                    : opBuilder.getI32IntegerAttr(addrLevel);
           return builder.create<CollectBeginOp>(
-              opBuilder.getI32IntegerAttr(level), addrLevelAttr,
-              IntegerAttr());
+              opBuilder.getI32IntegerAttr(level), addrLevelAttr, IntegerAttr());
         });
   m.def("create_debug_collect_end", [](TritonOpBuilder &builder) -> OpState {
     loadDebuggerDialect(*builder.getContext());
@@ -80,21 +78,18 @@ void init_flagtree_debugger_compiler(py::module_ &m) {
   });
   m.def("has_debug_collect_markers",
         [](ModuleOp mod) { return hasDebugCollectMarkers(mod); });
-  m.def("insert_default_debug_collect_markers",
-        [](ModuleOp mod, int32_t level, int32_t addrLevel) {
-          return succeeded(
-              insertDefaultDebugCollectMarkers(mod, level, addrLevel));
-        });
+  m.def("insert_default_debug_collect_markers", [](ModuleOp mod, int32_t level,
+                                                   int32_t addrLevel) {
+    return succeeded(insertDefaultDebugCollectMarkers(mod, level, addrLevel));
+  });
   m.def("get_debug_tracked_op_table_json",
         [](ModuleOp mod) { return getDebugTrackedOpTableJson(mod); });
   m.def("get_debug_kernel_metadata_json",
         [](ModuleOp mod) { return getDebugKernelMetadataJson(mod); });
-  m.def("get_debug_kernel_id", [](ModuleOp mod) {
-    return getDebugKernelId(mod);
-  });
-  m.def("get_debug_records_per_instance", [](ModuleOp mod) {
-    return getDebugRecordsPerInstance(mod);
-  });
+  m.def("get_debug_kernel_id",
+        [](ModuleOp mod) { return getDebugKernelId(mod); });
+  m.def("get_debug_records_per_instance",
+        [](ModuleOp mod) { return getDebugRecordsPerInstance(mod); });
   m.def("get_debug_record_size",
         [](ModuleOp mod) { return getDebugRecordSize(mod); });
   m.def("get_debug_record_layout",
@@ -106,10 +101,9 @@ void init_flagtree_debugger_compiler(py::module_ &m) {
   });
   m.def("get_debug_full_dump_plan_json",
         [](ModuleOp mod) { return getDebugFullDumpPlanJson(mod); });
-  m.def("set_debug_kernel_id_seed",
-        [](ModuleOp mod, const std::string &seed) {
-          setDebugKernelIdSeed(mod, seed);
-        });
+  m.def("set_debug_kernel_id_seed", [](ModuleOp mod, const std::string &seed) {
+    setDebugKernelIdSeed(mod, seed);
+  });
   m.def("set_debug_hidden_arg_abi_enabled", [](ModuleOp mod, bool enabled) {
     setDebugHiddenArgAbiEnabled(mod, enabled);
   });
@@ -119,30 +113,25 @@ void init_flagtree_debugger_compiler(py::module_ &m) {
   m.def("set_debug_timeline_enabled", [](ModuleOp mod, bool enabled) {
     setDebugTimelineEnabled(mod, enabled);
   });
-  m.def("set_debug_timeline_only", [](ModuleOp mod, bool enabled) {
-    setDebugTimelineOnly(mod, enabled);
-  });
+  m.def("set_debug_timeline_only",
+        [](ModuleOp mod, bool enabled) { setDebugTimelineOnly(mod, enabled); });
   m.def("assign_debug_collect_scope_ids_without_erase", [](ModuleOp mod) {
     return succeeded(assignDebugCollectScopeIdsWithoutErase(mod));
   });
   m.def("assign_debug_op_ids_and_metadata_without_pass_manager",
         [](ModuleOp mod) {
-          return succeeded(
-              assignDebugOpIdsAndMetadataWithoutPassManager(mod));
+          return succeeded(assignDebugOpIdsAndMetadataWithoutPassManager(mod));
         });
   m.def("erase_debug_collect_markers",
         [](ModuleOp mod) { eraseDebugCollectMarkers(mod); });
   m.def("has_triton_tensor_pointer_types",
         [](ModuleOp mod) { return hasTritonTensorPointerTypes(mod); });
-  m.def("add_resolve_debug_scope", [](PassManager &pm) {
-    pm.addPass(createResolveDebugScopePass());
-  });
-  m.def("add_assign_debug_op_id", [](PassManager &pm) {
-    pm.addPass(createAssignOpIdPass());
-  });
-  m.def("add_insert_instrumentation", [](PassManager &pm) {
-    pm.addPass(createInsertInstrumentationPass());
-  });
+  m.def("add_resolve_debug_scope",
+        [](PassManager &pm) { pm.addPass(createResolveDebugScopePass()); });
+  m.def("add_assign_debug_op_id",
+        [](PassManager &pm) { pm.addPass(createAssignOpIdPass()); });
+  m.def("add_insert_instrumentation",
+        [](PassManager &pm) { pm.addPass(createInsertInstrumentationPass()); });
   m.def("add_simplify_record_memref_writes", [](PassManager &pm) {
     pm.addPass(createSimplifyRecordMemrefWritesPass());
   });

@@ -26,30 +26,15 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 from flaggems_debug_batch import (  # noqa: E402
-    DEFAULT_FLAGGEMS_ROOT,
-    DEFAULT_PYTHON,
-    DEFAULT_WORKSPACE_ROOT,
-    InstrumentationStats,
-    build_env,
-    classify_status,
-    copy_flaggems_source,
-    create_bootstrap,
-    first_error_from_logs,
-    instrument_flaggems_tree,
-    inventory_by_id,
-    load_operator_inventory,
-    now_stamp,
-    op_source_candidates,
-    op_uses_pointwise_dynamic,
-    read_text,
-    select_ops,
-    shell_command,
+    DEFAULT_FLAGGEMS_ROOT, DEFAULT_PYTHON, DEFAULT_WORKSPACE_ROOT,
+    InstrumentationStats, build_env, classify_status, copy_flaggems_source,
+    create_bootstrap, first_error_from_logs, instrument_flaggems_tree,
+    inventory_by_id, load_operator_inventory, now_stamp, op_source_candidates,
+    op_uses_pointwise_dynamic, read_text, select_ops, shell_command,
     write_text,
 )
 from flaggems_pytest_node_runner import (  # noqa: E402
-    build_node_plan,
-    collect_marks,
-    run_node as run_pytest_node,
+    build_node_plan, collect_marks, run_node as run_pytest_node,
     write_node_entry,
 )
 
@@ -112,9 +97,9 @@ def include_names_for(op: str) -> list[str]:
     if base not in names:
         names.append(base)
     if op.endswith("_out"):
-        names.append(op[: -len("_out")])
+        names.append(op[:-len("_out")])
     if op.endswith(".out"):
-        names.append(op[: -len(".out")])
+        names.append(op[:-len(".out")])
     aliases = {
         "all_dims": ["all"],
         "any_dims": ["any"],
@@ -137,10 +122,14 @@ def include_names_for(op: str) -> list[str]:
 
 def indent_body(body: str, spaces: int = 4) -> str:
     prefix = " " * spaces
-    return "\n".join(prefix + line if line else "" for line in body.strip().splitlines())
+    return "\n".join(prefix + line if line else ""
+                     for line in body.strip().splitlines())
 
 
-def make_case(op: str, case_id: str, body: str, description: str = "") -> DirectCase:
+def make_case(op: str,
+              case_id: str,
+              body: str,
+              description: str = "") -> DirectCase:
     return DirectCase(
         op=op,
         case_id=sanitize_case_id(case_id),
@@ -164,8 +153,7 @@ bias = torch.randn((N,), dtype=torch.float32, device=device)
 result = torch.addmm(bias, mat1, mat2, alpha=1.0, beta=1.0)
 """,
             "torch.addmm with vector bias and contiguous mat2",
-        )
-    )
+        ))
     cases.append(
         make_case(
             op,
@@ -178,8 +166,7 @@ bias = torch.randn((M, N), dtype=torch.float32, device=device)
 result = torch.addmm(bias, mat1, mat2, alpha=1.0, beta=1.0)
 """,
             "torch.addmm with matrix bias and contiguous mat2",
-        )
-    )
+        ))
     cases.append(
         make_case(
             op,
@@ -192,8 +179,7 @@ bias = torch.randn((N,), dtype=torch.float32, device=device)
 result = torch.addmm(bias, mat1, mat2, alpha=1.0, beta=1.0)
 """,
             "torch.addmm with vector bias and transposed mat2",
-        )
-    )
+        ))
     cases.append(
         make_case(
             op,
@@ -206,8 +192,7 @@ bias = torch.randn((M, N), dtype=torch.float32, device=device)
 result = torch.addmm(bias, mat1, mat2, alpha=1.0, beta=1.0)
 """,
             "torch.addmm with matrix bias and transposed mat2",
-        )
-    )
+        ))
     return cases
 
 
@@ -378,37 +363,92 @@ def reduction_cases(op: str) -> list[DirectCase]:
     x_float = "x = torch.linspace(-8, 7, 16, dtype=torch.float32, device=device).reshape(4, 4)"
     x_bool = "x = (torch.arange(16, device=device).reshape(4, 4) % 3) == 0"
     if op == "all":
-        return [make_case(op, "all", f"{x_bool}\nresult = torch.all(x)", "torch.all full reduction")]
+        return [
+            make_case(op, "all", f"{x_bool}\nresult = torch.all(x)",
+                      "torch.all full reduction")
+        ]
     if op == "all_dim":
-        return [make_case(op, "dim1", f"{x_bool}\nresult = torch.all(x, dim=1)", "torch.all dim=1")]
+        return [
+            make_case(op, "dim1", f"{x_bool}\nresult = torch.all(x, dim=1)",
+                      "torch.all dim=1")
+        ]
     if op == "all_dims":
-        return [make_case(op, "dims_keepdim", f"{x_bool}\nresult = torch.all(x, dim=1, keepdim=True)", "torch.all dims-compatible direct case")]
+        return [
+            make_case(op, "dims_keepdim",
+                      f"{x_bool}\nresult = torch.all(x, dim=1, keepdim=True)",
+                      "torch.all dims-compatible direct case")
+        ]
     if op == "any":
-        return [make_case(op, "any", f"{x_bool}\nresult = torch.any(x)", "torch.any full reduction")]
+        return [
+            make_case(op, "any", f"{x_bool}\nresult = torch.any(x)",
+                      "torch.any full reduction")
+        ]
     if op == "any_dim":
-        return [make_case(op, "dim1", f"{x_bool}\nresult = torch.any(x, dim=1)", "torch.any dim=1")]
+        return [
+            make_case(op, "dim1", f"{x_bool}\nresult = torch.any(x, dim=1)",
+                      "torch.any dim=1")
+        ]
     if op == "any_dims":
-        return [make_case(op, "dims_keepdim", f"{x_bool}\nresult = torch.any(x, dim=1, keepdim=True)", "torch.any dims-compatible direct case")]
+        return [
+            make_case(op, "dims_keepdim",
+                      f"{x_bool}\nresult = torch.any(x, dim=1, keepdim=True)",
+                      "torch.any dims-compatible direct case")
+        ]
     if op == "amax":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.amax(x, dim=1)", "torch.amax dim=1")]
+        return [
+            make_case(op, "dim1", f"{x_float}\nresult = torch.amax(x, dim=1)",
+                      "torch.amax dim=1")
+        ]
     if op == "aminmax":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.aminmax(x, dim=1).min", "torch.aminmax dim=1")]
+        return [
+            make_case(op, "dim1",
+                      f"{x_float}\nresult = torch.aminmax(x, dim=1).min",
+                      "torch.aminmax dim=1")
+        ]
     if op == "max":
-        return [make_case(op, "full", f"{x_float}\nresult = torch.max(x)", "torch.max full reduction")]
+        return [
+            make_case(op, "full", f"{x_float}\nresult = torch.max(x)",
+                      "torch.max full reduction")
+        ]
     if op == "max_dim":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.max(x, dim=1).values", "torch.max dim=1")]
+        return [
+            make_case(op, "dim1",
+                      f"{x_float}\nresult = torch.max(x, dim=1).values",
+                      "torch.max dim=1")
+        ]
     if op == "min":
-        return [make_case(op, "full", f"{x_float}\nresult = torch.min(x)", "torch.min full reduction")]
+        return [
+            make_case(op, "full", f"{x_float}\nresult = torch.min(x)",
+                      "torch.min full reduction")
+        ]
     if op == "min_dim":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.min(x, dim=1).values", "torch.min dim=1")]
+        return [
+            make_case(op, "dim1",
+                      f"{x_float}\nresult = torch.min(x, dim=1).values",
+                      "torch.min dim=1")
+        ]
     if op == "argmax":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.argmax(x, dim=1)", "torch.argmax dim=1")]
+        return [
+            make_case(op, "dim1",
+                      f"{x_float}\nresult = torch.argmax(x, dim=1)",
+                      "torch.argmax dim=1")
+        ]
     if op == "argmin":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.argmin(x, dim=1)", "torch.argmin dim=1")]
+        return [
+            make_case(op, "dim1",
+                      f"{x_float}\nresult = torch.argmin(x, dim=1)",
+                      "torch.argmin dim=1")
+        ]
     if op == "sum":
-        return [make_case(op, "full", f"{x_float}\nresult = torch.sum(x)", "torch.sum full reduction")]
+        return [
+            make_case(op, "full", f"{x_float}\nresult = torch.sum(x)",
+                      "torch.sum full reduction")
+        ]
     if op == "sum_dim":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.sum(x, dim=1)", "torch.sum dim=1")]
+        return [
+            make_case(op, "dim1", f"{x_float}\nresult = torch.sum(x, dim=1)",
+                      "torch.sum dim=1")
+        ]
     if op == "sum_out":
         return [
             make_case(
@@ -419,15 +459,32 @@ def reduction_cases(op: str) -> list[DirectCase]:
             )
         ]
     if op == "mean":
-        return [make_case(op, "full", f"{x_float}\nresult = torch.mean(x)", "torch.mean full reduction")]
+        return [
+            make_case(op, "full", f"{x_float}\nresult = torch.mean(x)",
+                      "torch.mean full reduction")
+        ]
     if op == "mean_dim":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.mean(x, dim=1)", "torch.mean dim=1")]
+        return [
+            make_case(op, "dim1", f"{x_float}\nresult = torch.mean(x, dim=1)",
+                      "torch.mean dim=1")
+        ]
     if op == "prod":
-        return [make_case(op, "full", f"{x_float}\nresult = torch.prod(x + 9)", "torch.prod full reduction")]
+        return [
+            make_case(op, "full", f"{x_float}\nresult = torch.prod(x + 9)",
+                      "torch.prod full reduction")
+        ]
     if op == "prod_dim_int":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.prod(x + 9, dim=1)", "torch.prod dim=1")]
+        return [
+            make_case(op, "dim1",
+                      f"{x_float}\nresult = torch.prod(x + 9, dim=1)",
+                      "torch.prod dim=1")
+        ]
     if op == "cumsum":
-        return [make_case(op, "dim1", f"{x_float}\nresult = torch.cumsum(x, dim=1)", "torch.cumsum dim=1")]
+        return [
+            make_case(op, "dim1",
+                      f"{x_float}\nresult = torch.cumsum(x, dim=1)",
+                      "torch.cumsum dim=1")
+        ]
     if op == "cumsum_out":
         return [
             make_case(
@@ -583,7 +640,7 @@ def pointwise_cases(op: str) -> list[DirectCase]:
             )
         ]
     if op in {"addcdiv_out", "addcmul_out"}:
-        func = op[: -len("_out")]
+        func = op[:-len("_out")]
         return [
             make_case(
                 op,
@@ -1078,14 +1135,14 @@ result = torch.nn.functional.log_softmax(x, dim=1)
 
 def generate_cases_for_op(op: str, item: dict[str, Any]) -> list[DirectCase]:
     for generator in (
-        linear_algebra_cases,
-        reduction_cases,
-        pointwise_cases,
-        creation_and_shape_cases,
-        normalization_cases,
-        pooling_and_conv_cases,
-        indexing_cases,
-        softmax_cases,
+            linear_algebra_cases,
+            reduction_cases,
+            pointwise_cases,
+            creation_and_shape_cases,
+            normalization_cases,
+            pooling_and_conv_cases,
+            indexing_cases,
+            softmax_cases,
     ):
         cases = generator(op)
         if cases:
@@ -1093,12 +1150,12 @@ def generate_cases_for_op(op: str, item: dict[str, Any]) -> list[DirectCase]:
     return []
 
 
-def filter_cases(cases: list[DirectCase], case_filter: str | None) -> list[DirectCase]:
+def filter_cases(cases: list[DirectCase],
+                 case_filter: str | None) -> list[DirectCase]:
     if not case_filter:
         return cases
     return [
-        case
-        for case in cases
+        case for case in cases
         if case_filter in case.case_id or case_filter in case.description
     ]
 
@@ -1201,7 +1258,10 @@ def write_case_script(path: Path, case: DirectCase) -> None:
 def debug_report_snapshot(debug_dir: Path) -> tuple[int, int, float | None]:
     txt_files = list(debug_dir.glob("*.txt"))
     json_files = list(debug_dir.glob("*.json"))
-    mtimes = [path.stat().st_mtime for path in txt_files + json_files if path.exists()]
+    mtimes = [
+        path.stat().st_mtime for path in txt_files + json_files
+        if path.exists()
+    ]
     return len(txt_files), len(json_files), max(mtimes) if mtimes else None
 
 
@@ -1224,7 +1284,8 @@ def kill_process_group(proc: subprocess.Popen[Any]) -> None:
 
 def op_has_debuggable_kernel(worktree: Path, op: str) -> bool:
     search_roots = [
-        worktree / "src" / "flag_gems" / "runtime" / "backend" / "_ascend" / "ops",
+        worktree / "src" / "flag_gems" / "runtime" / "backend" / "_ascend" /
+        "ops",
         worktree / "src" / "flag_gems" / "ops",
         worktree / "src" / "flag_gems" / "experimental_ops",
         worktree / "src" / "flag_gems" / "fused",
@@ -1288,17 +1349,14 @@ def collect_pytest_fallback_nodes(
         write_text(
             fallback_root / "collected_nodes.json",
             json.dumps(
-                [
-                    {
-                        "nodeid": node.nodeid,
-                        "selected_ops": node.selected_ops,
-                        "timeout_class": node.timeout_class,
-                        "first_report_timeout_sec": node.first_report_timeout_sec,
-                        "report_timeout_sec": node.report_timeout_sec,
-                        "node_total_timeout_sec": node.node_total_timeout_sec,
-                    }
-                    for node in nodes
-                ],
+                [{
+                    "nodeid": node.nodeid,
+                    "selected_ops": node.selected_ops,
+                    "timeout_class": node.timeout_class,
+                    "first_report_timeout_sec": node.first_report_timeout_sec,
+                    "report_timeout_sec": node.report_timeout_sec,
+                    "node_total_timeout_sec": node.node_total_timeout_sec,
+                } for node in nodes],
                 indent=2,
                 sort_keys=True,
             ),
@@ -1345,8 +1403,7 @@ def run_pytest_fallback_case(
         first_error = (
             "pytest fallback exited successfully but debugger report is missing "
             f"or incomplete: txt={result.debug_txt_count}, json={result.debug_json_count}, "
-            f"dir={result.debug_report_dir}"
-        )
+            f"dir={result.debug_report_dir}")
     return DirectCaseStatus(
         op=op,
         case_id=case_id,
@@ -1397,8 +1454,7 @@ def run_direct_case(
     last_complete_reports = 0
     total_timeout = args.case_timeout if args.case_timeout is not None else args.case_total_timeout
     with stdout_log.open("w", encoding="utf-8") as out, stderr_log.open(
-        "w", encoding="utf-8"
-    ) as err:
+            "w", encoding="utf-8") as err:
         proc = subprocess.Popen(
             ["/bin/bash", "-lc", command],
             stdout=out,
@@ -1426,20 +1482,16 @@ def run_direct_case(
                 break
 
             if last_complete_reports == 0:
-                if (
-                    args.first_report_timeout is not None
-                    and elapsed > args.first_report_timeout
-                ):
+                if (args.first_report_timeout is not None
+                        and elapsed > args.first_report_timeout):
                     timed_out = True
                     timeout_reason = "first_report_timeout"
                     kill_process_group(proc)
                     exit_code = None
                     break
-            elif (
-                args.report_timeout is not None
-                and last_report_time is not None
-                and now - last_report_time > args.report_timeout
-            ):
+            elif (args.report_timeout is not None
+                  and last_report_time is not None
+                  and now - last_report_time > args.report_timeout):
                 timed_out = True
                 timeout_reason = "report_timeout"
                 kill_process_group(proc)
@@ -1449,7 +1501,8 @@ def run_direct_case(
             time.sleep(1)
 
     duration = time.time() - start
-    debug_txt_count, debug_json_count, report_mtime = debug_report_snapshot(debug_dir)
+    debug_txt_count, debug_json_count, report_mtime = debug_report_snapshot(
+        debug_dir)
     status = classify_status(
         exit_code,
         timed_out,
@@ -1460,15 +1513,15 @@ def run_direct_case(
     )
     if timed_out and min(debug_txt_count, debug_json_count) > 0:
         status = "partial_timeout"
-    if status == "missing_debug_report" and not op_has_debuggable_kernel(worktree, case.op):
+    if status == "missing_debug_report" and not op_has_debuggable_kernel(
+            worktree, case.op):
         status = "no_triton_kernel"
     first_error = first_error_from_logs(stdout_log, stderr_log)
     if status == "missing_debug_report":
         first_error = (
             "case exited successfully but debugger report is missing or "
             f"incomplete: txt={debug_txt_count}, json={debug_json_count}, "
-            f"dir={debug_dir}"
-        )
+            f"dir={debug_dir}")
     elif status == "no_triton_kernel":
         first_error = "case exited successfully but selected op has no debuggable Triton kernel"
     elif status in {"timeout", "partial_timeout"}:
@@ -1494,11 +1547,13 @@ def run_direct_case(
         first_report_timeout_sec=args.first_report_timeout,
         timeout_reason=timeout_reason,
     )
-    write_text(case_dir / "status.json", json.dumps(asdict(case_status), indent=2))
+    write_text(case_dir / "status.json",
+               json.dumps(asdict(case_status), indent=2))
     return case_status
 
 
-def no_direct_case_status(op: str, run_dir: Path, reason: str) -> DirectCaseStatus:
+def no_direct_case_status(op: str, run_dir: Path,
+                          reason: str) -> DirectCaseStatus:
     case_dir = run_dir / op / "no_direct_case"
     debug_dir = case_dir / "debug_reports"
     case_dir.mkdir(parents=True, exist_ok=True)
@@ -1526,7 +1581,8 @@ def no_direct_case_status(op: str, run_dir: Path, reason: str) -> DirectCaseStat
     return status
 
 
-def unsupported_status(op: str, run_dir: Path, reason: str) -> DirectCaseStatus:
+def unsupported_status(op: str, run_dir: Path,
+                       reason: str) -> DirectCaseStatus:
     case_dir = run_dir / op / "unsupported_pointwise_dynamic"
     debug_dir = case_dir / "debug_reports"
     case_dir.mkdir(parents=True, exist_ok=True)
@@ -1556,11 +1612,13 @@ def unsupported_status(op: str, run_dir: Path, reason: str) -> DirectCaseStatus:
 
 def write_summary(run_dir: Path, statuses: list[DirectCaseStatus]) -> None:
     rows = [asdict(status) for status in statuses]
-    write_text(run_dir / "summary.json", json.dumps(rows, indent=2, sort_keys=True))
+    write_text(run_dir / "summary.json",
+               json.dumps(rows, indent=2, sort_keys=True))
     if not rows:
         write_text(run_dir / "summary.csv", "")
         return
-    with (run_dir / "summary.csv").open("w", encoding="utf-8", newline="") as f:
+    with (run_dir / "summary.csv").open("w", encoding="utf-8",
+                                        newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
@@ -1568,11 +1626,13 @@ def write_summary(run_dir: Path, statuses: list[DirectCaseStatus]) -> None:
     by_status: dict[str, int] = {}
     for status in statuses:
         by_status[status.status] = by_status.get(status.status, 0) + 1
-    write_text(run_dir / "status_counts.json", json.dumps(by_status, indent=2, sort_keys=True))
+    write_text(run_dir / "status_counts.json",
+               json.dumps(by_status, indent=2, sort_keys=True))
     write_text(
         run_dir / "missing_case_ops.json",
         json.dumps(
-            sorted({s.op for s in statuses if s.status == "no_direct_case"}),
+            sorted({s.op
+                    for s in statuses if s.status == "no_direct_case"}),
             indent=2,
         ),
     )
@@ -1580,10 +1640,7 @@ def write_summary(run_dir: Path, statuses: list[DirectCaseStatus]) -> None:
         run_dir / "failed_cases.json",
         json.dumps(
             [
-                asdict(s)
-                for s in statuses
-                if s.status
-                not in {
+                asdict(s) for s in statuses if s.status not in {
                     "passed",
                     "no_direct_case",
                     "unsupported_pointwise_dynamic",
@@ -1630,7 +1687,10 @@ def write_summary(run_dir: Path, statuses: list[DirectCaseStatus]) -> None:
     write_text(
         run_dir / "coverage_by_reason.json",
         json.dumps(
-            {key: sorted(set(value)) for key, value in coverage.items()},
+            {
+                key: sorted(set(value))
+                for key, value in coverage.items()
+            },
             indent=2,
             sort_keys=True,
         ),
@@ -1660,7 +1720,8 @@ def write_manifest(
         "report_timeout": args.report_timeout,
         "case_filter": args.case_filter,
         "include_status": args.include_status,
-        "source_summary": str(args.source_summary) if args.source_summary else None,
+        "source_summary":
+        str(args.source_summary) if args.source_summary else None,
         "pointwise_mode": args.pointwise_mode,
         "skip_pointwise_dynamic": args.skip_pointwise_dynamic,
         "normalize_ext_launch_ids": args.normalize_ext_launch_ids,
@@ -1668,7 +1729,8 @@ def write_manifest(
         "pytest_fallback_poll_interval": args.pytest_fallback_poll_interval,
         "instrumentation": asdict(stats),
     }
-    write_text(run_dir / "manifest.json", json.dumps(manifest, indent=2, sort_keys=True))
+    write_text(run_dir / "manifest.json",
+               json.dumps(manifest, indent=2, sort_keys=True))
 
 
 def add_bool_argument(
@@ -1679,7 +1741,10 @@ def add_bool_argument(
     help_text: str,
 ) -> None:
     dest = name.replace("-", "_")
-    parser.add_argument(f"--{name}", dest=dest, action="store_true", help=help_text)
+    parser.add_argument(f"--{name}",
+                        dest=dest,
+                        action="store_true",
+                        help=help_text)
     parser.add_argument(f"--no-{name}", dest=dest, action="store_false")
     parser.set_defaults(**{dest: default})
 
@@ -1688,9 +1753,8 @@ def latest_summary_path(workspace_root: Path) -> Path | None:
     runs_root = workspace_root / "direct_runs"
     if not runs_root.exists():
         return None
-    summaries = sorted(
-        path for path in runs_root.glob("*/summary.json") if path.is_file()
-    )
+    summaries = sorted(path for path in runs_root.glob("*/summary.json")
+                       if path.is_file())
     return summaries[-1] if summaries else None
 
 
@@ -1704,12 +1768,12 @@ def apply_status_selection(
 
     summary_path = args.source_summary or latest_summary_path(workspace_root)
     if summary_path is None:
-        raise FileNotFoundError("--include-status requires an existing summary.json")
+        raise FileNotFoundError(
+            "--include-status requires an existing summary.json")
     rows = json.loads(read_text(summary_path))
     statuses = {
         status.strip()
-        for status in args.include_status.split(",")
-        if status.strip()
+        for status in args.include_status.split(",") if status.strip()
     }
     selected_set = set(selected_ops)
     result: list[str] = []
@@ -1723,21 +1787,26 @@ def apply_status_selection(
                 continue
         result.append(op)
     if args.max_ops:
-        result = result[: args.max_ops]
+        result = result[:args.max_ops]
     args.source_summary = summary_path
     return result
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run FlagGems debugger checks through direct operator cases."
-    )
-    parser.add_argument("--flaggems-root", type=Path, default=DEFAULT_FLAGGEMS_ROOT)
-    parser.add_argument("--workspace-root", type=Path, default=DEFAULT_WORKSPACE_ROOT)
+        description=
+        "Run FlagGems debugger checks through direct operator cases.")
+    parser.add_argument("--flaggems-root",
+                        type=Path,
+                        default=DEFAULT_FLAGGEMS_ROOT)
+    parser.add_argument("--workspace-root",
+                        type=Path,
+                        default=DEFAULT_WORKSPACE_ROOT)
     parser.add_argument(
         "--python",
         type=Path,
-        default=DEFAULT_PYTHON if DEFAULT_PYTHON.exists() else Path(sys.executable),
+        default=DEFAULT_PYTHON
+        if DEFAULT_PYTHON.exists() else Path(sys.executable),
     )
     parser.add_argument("--ops", help="comma-separated op ids")
     parser.add_argument("--op-list-file")
@@ -1763,7 +1832,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--source-summary",
         type=Path,
-        help="summary.json to use with --include-status; defaults to latest direct run",
+        help=
+        "summary.json to use with --include-status; defaults to latest direct run",
     )
     parser.add_argument(
         "--pointwise-mode",
@@ -1772,19 +1842,22 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--case-filter",
-        help="Run only direct cases whose case_id or description contains this text.",
+        help=
+        "Run only direct cases whose case_id or description contains this text.",
     )
     add_bool_argument(
         parser,
         "skip-pointwise-dynamic",
         default=False,
-        help_text="Skip known pointwise_dynamic ops instead of patching generated wrappers.",
+        help_text=
+        "Skip known pointwise_dynamic ops instead of patching generated wrappers.",
     )
     add_bool_argument(
         parser,
         "normalize-ext-launch-ids",
         default=False,
-        help_text="Rewrite ext.program_id/ext.num_programs in the copied worktree.",
+        help_text=
+        "Rewrite ext.program_id/ext.num_programs in the copied worktree.",
     )
     add_bool_argument(
         parser,
@@ -1796,12 +1869,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         parser,
         "enable-pytest-fallback",
         default=True,
-        help_text="When a direct case is unavailable, run one collected pytest node for that op.",
+        help_text=
+        "When a direct case is unavailable, run one collected pytest node for that op.",
     )
-    parser.add_argument("--pytest-fallback-poll-interval", type=float, default=2.0)
+    parser.add_argument("--pytest-fallback-poll-interval",
+                        type=float,
+                        default=2.0)
     parser.add_argument("--export-raw-records", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
-    add_bool_argument(parser, "keep-worktree", default=True, help_text="Keep copied worktree.")
+    add_bool_argument(parser,
+                      "keep-worktree",
+                      default=True,
+                      help_text="Keep copied worktree.")
     return parser.parse_args(argv)
 
 
@@ -1826,7 +1905,8 @@ def main(argv: list[str]) -> int:
 
     inventory = load_operator_inventory(flaggems_root)
     inventory_map = inventory_by_id(inventory)
-    ops = apply_status_selection(args, workspace_root, select_ops(args, inventory))
+    ops = apply_status_selection(args, workspace_root,
+                                 select_ops(args, inventory))
     stamp = now_stamp()
     run_dir = runs_root / stamp
     bootstrap_dir = run_dir / "bootstrap"
@@ -1843,15 +1923,15 @@ def main(argv: list[str]) -> int:
         statuses: list[DirectCaseStatus] = []
         for op in ops:
             cases = filter_cases(
-                generate_cases_for_op(op, inventory_map.get(op) or {}),
+                generate_cases_for_op(op,
+                                      inventory_map.get(op) or {}),
                 args.case_filter,
             )
             if not cases:
                 statuses.append(
                     no_direct_case_status(
-                        op, run_dir, "dry-run: no direct case generator for this op"
-                    )
-                )
+                        op, run_dir,
+                        "dry-run: no direct case generator for this op"))
             else:
                 for case in cases:
                     statuses.append(
@@ -1871,8 +1951,7 @@ def main(argv: list[str]) -> int:
                             first_error="",
                             include_names=case.include_names,
                             description=case.description,
-                        )
-                    )
+                        ))
         write_manifest(run_dir, args, worktree, ops, stats)
         write_summary(run_dir, statuses)
         print("[INFO] dry run complete")
@@ -1899,28 +1978,25 @@ def main(argv: list[str]) -> int:
         "[INFO] instrumentation: "
         f"{stats.functions_instrumented} functions in {stats.files_changed} files"
     )
-    pytest_fallback_nodes = collect_pytest_fallback_nodes(worktree, run_dir, ops, args)
+    pytest_fallback_nodes = collect_pytest_fallback_nodes(
+        worktree, run_dir, ops, args)
     if args.enable_pytest_fallback:
         covered_by_fallback = sorted(pytest_fallback_nodes)
         write_text(
             run_dir / "pytest_fallback_ops.json",
             json.dumps(covered_by_fallback, indent=2, sort_keys=True),
         )
-        print(
-            "[INFO] pytest fallback candidates: "
-            f"{len(covered_by_fallback)} op(s)"
-        )
+        print("[INFO] pytest fallback candidates: "
+              f"{len(covered_by_fallback)} op(s)")
 
     statuses: list[DirectCaseStatus] = []
     for index, op in enumerate(ops, start=1):
         print(f"[INFO] [{index}/{len(ops)}] generating direct cases for {op}")
         if args.skip_pointwise_dynamic and op_uses_pointwise_dynamic(
-            worktree, op, inventory_map
-        ):
+                worktree, op, inventory_map):
             reason = (
                 "skipped: current Ascend debugger mode does not support "
-                "FlagGems pointwise_dynamic generated kernels with tt.call"
-            )
+                "FlagGems pointwise_dynamic generated kernels with tt.call")
             status = unsupported_status(op, run_dir, reason)
             statuses.append(status)
             write_summary(run_dir, statuses)
@@ -1928,7 +2004,8 @@ def main(argv: list[str]) -> int:
             continue
 
         cases = filter_cases(
-            generate_cases_for_op(op, inventory_map.get(op) or {}),
+            generate_cases_for_op(op,
+                                  inventory_map.get(op) or {}),
             args.case_filter,
         )
         if not cases:
@@ -1950,8 +2027,7 @@ def main(argv: list[str]) -> int:
                 )
                 continue
             status = no_direct_case_status(
-                op, run_dir, "no direct case generator for this op"
-            )
+                op, run_dir, "no direct case generator for this op")
             statuses.append(status)
             write_summary(run_dir, statuses)
             print(f"[INFO] {op}: {status.status}")
@@ -1959,20 +2035,16 @@ def main(argv: list[str]) -> int:
 
         for case in cases:
             print(f"[INFO] running {op}/{case.case_id}")
-            status = run_direct_case(case, worktree, run_dir, bootstrap_dir, args)
+            status = run_direct_case(case, worktree, run_dir, bootstrap_dir,
+                                     args)
             statuses.append(status)
             write_summary(run_dir, statuses)
-            print(
-                f"[INFO] {op}/{case.case_id}: {status.status} "
-                f"exit={status.exit_code} reports={status.debug_txt_count}"
-            )
+            print(f"[INFO] {op}/{case.case_id}: {status.status} "
+                  f"exit={status.exit_code} reports={status.debug_txt_count}")
 
     write_summary(run_dir, statuses)
     failing = [
-        status
-        for status in statuses
-        if status.status
-        not in {
+        status for status in statuses if status.status not in {
             "passed",
             "no_direct_case",
             "unsupported_pointwise_dynamic",
@@ -1981,7 +2053,9 @@ def main(argv: list[str]) -> int:
         }
     ]
     if failing:
-        print(f"[WARN] {len(failing)} case(s) did not pass. See {run_dir / 'summary.json'}")
+        print(
+            f"[WARN] {len(failing)} case(s) did not pass. See {run_dir / 'summary.json'}"
+        )
         return 1
     print(f"[INFO] complete. See {run_dir / 'summary.json'}")
     return 0

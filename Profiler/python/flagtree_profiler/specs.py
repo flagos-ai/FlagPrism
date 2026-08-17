@@ -3,12 +3,15 @@ flops_by_device = {
         "80":
         lambda width, **kwargs: 624e12 / (width / 8),
         "89":
-        lambda width, **kwargs: (330.3 * 1e12) / (width / 8),  # TODO(Keren): Implement fp16 acc-> 660.6 fp8
+        lambda width, **kwargs: (330.3 * 1e12) /
+        (width / 8),  # TODO(Keren): Implement fp16 acc-> 660.6 fp8
         "90":
-        lambda width, num_sms, clock_rate, **kwargs: ((num_sms / 114 * clock_rate / (1755 * 1e3) * 1513) * 1e12) /
-        (width / 8),
+        lambda width, num_sms, clock_rate, **kwargs: (
+            (num_sms / 114 * clock_rate /
+             (1755 * 1e3) * 1513) * 1e12) / (width / 8),
         "100":
-        lambda width, num_sms, clock_rate, **kwargs: (num_sms * 16384 * (clock_rate / 1e3) * 1e6) / (width / 8),
+        lambda width, num_sms, clock_rate, **kwargs:
+        (num_sms * 16384 * (clock_rate / 1e3) * 1e6) / (width / 8),
     }
 }
 
@@ -38,7 +41,8 @@ def max_flops(device_type, arch, width, num_sms, clock_rate):
         float: The maximum FLOPS for the given device type and width.
     """
     if device_type == "HIP":
-        return amd_fp8_flops_by_arch[arch] * num_sms * clock_rate * 1e3 / (width / 8)
+        return amd_fp8_flops_by_arch[arch] * num_sms * clock_rate * 1e3 / (
+            width / 8)
 
     if device_type not in flops_by_device:
         raise ValueError(f"Unsupported device type: {device_type}")

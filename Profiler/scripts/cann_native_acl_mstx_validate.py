@@ -19,7 +19,6 @@ import sys
 import textwrap
 from collections.abc import Sequence
 
-
 CPP_SOURCE = r"""
 #include <acl/acl.h>
 #include <acl/ops/acl_cblas.h>
@@ -376,8 +375,11 @@ int main(int argc, char **argv) {
 
 def _make_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", default="/tmp/flagtree_profiler_cann_native_acl_mstx")
-    parser.add_argument("--cann", default=os.environ.get("ASCEND_TOOLKIT_PATH", "/usr/local/Ascend/cann-8.5.0"))
+    parser.add_argument("--out",
+                        default="/tmp/flagtree_profiler_cann_native_acl_mstx")
+    parser.add_argument("--cann",
+                        default=os.environ.get("ASCEND_TOOLKIT_PATH",
+                                               "/usr/local/Ascend/cann-8.5.0"))
     parser.add_argument("--cxx", default=os.environ.get("CXX", "c++"))
     parser.add_argument("--msprof", default="msprof")
     parser.add_argument("--device", type=int, default=0)
@@ -387,23 +389,27 @@ def _make_arg_parser() -> argparse.ArgumentParser:
         "--elements",
         type=int,
         default=1048576,
-        help="Element count for ACLNN Add, or approximate matrix elements for GEMM fallbacks.",
+        help=
+        "Element count for ACLNN Add, or approximate matrix elements for GEMM fallbacks.",
     )
     parser.add_argument(
         "--skip-compute",
         action="store_true",
-        help="Only emit ACL runtime calls and MSTX ranges; do not launch compute.",
+        help=
+        "Only emit ACL runtime calls and MSTX ranges; do not launch compute.",
     )
     parser.add_argument(
         "--compute-kind",
         choices=("auto", "aclnn-add", "hgemm", "s8gemm"),
         default="auto",
-        help="Native compute path to run inside the MSTX range; auto prefers ACLNN Add.",
+        help=
+        "Native compute path to run inside the MSTX range; auto prefers ACLNN Add.",
     )
     parser.add_argument(
         "--allow-compute-fail",
         action="store_true",
-        help="Import msprof diagnostics and exit 0 even if native compute fails.",
+        help=
+        "Import msprof diagnostics and exit 0 even if native compute fails.",
     )
     parser.add_argument("--clean", action="store_true")
     return parser
@@ -427,17 +433,20 @@ def _run_capture(cmd: Sequence[str]) -> subprocess.CompletedProcess[str]:
     return completed
 
 
-def _available_lib_flags(lib_dirs: Sequence[pathlib.Path], names: Sequence[str]) -> list[str]:
+def _available_lib_flags(lib_dirs: Sequence[pathlib.Path],
+                         names: Sequence[str]) -> list[str]:
     flags: list[str] = []
     for name in names:
         for lib_dir in lib_dirs:
-            if (lib_dir / f"lib{name}.so").exists() or (lib_dir / f"lib{name}.a").exists():
+            if (lib_dir / f"lib{name}.so").exists() or (
+                    lib_dir / f"lib{name}.a").exists():
                 flags.append(f"-l{name}")
                 break
     return flags
 
 
-def _compile_probe(cxx: str, cann: pathlib.Path, source: pathlib.Path, binary: pathlib.Path) -> None:
+def _compile_probe(cxx: str, cann: pathlib.Path, source: pathlib.Path,
+                   binary: pathlib.Path) -> None:
     include_dirs = [
         cann / "include",
         cann / "aarch64-linux" / "include",
@@ -454,8 +463,12 @@ def _compile_probe(cxx: str, cann: pathlib.Path, source: pathlib.Path, binary: p
         cmd.extend(["-L", path])
     for path in lib_dirs:
         cmd.append(f"-Wl,-rpath,{path}")
-    cmd.extend(_available_lib_flags(lib_dirs, ["opapi", "nnopbase", "aclnn_ops"]))
-    cmd.extend(["-lacl_cblas", "-lacl_op_compiler", "-lascendcl", "-lms_tools_ext", "-ldl", "-lpthread"])
+    cmd.extend(
+        _available_lib_flags(lib_dirs, ["opapi", "nnopbase", "aclnn_ops"]))
+    cmd.extend([
+        "-lacl_cblas", "-lacl_op_compiler", "-lascendcl", "-lms_tools_ext",
+        "-ldl", "-lpthread"
+    ])
     _run(cmd)
 
 
@@ -498,11 +511,9 @@ def main() -> int:
         str(args.elements),
         compute_kind_id,
     ])
-    compute_failed = (
-        not args.skip_compute
-        and "acl_compute_op=acl" not in msprof_result.stdout
-        and "acl_gemm_op=acl" not in msprof_result.stdout
-    )
+    compute_failed = (not args.skip_compute
+                      and "acl_compute_op=acl" not in msprof_result.stdout
+                      and "acl_gemm_op=acl" not in msprof_result.stdout)
     if compute_failed:
         print(
             "native_compute_status failed: no native ACLNN/CBLAS compute path completed; "
@@ -531,7 +542,8 @@ def main() -> int:
 
     print("DONE")
     print("native_probe", binary)
-    print("post_import_vendor_json", post_import_base.with_suffix(".vendor.json"))
+    print("post_import_vendor_json",
+          post_import_base.with_suffix(".vendor.json"))
     if compute_failed and not args.allow_compute_fail:
         print(
             "native_compute_validation FAILED: CANN capture/import diagnostics "

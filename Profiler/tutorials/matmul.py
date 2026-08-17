@@ -124,17 +124,26 @@ def metadata_fn(
 @triton.jit(launch_metadata=metadata_fn)
 def matmul_kernel(
         # Pointers to matrices
-        a_ptr, b_ptr, c_ptr,
+        a_ptr,
+        b_ptr,
+        c_ptr,
         # Matrix dimensions
-        M, N, K,
+        M,
+        N,
+        K,
         # The stride variables represent how much to increase the ptr by when moving by 1
         # element in a particular dimension. E.g. `stride_am` is how much to increase `a_ptr`
         # by to get the element one row down (A has M rows).
-        stride_am, stride_ak,  #
-        stride_bk, stride_bn,  #
-        stride_cm, stride_cn,
+        stride_am,
+        stride_ak,  #
+        stride_bk,
+        stride_bn,  #
+        stride_cm,
+        stride_cn,
         # Meta-parameters
-        BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr, BLOCK_SIZE_K: tl.constexpr,  #
+        BLOCK_SIZE_M: tl.constexpr,
+        BLOCK_SIZE_N: tl.constexpr,
+        BLOCK_SIZE_K: tl.constexpr,  #
         GROUP_SIZE_M: tl.constexpr,  #
         ACTIVATION: tl.constexpr,  #
 ):
@@ -165,8 +174,10 @@ def matmul_kernel(
     offs_am = (pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)) % M
     offs_bn = (pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)) % N
     offs_k = tl.arange(0, BLOCK_SIZE_K)
-    a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_k[None, :] * stride_ak)
-    b_ptrs = b_ptr + (offs_k[:, None] * stride_bk + offs_bn[None, :] * stride_bn)
+    a_ptrs = a_ptr + (offs_am[:, None] * stride_am +
+                      offs_k[None, :] * stride_ak)
+    b_ptrs = b_ptr + (offs_k[:, None] * stride_bk +
+                      offs_bn[None, :] * stride_bn)
 
     # -----------------------------------------------------------
     # Iterate to compute a block of the C matrix.
@@ -177,8 +188,12 @@ def matmul_kernel(
     for k in range(0, tl.cdiv(K, BLOCK_SIZE_K)):
         # Load the next block of A and B, generate a mask by checking the K dimension.
         # If it is out of bounds, set it to 0.
-        a = tl.load(a_ptrs, mask=offs_k[None, :] < K - k * BLOCK_SIZE_K, other=0.0)
-        b = tl.load(b_ptrs, mask=offs_k[:, None] < K - k * BLOCK_SIZE_K, other=0.0)
+        a = tl.load(a_ptrs,
+                    mask=offs_k[None, :] < K - k * BLOCK_SIZE_K,
+                    other=0.0)
+        b = tl.load(b_ptrs,
+                    mask=offs_k[:, None] < K - k * BLOCK_SIZE_K,
+                    other=0.0)
         # We accumulate along the K dimension.
         accumulator += tl.dot(a, b)
         # Advance the ptrs to the next K block.
@@ -194,7 +209,8 @@ def matmul_kernel(
     # Write back the block of the output matrix C with masks.
     offs_cm = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
     offs_cn = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
-    c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_cn[None, :]
+    c_ptrs = c_ptr + stride_cm * offs_cm[:,
+                                         None] + stride_cn * offs_cn[None, :]
     c_mask = (offs_cm[:, None] < M) & (offs_cn[None, :] < N)
     tl.store(c_ptrs, c, mask=c_mask)
 
@@ -223,14 +239,22 @@ def matmul(a, b, activation=""):
 
     # 1D launch kernel where each block gets its own program.
     def grid(META):
-        return (triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]), )
+        return (triton.cdiv(M, META["BLOCK_SIZE_M"]) *
+                triton.cdiv(N, META["BLOCK_SIZE_N"]), )
 
     matmul_kernel[grid](
-        a, b, c,  #
-        M, N, K,  #
-        a.stride(0), a.stride(1),  #
-        b.stride(0), b.stride(1),  #
-        c.stride(0), c.stride(1),  #
+        a,
+        b,
+        c,  #
+        M,
+        N,
+        K,  #
+        a.stride(0),
+        a.stride(1),  #
+        b.stride(0),
+        b.stride(1),  #
+        c.stride(0),
+        c.stride(1),  #
         ACTIVATION=activation,  #
     )
     return c
@@ -245,9 +269,12 @@ args = argparser.parse_args()
 
 @triton.testing.perf_report(
     triton.testing.Benchmark(
-        x_names=["M", "N", "K"],  # Argument names to use as an x-axis for the plot
-        x_vals=[128 * i for i in range(2, 10)],  # Different possible values for `x_name`
-        line_arg="provider",  # Argument name whose value corresponds to a different line in the plot
+        x_names=["M", "N",
+                 "K"],  # Argument names to use as an x-axis for the plot
+        x_vals=[128 * i for i in range(2, 10)
+                ],  # Different possible values for `x_name`
+        line_arg=
+        "provider",  # Argument name whose value corresponds to a different line in the plot
         # Possible values for `line_arg`
         line_vals=["cublas", "triton"],
         # Label name for the lines
@@ -255,7 +282,8 @@ args = argparser.parse_args()
         # Line styles
         styles=[("green", "-"), ("blue", "-")],
         ylabel="TFLOPS",  # Label name for the y-axis
-        plot_name="matmul-performance",  # Name for the plot, used also as a file name for saving the plot.
+        plot_name=
+        "matmul-performance",  # Name for the plot, used also as a file name for saving the plot.
         args={},
     ))
 def benchmark(M, N, K, provider):
@@ -276,10 +304,12 @@ def benchmark(M, N, K, provider):
                 torch.matmul(a, b)
 
             if args.cudagraph:
-                ms = triton.testing.do_bench_cudagraph(lambda: cublas_matmul(a, b))
+                ms = triton.testing.do_bench_cudagraph(
+                    lambda: cublas_matmul(a, b))
                 min_ms = max_ms = ms
             else:
-                ms, min_ms, max_ms = triton.testing.do_bench(lambda: cublas_matmul(a, b), quantiles=quantiles)
+                ms, min_ms, max_ms = triton.testing.do_bench(
+                    lambda: cublas_matmul(a, b), quantiles=quantiles)
         if provider == "triton":
 
             def enter_autotune(args, reset_only=False):
@@ -294,10 +324,12 @@ def benchmark(M, N, K, provider):
             matmul_kernel.post_hook = exit_autotune
             with profiler.scope("triton"):
                 if args.cudagraph:
-                    ms = triton.testing.do_bench_cudagraph(lambda: matmul(a, b))
+                    ms = triton.testing.do_bench_cudagraph(
+                        lambda: matmul(a, b))
                     min_ms = max_ms = ms
                 else:
-                    ms, min_ms, max_ms = triton.testing.do_bench(lambda: matmul(a, b), quantiles=quantiles)
+                    ms, min_ms, max_ms = triton.testing.do_bench(
+                        lambda: matmul(a, b), quantiles=quantiles)
 
     def perf(ms):
         return 2 * M * N * K * 1e-12 / (ms * 1e-3)
@@ -308,7 +340,10 @@ def benchmark(M, N, K, provider):
 if args.profile:
     if args.pcsampling:
         # flagtree-profiler-viewer -m num_samples/%,time/s ./matmul.hatchet
-        profiler.start("matmul", hook="triton", backend="cupti", mode="pcsampling")
+        profiler.start("matmul",
+                       hook="triton",
+                       backend="cupti",
+                       mode="pcsampling")
     else:
         # flagtree-profiler-viewer -m tflop/s,time/s ./matmul.hatchet
         profiler.start("matmul", hook="triton")

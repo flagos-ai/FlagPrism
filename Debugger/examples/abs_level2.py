@@ -9,9 +9,7 @@ import flagtree.debugger as debugger
 import flagtree.language as ftl
 import triton.language as tl
 
-
 OUTPUT_DIR = Path("/tmp/flagtree_debugger_level2_example")
-
 
 debugger.configure(
     output_dir=OUTPUT_DIR,
@@ -42,7 +40,7 @@ def main():
     x = torch.linspace(-8, 7, n, dtype=torch.float32, device=device)
     y = torch.empty_like(x)
 
-    debug_abs_kernel[(1,)](x, y, n, BLOCK_SIZE=block)
+    debug_abs_kernel[(1, )](x, y, n, BLOCK_SIZE=block)
     torch_npu.npu.synchronize()
 
     expected = torch.abs(x) + 1.0
@@ -53,11 +51,8 @@ def main():
     print(f"exported_runs={len(runs)}")
     for run in runs:
         report_path = run.get("report_path")
-        artifacts_dir = (
-            Path(report_path).with_suffix("").as_posix() + "_artifacts"
-            if report_path
-            else None
-        )
+        artifacts_dir = (Path(report_path).with_suffix("").as_posix() +
+                         "_artifacts" if report_path else None)
         print(f"report_path={report_path}")
         print(f"artifacts_dir={artifacts_dir}")
         print(f"meta={run.get('meta')}")

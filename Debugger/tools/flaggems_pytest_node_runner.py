@@ -22,17 +22,15 @@ from typing import Any
 try:
     import yaml
 except Exception as exc:  # pragma: no cover - environment check
-    raise SystemExit(f"PyYAML is required for --collect-marks parsing: {exc}") from exc
-
+    raise SystemExit(
+        f"PyYAML is required for --collect-marks parsing: {exc}") from exc
 
 DEFAULT_FLAGGEMS_ROOT = Path(
     ".cache/flaggems_debugger_batch/front_two_classes_full_final/"
-    "worktrees/FlagGems_direct_instrumented_20260626_150558"
-)
+    "worktrees/FlagGems_direct_instrumented_20260626_150558")
 DEFAULT_SOURCE_SUMMARY = Path(
     ".cache/flaggems_debugger_batch/front_two_classes_full_final/"
-    "direct_runs/20260626_150558/summary.json"
-)
+    "direct_runs/20260626_150558/summary.json")
 DEFAULT_WORKSPACE = Path(".cache/flaggems_debugger_batch/pytest_node_runs")
 
 BUILTIN_TIMEOUT_OPS = {
@@ -91,10 +89,12 @@ def read_json(path: Path) -> Any:
 
 def write_json(path: Path, value: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False))
+    path.write_text(
+        json.dumps(value, indent=2, sort_keys=True, ensure_ascii=False))
 
 
-def selected_ops_from_summary(path: Path, include_status: set[str]) -> list[str]:
+def selected_ops_from_summary(path: Path,
+                              include_status: set[str]) -> list[str]:
     rows = read_json(path)
     result: list[str] = []
     seen: set[str] = set()
@@ -122,7 +122,7 @@ def op_aliases(op: str) -> set[str]:
     if op.endswith("_out"):
         aliases.add(op[:-4] + ".out")
     if op.startswith("native_"):
-        aliases.add(op[len("native_") :])
+        aliases.add(op[len("native_"):])
     return {alias for alias in aliases if alias}
 
 
@@ -145,8 +145,7 @@ def collect_marks(
     stdout_log = output_dir / "collect_stdout.log"
     stderr_log = output_dir / "collect_stderr.log"
     entry_py = output_dir / "collect_entry.py"
-    entry_py.write_text(
-        """
+    entry_py.write_text("""
 import platform
 import sys
 
@@ -157,8 +156,7 @@ platform.python_version_tuple = lambda: ("3", "11", "15")
 import pytest
 
 raise SystemExit(pytest.main(sys.argv[1:]))
-""".lstrip()
-    )
+""".lstrip())
     cmd = [
         str(python),
         str(entry_py),
@@ -180,8 +178,7 @@ raise SystemExit(pytest.main(sys.argv[1:]))
     if proc.returncode not in (0, 5):
         raise RuntimeError(
             f"pytest collection failed with exit {proc.returncode}; "
-            f"see {stdout_log} and {stderr_log}"
-        )
+            f"see {stdout_log} and {stderr_log}")
     yaml_text = proc.stdout.split("\n================", 1)[0].strip()
     docs = list(yaml.safe_load_all(yaml_text))
     items: list[dict[str, Any]] = []
@@ -189,11 +186,13 @@ raise SystemExit(pytest.main(sys.argv[1:]))
         if isinstance(doc, list):
             items.extend(x for x in doc if isinstance(x, dict))
     if not items:
-        raise RuntimeError(f"pytest collection produced no parseable items; see {stdout_log}")
+        raise RuntimeError(
+            f"pytest collection produced no parseable items; see {stdout_log}")
     return items
 
 
-def choose_timeouts(selected_ops: list[str], args: argparse.Namespace) -> tuple[str, int, int, int]:
+def choose_timeouts(selected_ops: list[str],
+                    args: argparse.Namespace) -> tuple[str, int, int, int]:
     if any(op in BUILTIN_TIMEOUT_OPS for op in selected_ops):
         return (
             "known_heavy",
@@ -201,11 +200,9 @@ def choose_timeouts(selected_ops: list[str], args: argparse.Namespace) -> tuple[
             args.heavy_report_timeout,
             args.heavy_node_total_timeout,
         )
-    if any(
-        token in op
-        for op in selected_ops
-        for token in ("conv", "norm", "softmax", "topk", "sort", "pool", "bmm", "mm")
-    ):
+    if any(token in op for op in selected_ops
+           for token in ("conv", "norm", "softmax", "topk", "sort", "pool",
+                         "bmm", "mm")):
         return (
             "maybe_heavy",
             args.medium_first_report_timeout,
@@ -245,7 +242,8 @@ def build_node_plan(
             continue
         seen.add(nodeid)
         ops = sorted(matched)
-        klass, first_timeout, report_timeout, total_timeout = choose_timeouts(ops, args)
+        klass, first_timeout, report_timeout, total_timeout = choose_timeouts(
+            ops, args)
         nodes.append(
             NodeInfo(
                 nodeid=nodeid,
@@ -259,10 +257,10 @@ def build_node_plan(
                 first_report_timeout_sec=first_timeout,
                 report_timeout_sec=report_timeout,
                 node_total_timeout_sec=total_timeout,
-            )
-        )
+            ))
     class_rank = {"default": 0, "maybe_heavy": 1, "known_heavy": 2}
-    nodes.sort(key=lambda x: (class_rank.get(x.timeout_class, 99), x.file, x.function, x.test_case))
+    nodes.sort(key=lambda x: (class_rank.get(x.timeout_class, 99), x.file, x.
+                              function, x.test_case))
     if args.one_node_per_op:
         covered: set[str] = set()
         representative: list[NodeInfo] = []
@@ -275,14 +273,16 @@ def build_node_plan(
         counts: dict[str, int] = {}
         limited: list[NodeInfo] = []
         for node in nodes:
-            if all(counts.get(op, 0) >= args.max_nodes_per_op for op in node.selected_ops):
+            if all(
+                    counts.get(op, 0) >= args.max_nodes_per_op
+                    for op in node.selected_ops):
                 continue
             limited.append(node)
             for op in node.selected_ops:
                 counts[op] = counts.get(op, 0) + 1
         nodes = limited
     if args.max_nodes:
-        nodes = nodes[: args.max_nodes]
+        nodes = nodes[:args.max_nodes]
     return nodes
 
 
@@ -296,8 +296,7 @@ def report_counts(debug_dir: Path) -> tuple[int, int]:
 
 
 def write_node_entry(path: Path) -> None:
-    path.write_text(
-        """
+    path.write_text("""
 import os
 import platform
 import sys
@@ -332,8 +331,7 @@ pytest_args = [
     "-s",
 ]
 raise SystemExit(pytest.main(pytest_args))
-""".lstrip()
-    )
+""".lstrip())
 
 
 def terminate_process(proc: subprocess.Popen[str]) -> None:
@@ -372,17 +370,22 @@ def run_node(
     node_dir.mkdir(parents=True, exist_ok=True)
 
     env = os.environ.copy()
-    env.update(
-        {
-            "FLAGTREE_DEBUGGER_NODEID": node.nodeid,
-            "FLAGTREE_DEBUGGER_NODE_OUTPUT_DIR": str(debug_dir),
-            "FLAGTREE_DEBUGGER_NODE_PYTEST_JSON": str(pytest_result),
-            "FLAGTREE_DEBUGGER_NODE_RECORD_CAPACITY": str(args.record_capacity),
-            "FLAGTREE_DEBUGGER_NODE_LEVEL": str(args.level),
-            "FLAGTREE_DEBUGGER_NODE_ADDR_LEVEL": str(args.addr_level),
-            "PYTHONUNBUFFERED": "1",
-        }
-    )
+    env.update({
+        "FLAGTREE_DEBUGGER_NODEID":
+        node.nodeid,
+        "FLAGTREE_DEBUGGER_NODE_OUTPUT_DIR":
+        str(debug_dir),
+        "FLAGTREE_DEBUGGER_NODE_PYTEST_JSON":
+        str(pytest_result),
+        "FLAGTREE_DEBUGGER_NODE_RECORD_CAPACITY":
+        str(args.record_capacity),
+        "FLAGTREE_DEBUGGER_NODE_LEVEL":
+        str(args.level),
+        "FLAGTREE_DEBUGGER_NODE_ADDR_LEVEL":
+        str(args.addr_level),
+        "PYTHONUNBUFFERED":
+        "1",
+    })
     cmd = [str(python), "-u", str(entry_py)]
     start = time.time()
     last_report_time = start
@@ -458,9 +461,15 @@ def run_node(
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--flaggems-root", type=Path, default=DEFAULT_FLAGGEMS_ROOT)
-    parser.add_argument("--source-summary", type=Path, default=DEFAULT_SOURCE_SUMMARY)
-    parser.add_argument("--workspace-root", type=Path, default=DEFAULT_WORKSPACE)
+    parser.add_argument("--flaggems-root",
+                        type=Path,
+                        default=DEFAULT_FLAGGEMS_ROOT)
+    parser.add_argument("--source-summary",
+                        type=Path,
+                        default=DEFAULT_SOURCE_SUMMARY)
+    parser.add_argument("--workspace-root",
+                        type=Path,
+                        default=DEFAULT_WORKSPACE)
     parser.add_argument("--python", type=Path, default=Path(sys.executable))
     parser.add_argument("--include-status", default="no_direct_case")
     parser.add_argument("--collect-only", action="store_true")
@@ -474,7 +483,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument(
         "--one-node-per-op",
         action="store_true",
-        help="Run only the first representative pytest node for each selected op.",
+        help=
+        "Run only the first representative pytest node for each selected op.",
     )
     parser.add_argument(
         "--max-nodes-per-op",
@@ -499,20 +509,26 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
-    include_status = {x.strip() for x in args.include_status.split(",") if x.strip()}
+    include_status = {
+        x.strip()
+        for x in args.include_status.split(",") if x.strip()
+    }
     stamp = now_stamp()
     run_dir = args.workspace_root.resolve() / "pytest_node_runs" / stamp
     run_dir.mkdir(parents=True, exist_ok=False)
 
-    selected_ops = selected_ops_from_summary(args.source_summary, include_status)
+    selected_ops = selected_ops_from_summary(args.source_summary,
+                                             include_status)
     write_json(run_dir / "selected_ops.json", selected_ops)
     print(f"[INFO] selected ops: {len(selected_ops)}")
     print(f"[INFO] run dir: {run_dir}")
 
-    items = collect_marks(args.flaggems_root, args.python, run_dir / "collect", [])
+    items = collect_marks(args.flaggems_root, args.python, run_dir / "collect",
+                          [])
     write_json(run_dir / "collect_items.json", items)
     nodes = build_node_plan(items, selected_ops, args)
-    write_json(run_dir / "collected_nodes.json", [asdict(node) for node in nodes])
+    write_json(run_dir / "collected_nodes.json",
+               [asdict(node) for node in nodes])
 
     by_class: dict[str, int] = {}
     by_op: dict[str, int] = {}
@@ -556,21 +572,24 @@ def main(argv: list[str]) -> int:
     status_counts: dict[str, int] = {}
     if args.start_index < 1:
         raise ValueError("--start-index must be >= 1")
-    nodes_to_run = nodes[args.start_index - 1 :]
+    nodes_to_run = nodes[args.start_index - 1:]
 
     for offset, node in enumerate(nodes_to_run, start=args.start_index):
-        print(f"[RUN] {offset}/{len(nodes)} {node.nodeid} ops={node.selected_ops}")
-        result = run_node(node, args.flaggems_root, args.python, run_dir, entry_py, args)
+        print(
+            f"[RUN] {offset}/{len(nodes)} {node.nodeid} ops={node.selected_ops}"
+        )
+        result = run_node(node, args.flaggems_root, args.python, run_dir,
+                          entry_py, args)
         results.append(result)
         status_counts[result.status] = status_counts.get(result.status, 0) + 1
         write_json(run_dir / "summary.json", [asdict(x) for x in results])
-        write_json(run_dir / "status_counts.json", dict(sorted(status_counts.items())))
-        print(
-            f"[RESULT] {result.status} exit={result.exit_code} "
-            f"txt={result.debug_txt_count} json={result.debug_json_count} "
-            f"sec={result.duration_sec:.1f}"
-        )
-    print("[DONE]", json.dumps(dict(sorted(status_counts.items())), sort_keys=True))
+        write_json(run_dir / "status_counts.json",
+                   dict(sorted(status_counts.items())))
+        print(f"[RESULT] {result.status} exit={result.exit_code} "
+              f"txt={result.debug_txt_count} json={result.debug_json_count} "
+              f"sec={result.duration_sec:.1f}")
+    print("[DONE]",
+          json.dumps(dict(sorted(status_counts.items())), sort_keys=True))
     return 0 if all(x.status == "passed" for x in results) else 1
 
 

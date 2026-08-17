@@ -12,8 +12,7 @@
 
 namespace mlir::triton::proton {
 
-void registerFlagTreeProtonPassesAndDialects(
-    mlir::DialectRegistry &registry) {
+void registerFlagTreeProtonPassesAndDialects(mlir::DialectRegistry &registry) {
   registerConvertProtonToProtonGPU();
   gpu::registerConvertProtonNvidiaGPUToLLVM();
   gpu::registerConvertProtonAMDGPUToLLVM();

@@ -48,7 +48,8 @@ def test_profile_single_session(tmp_path: pathlib.Path):
     pathlib.Path("test.hatchet").unlink()
 
 
-@pytest.mark.skipif(_uses_cann_runtime(), reason="CANN sessions cannot overlap")
+@pytest.mark.skipif(_uses_cann_runtime(),
+                    reason="CANN sessions cannot overlap")
 def test_profile_multiple_sessions(tmp_path: pathlib.Path):
     temp_file0 = tmp_path / "test_profile0.hatchet"
     profiler.start(str(temp_file0.with_suffix("")))
@@ -124,8 +125,9 @@ def test_hook(tmp_path: pathlib.Path):
     session_id0 = profiler.start(str(temp_file.with_suffix("")), hook="triton")
     profiler.activate(session_id0)
     profiler.activate(session_id0)
-    assert len(
-        HookManager.active_hooks) == 1, ("Activate a session multiple times should maintain a single instance of hook")
+    assert len(HookManager.active_hooks) == 1, (
+        "Activate a session multiple times should maintain a single instance of hook"
+    )
     assert list(HookManager.session_hooks[session_id0].values())[0] is True
     profiler.deactivate(session_id0)
     assert list(HookManager.session_hooks[session_id0].values())[0] is False
@@ -136,7 +138,8 @@ def test_hook(tmp_path: pathlib.Path):
     assert temp_file.exists()
 
 
-@pytest.mark.skipif(_uses_cann_runtime(), reason="native instrumentation hooks require CUDA or HIP")
+@pytest.mark.skipif(_uses_cann_runtime(),
+                    reason="native instrumentation hooks require CUDA or HIP")
 def test_hook_manager(tmp_path: pathlib.Path):
     # Launch hook is a singleton
     HookManager.register(LaunchHook(), 0)
@@ -318,7 +321,8 @@ def test_throw(tmp_path: pathlib.Path):
         activate_error = str(e)
     finally:
         profiler.finalize()
-    assert "Session has not been initialized: " + str(session_id + 1) in activate_error
+    assert "Session has not been initialized: " + str(session_id +
+                                                      1) in activate_error
 
     deactivate_error = ""
     try:
@@ -328,4 +332,5 @@ def test_throw(tmp_path: pathlib.Path):
         deactivate_error = str(e)
     finally:
         profiler.finalize()
-    assert "Session has not been initialized: " + str(session_id + 1) in deactivate_error
+    assert "Session has not been initialized: " + str(session_id +
+                                                      1) in deactivate_error

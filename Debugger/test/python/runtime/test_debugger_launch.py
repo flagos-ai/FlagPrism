@@ -9,7 +9,6 @@ import triton
 
 from flagtree.debugger import api as debugger
 
-
 ROOT = Path(__file__).resolve().parents[6]
 
 
@@ -29,7 +28,8 @@ def _load_module(path: Path, module_name: str):
 
 def _require_backend(*expected: str) -> None:
     try:
-        backend = str(triton.runtime.driver.active.get_current_target().backend).lower()
+        backend = str(
+            triton.runtime.driver.active.get_current_target().backend).lower()
     except Exception as exc:
         pytest.skip(f"cannot determine active backend: {exc}")
     if backend not in expected:
@@ -59,16 +59,18 @@ def test_prepare_kernel_launch_normalizes_args_and_finalizer():
     debugger.register_launch_prepare_hook(hook)
     try:
         metadata = SimpleNamespace(debug_enabled=True, name="debug_kernel")
-        prepared = debugger.prepare_kernel_launch(
-            metadata, 23, {"grid": (1, 1, 1)}, ("arg0",)
-        )
+        prepared = debugger.prepare_kernel_launch(metadata, 23,
+                                                  {"grid":
+                                                   (1, 1, 1)}, ("arg0", ))
         assert prepared is not None
-        assert prepared.kernel_args == (9,)
+        assert prepared.kernel_args == (9, )
 
         launch_error = RuntimeError("launch failed")
         debugger.finalize_prepared_launch(prepared, launch_error)
         assert calls == [
-            ("debug_kernel", 23, {"grid": (1, 1, 1)}, ("arg0",)),
+            ("debug_kernel", 23, {
+                "grid": (1, 1, 1)
+            }, ("arg0", )),
             launch_error,
         ]
     finally:
@@ -94,14 +96,16 @@ def test_activate_installs_default_prepare_hook(monkeypatch):
         debugger,
         "_load_binding",
         lambda: SimpleNamespace(
-            prepare_launch=lambda metadata, stream_handle, runtime_metadata: (
-                seen.update({
-                    "metadata": metadata,
-                    "stream_handle": stream_handle,
-                    "runtime_metadata": runtime_metadata,
-                }) or FakeHandle()
-            ),
-            decode_exported_run=lambda exported: {"header": {}, "records": []},
+            prepare_launch=lambda metadata, stream_handle, runtime_metadata:
+            (seen.update({
+                "metadata": metadata,
+                "stream_handle": stream_handle,
+                "runtime_metadata": runtime_metadata,
+            }) or FakeHandle()),
+            decode_exported_run=lambda exported: {
+                "header": {},
+                "records": []
+            },
         ),
     )
 
@@ -109,8 +113,12 @@ def test_activate_installs_default_prepare_hook(monkeypatch):
         record_level=2,
         record_capacity=2048,
         output_dir=None,
-        runtime_metadata_builder=lambda metadata, launch_metadata, kernel_args: {
-            "buffers": [{"buffer_id": 1, "buffer_name": "x"}],
+        runtime_metadata_builder=lambda metadata, launch_metadata, kernel_args:
+        {
+            "buffers": [{
+                "buffer_id": 1,
+                "buffer_name": "x"
+            }],
             "kernel_args": list(kernel_args),
             "launch_metadata": launch_metadata,
         },
@@ -121,15 +129,18 @@ def test_activate_installs_default_prepare_hook(monkeypatch):
             hash="0123456789abcdef",
             backend_name="ascend",
             debug_records_per_instance=5,
-            debug_tracked_table=[{"op_id": 7, "mlir_op": "tt.load"}],
+            debug_tracked_table=[{
+                "op_id": 7,
+                "mlir_op": "tt.load"
+            }],
             target=SimpleNamespace(arch="Ascend910B", backend="ascend"),
         )
-        prepared = debugger.prepare_kernel_launch(
-            metadata, 99, {"grid": (2, 3, 4)}, ("ptr0", "ptr1")
-        )
+        prepared = debugger.prepare_kernel_launch(metadata, 99,
+                                                  {"grid": (2, 3, 4)},
+                                                  ("ptr0", "ptr1"))
 
         assert prepared is not None
-        assert prepared.kernel_args == (77,)
+        assert prepared.kernel_args == (77, )
         assert seen["stream_handle"] == 99
         assert seen["metadata"]["debug_backend_name"] == "ascend"
         assert seen["metadata"]["debug_addr_level"] == 0
@@ -143,11 +154,21 @@ def test_activate_installs_default_prepare_hook(monkeypatch):
         assert seen["finished"] is True
         runs = debugger.take_exported_runs()
         assert runs == [{
-            "meta": {"kernel_id": 1},
-            "raw_buffer": b"",
-            "debug_kernel_name": "debug_kernel",
-            "debug_tracked_table": [{"op_id": 7, "mlir_op": "tt.load"}],
-            "decoded": {"header": {}, "records": []},
+            "meta": {
+                "kernel_id": 1
+            },
+            "raw_buffer":
+            b"",
+            "debug_kernel_name":
+            "debug_kernel",
+            "debug_tracked_table": [{
+                "op_id": 7,
+                "mlir_op": "tt.load"
+            }],
+            "decoded": {
+                "header": {},
+                "records": []
+            },
         }]
     finally:
         _reset_debugger_state()
@@ -171,17 +192,20 @@ def test_default_prepare_hook_preserves_builder_launch_metadata(monkeypatch):
         debugger,
         "_load_binding",
         lambda: SimpleNamespace(
-            prepare_launch=lambda metadata, stream_handle, runtime_metadata: (
-                seen.update({"runtime_metadata": runtime_metadata})
-                or FakeHandle()
-            ),
-            decode_exported_run=lambda exported: {"header": {}, "records": []},
+            prepare_launch=lambda metadata, stream_handle, runtime_metadata:
+            (seen.update({"runtime_metadata": runtime_metadata}) or FakeHandle(
+            )),
+            decode_exported_run=lambda exported: {
+                "header": {},
+                "records": []
+            },
         ),
     )
 
     debugger.activate(
         output_dir=None,
-        runtime_metadata_builder=lambda metadata, launch_metadata, kernel_args: {
+        runtime_metadata_builder=lambda metadata, launch_metadata, kernel_args:
+        {
             "grid": (9, 9, 9),
             "records_per_instance": 7,
         },
@@ -191,9 +215,8 @@ def test_default_prepare_hook_preserves_builder_launch_metadata(monkeypatch):
             name="debug_kernel",
             debug_records_per_instance=5,
         )
-        prepared = debugger.prepare_kernel_launch(
-            metadata, 99, {"grid": (2, 3, 4)}, ()
-        )
+        prepared = debugger.prepare_kernel_launch(metadata, 99,
+                                                  {"grid": (2, 3, 4)}, ())
 
         assert prepared is not None
         assert seen["runtime_metadata"]["grid"] == (9, 9, 9)
@@ -212,27 +235,37 @@ def test_configure_supplies_defaults_for_enable_debug(tmp_path, monkeypatch):
 
         def finish(self):
             return {
-                "meta": {"run_id": 4, "kernel_id": 17},
+                "meta": {
+                    "run_id": 4,
+                    "kernel_id": 17
+                },
                 "raw_buffer": b"abcd",
             }
 
         def release(self):
             pass
 
-    monkeypatch.setattr(debugger.sys, "argv", ["/work/tests/test_debugger_output.py"])
+    monkeypatch.setattr(debugger.sys, "argv",
+                        ["/work/tests/test_debugger_output.py"])
     monkeypatch.setattr(
         debugger,
         "_load_binding",
         lambda: SimpleNamespace(
-            prepare_launch=lambda metadata, stream_handle, runtime_metadata: (
-                seen.update({"metadata": metadata}) or FakeHandle()
-            ),
+            prepare_launch=lambda metadata, stream_handle, runtime_metadata:
+            (seen.update({"metadata": metadata}) or FakeHandle()),
             decode_exported_run=lambda exported: {
                 "meta": exported["meta"],
-                "header": {"write_idx": 1, "capacity": 4096},
-                "records": [{"record_kind": "SUMMARY", "op_id": 1}],
+                "header": {
+                    "write_idx": 1,
+                    "capacity": 4096
+                },
+                "records": [{
+                    "record_kind": "SUMMARY",
+                    "op_id": 1
+                }],
             },
-            render_text_report=lambda exported, metadata_json: "rendered report text",
+            render_text_report=lambda exported, metadata_json:
+            "rendered report text",
         ),
     )
 
@@ -315,11 +348,10 @@ def test_default_prepare_hook_uses_flagtree_backend(monkeypatch):
             pass
 
     monkeypatch.setenv("FLAGTREE_BACKEND", "ascend")
-    monkeypatch.setattr(debugger, "_load_binding", lambda: SimpleNamespace(
-        prepare_launch=lambda metadata, stream_handle, runtime_metadata: (
-            seen.update({"metadata": metadata}) or FakeHandle()
-        )
-    ))
+    monkeypatch.setattr(
+        debugger, "_load_binding", lambda: SimpleNamespace(
+            prepare_launch=lambda metadata, stream_handle, runtime_metadata:
+            (seen.update({"metadata": metadata}) or FakeHandle())))
 
     debugger.activate(output_dir=None)
     try:
@@ -356,14 +388,17 @@ def test_metadata_only_launch_writes_empty_report(tmp_path, monkeypatch):
             "records": [],
         }
 
-    monkeypatch.setattr(debugger.sys, "argv", ["/work/tests/test_metadata_only.py"])
+    monkeypatch.setattr(debugger.sys, "argv",
+                        ["/work/tests/test_metadata_only.py"])
     monkeypatch.setattr(
         debugger,
         "_load_binding",
         lambda: SimpleNamespace(
             decode_exported_run=decode_exported_run,
-            render_text_statement_report=lambda exported, metadata_json: "metadata only",
-            render_json_statement_report=lambda exported, metadata_json: '{"records_by_op":[]}',
+            render_text_statement_report=lambda exported, metadata_json:
+            "metadata only",
+            render_json_statement_report=lambda exported, metadata_json:
+            '{"records_by_op":[]}',
         ),
     )
 
@@ -381,8 +416,7 @@ def test_metadata_only_launch_writes_empty_report(tmp_path, monkeypatch):
             target=SimpleNamespace(arch="Ascend910B", backend="ascend"),
         )
         prepared = debugger.prepare_metadata_only_kernel_launch(
-            metadata, 99, {"grid": (2, 3, 4)}, ("x",)
-        )
+            metadata, 99, {"grid": (2, 3, 4)}, ("x", ))
         assert prepared is not None
         assert prepared.kernel_args == ()
 
@@ -397,7 +431,8 @@ def test_metadata_only_launch_writes_empty_report(tmp_path, monkeypatch):
         report_path = Path(run["report_path"])
         assert report_path.exists()
         assert "metadata only" in report_path.read_text()
-        assert Path(run["json_report_path"]).read_text() == '{"records_by_op":[]}'
+        assert Path(
+            run["json_report_path"]).read_text() == '{"records_by_op":[]}'
     finally:
         _reset_debugger_state()
 
@@ -412,8 +447,14 @@ def test_default_prepare_hook_writes_timestamped_report(tmp_path, monkeypatch):
 
         def finish(self):
             return {
-                "meta": {"run_id": 9, "kernel_id": 17},
-                "runtime_metadata": {"buffers": [], "tensors": []},
+                "meta": {
+                    "run_id": 9,
+                    "kernel_id": 17
+                },
+                "runtime_metadata": {
+                    "buffers": [],
+                    "tensors": []
+                },
                 "raw_buffer": b"abcd",
             }
 
@@ -426,7 +467,8 @@ def test_default_prepare_hook_writes_timestamped_report(tmp_path, monkeypatch):
         seen["runtime_metadata"] = runtime_metadata
         return FakeHandle()
 
-    monkeypatch.setattr(debugger.sys, "argv", ["/work/tests/test_debugger_output.py"])
+    monkeypatch.setattr(debugger.sys, "argv",
+                        ["/work/tests/test_debugger_output.py"])
     monkeypatch.setattr(
         debugger,
         "_load_binding",
@@ -434,11 +476,19 @@ def test_default_prepare_hook_writes_timestamped_report(tmp_path, monkeypatch):
             prepare_launch=prepare_launch,
             decode_exported_run=lambda exported: {
                 "meta": exported["meta"],
-                "header": {"write_idx": 1, "capacity": 64},
-                "records": [{"record_kind": "SUMMARY", "op_id": 1}],
+                "header": {
+                    "write_idx": 1,
+                    "capacity": 64
+                },
+                "records": [{
+                    "record_kind": "SUMMARY",
+                    "op_id": 1
+                }],
             },
-            render_text_report=lambda exported, metadata_json: "rendered report text",
-            render_json_report=lambda exported, metadata_json: '{"records_by_op":[]}',
+            render_text_report=lambda exported, metadata_json:
+            "rendered report text",
+            render_json_report=lambda exported, metadata_json:
+            '{"records_by_op":[]}',
         ),
     )
 
@@ -499,8 +549,12 @@ def test_configure_output_dir_none_disables_file_export(tmp_path, monkeypatch):
         debugger,
         "_load_binding",
         lambda: SimpleNamespace(
-            prepare_launch=lambda metadata, stream_handle, runtime_metadata: FakeHandle(),
-            decode_exported_run=lambda exported: {"header": {}, "records": []},
+            prepare_launch=lambda metadata, stream_handle, runtime_metadata:
+            FakeHandle(),
+            decode_exported_run=lambda exported: {
+                "header": {},
+                "records": []
+            },
         ),
     )
 
@@ -522,7 +576,8 @@ def test_configure_output_dir_none_disables_file_export(tmp_path, monkeypatch):
         _reset_debugger_state()
 
 
-def test_level2_full_dump_writes_npy_artifacts_and_reports_paths(tmp_path, monkeypatch):
+def test_level2_full_dump_writes_npy_artifacts_and_reports_paths(
+        tmp_path, monkeypatch):
     _reset_debugger_state()
 
     payload = struct.pack("<ff", 1.5, 2.5)
@@ -553,7 +608,10 @@ def test_level2_full_dump_writes_npy_artifacts_and_reports_paths(tmp_path, monke
 
         def finish(self):
             return {
-                "meta": {"run_id": 5, "kernel_id": 17},
+                "meta": {
+                    "run_id": 5,
+                    "kernel_id": 17
+                },
                 "runtime_metadata": dict(self.runtime_metadata),
                 "raw_buffer": raw_buffer,
             }
@@ -571,14 +629,16 @@ def test_level2_full_dump_writes_npy_artifacts_and_reports_paths(tmp_path, monke
         assert len(artifacts) == 1
         return f"kind={artifacts[0]['kind']} path={artifacts[0]['path']}"
 
-    monkeypatch.setattr(debugger.sys, "argv", ["/work/tests/test_debugger_output.py"])
+    monkeypatch.setattr(debugger.sys, "argv",
+                        ["/work/tests/test_debugger_output.py"])
     monkeypatch.setattr(
         debugger,
         "_load_binding",
         lambda: SimpleNamespace(
             prepare_launch=prepare_launch,
             decode_exported_run=lambda exported: {
-                "meta": exported["meta"],
+                "meta":
+                exported["meta"],
                 "header": {
                     "write_idx": 1,
                     "capacity": 1,
@@ -594,7 +654,8 @@ def test_level2_full_dump_writes_npy_artifacts_and_reports_paths(tmp_path, monke
                 }],
             },
             render_text_report=render_text_report,
-            render_json_report=lambda exported, metadata_json: '{"records_by_op":[]}',
+            render_json_report=lambda exported, metadata_json:
+            '{"records_by_op":[]}',
         ),
     )
 
@@ -609,9 +670,8 @@ def test_level2_full_dump_writes_npy_artifacts_and_reports_paths(tmp_path, monke
             debug_full_dump_plan=full_dump_plan,
             debug_records_per_instance=1,
         )
-        prepared = debugger.prepare_kernel_launch(
-            metadata, 99, {"grid": (1,)}, ()
-        )
+        prepared = debugger.prepare_kernel_launch(metadata, 99,
+                                                  {"grid": (1, )}, ())
         assert prepared is not None
         assert seen["runtime_metadata"]["full_dump_plan"] == full_dump_plan
 
@@ -637,7 +697,8 @@ def test_level2_full_dump_requires_output_dir_before_launch(monkeypatch):
     _reset_debugger_state()
 
     def prepare_launch(metadata, stream_handle, runtime_metadata):
-        raise AssertionError("prepare_launch should not run without output_dir")
+        raise AssertionError(
+            "prepare_launch should not run without output_dir")
 
     monkeypatch.setattr(
         debugger,
@@ -663,13 +724,15 @@ def test_level2_full_dump_requires_output_dir_before_launch(monkeypatch):
             }],
             debug_records_per_instance=1,
         )
-        with pytest.raises(RuntimeError, match="full dump requires debugger output_dir"):
-            debugger.prepare_kernel_launch(metadata, 99, {"grid": (1,)}, ())
+        with pytest.raises(RuntimeError,
+                           match="full dump requires debugger output_dir"):
+            debugger.prepare_kernel_launch(metadata, 99, {"grid": (1, )}, ())
     finally:
         _reset_debugger_state()
 
 
-def test_default_prepare_hook_writes_raw_records_sidecar_when_enabled(tmp_path, monkeypatch):
+def test_default_prepare_hook_writes_raw_records_sidecar_when_enabled(
+        tmp_path, monkeypatch):
     _reset_debugger_state()
 
     class FakeHandle:
@@ -677,26 +740,41 @@ def test_default_prepare_hook_writes_raw_records_sidecar_when_enabled(tmp_path, 
 
         def finish(self):
             return {
-                "meta": {"run_id": 3, "kernel_id": 17},
-                "runtime_metadata": {"buffers": [], "tensors": []},
+                "meta": {
+                    "run_id": 3,
+                    "kernel_id": 17
+                },
+                "runtime_metadata": {
+                    "buffers": [],
+                    "tensors": []
+                },
                 "raw_buffer": b"abcd",
             }
 
         def release(self):
             pass
 
-    monkeypatch.setattr(debugger.sys, "argv", ["/work/tests/test_debugger_output.py"])
+    monkeypatch.setattr(debugger.sys, "argv",
+                        ["/work/tests/test_debugger_output.py"])
     monkeypatch.setattr(
         debugger,
         "_load_binding",
         lambda: SimpleNamespace(
-            prepare_launch=lambda metadata, stream_handle, runtime_metadata: FakeHandle(),
+            prepare_launch=lambda metadata, stream_handle, runtime_metadata:
+            FakeHandle(),
             decode_exported_run=lambda exported: {
                 "meta": exported["meta"],
-                "header": {"write_idx": 1, "capacity": 64},
-                "records": [{"record_kind": "SUMMARY", "op_id": 1}],
+                "header": {
+                    "write_idx": 1,
+                    "capacity": 64
+                },
+                "records": [{
+                    "record_kind": "SUMMARY",
+                    "op_id": 1
+                }],
             },
-            render_text_report=lambda exported, metadata_json: "rendered report text",
+            render_text_report=lambda exported, metadata_json:
+            "rendered report text",
         ),
     )
 
@@ -728,7 +806,9 @@ def test_default_prepare_hook_writes_raw_records_sidecar_when_enabled(tmp_path, 
 def test_cuda_launcher_keeps_standard_scratch_abi():
     _require_backend("cuda", "nvidia")
     if not hasattr(triton, "knobs"):
-        pytest.skip("CUDA launcher source requires triton.knobs, unavailable in this backend package")
+        pytest.skip(
+            "CUDA launcher source requires triton.knobs, unavailable in this backend package"
+        )
     module = _load_module(
         ROOT / "third_party" / "nvidia" / "backend" / "driver.py",
         "test_triton_nvidia_driver",
@@ -743,7 +823,9 @@ def test_cuda_launcher_keeps_standard_scratch_abi():
 def test_hip_launcher_keeps_standard_scratch_abi():
     _require_backend("amd", "hip")
     if not hasattr(triton, "knobs"):
-        pytest.skip("HIP launcher source requires triton.knobs, unavailable in this backend package")
+        pytest.skip(
+            "HIP launcher source requires triton.knobs, unavailable in this backend package"
+        )
     module = _load_module(
         ROOT / "third_party" / "amd" / "backend" / "driver.py",
         "test_triton_hip_driver",
