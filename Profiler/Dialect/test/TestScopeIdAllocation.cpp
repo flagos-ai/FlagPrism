@@ -1,5 +1,5 @@
-#include "mlir/Pass/Pass.h"
 #include "Profiler/Dialect/include/Analysis/ScopeIdAllocation.h"
+#include "mlir/Pass/Pass.h"
 
 using namespace mlir;
 using namespace triton::proton;

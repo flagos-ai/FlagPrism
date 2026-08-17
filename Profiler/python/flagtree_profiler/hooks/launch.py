@@ -18,7 +18,8 @@ class LaunchHook(Hook):
     # This is a singleton class
     _instance = None
     flops_width = [8, 16, 32, 64]
-    metrics = [f"flops{width}" for width in flops_width] + ["bytes"] + ["flops"]
+    metrics = [f"flops{width}"
+               for width in flops_width] + ["bytes"] + ["flops"]
 
     def __init__(self):
         pass
@@ -28,7 +29,8 @@ class LaunchHook(Hook):
             cls._instance = super(LaunchHook, cls).__new__(cls)
         return cls._instance
 
-    def init_handle(self, module, function, name: str, metadata_group: dict, hash: str) -> None:
+    def init_handle(self, module, function, name: str, metadata_group: dict,
+                    hash: str) -> None:
         pass
 
     def activate(self):
@@ -41,7 +43,10 @@ class LaunchHook(Hook):
         enter_state(COMPUTE_METADATA_SCOPE_NAME)
         lazy_metadata = metadata.get()
         exit_state()
-        fn_metrics = {k: lazy_metadata[k] for k in LaunchHook.metrics if k in lazy_metadata}
+        fn_metrics = {
+            k: lazy_metadata[k]
+            for k in LaunchHook.metrics if k in lazy_metadata
+        }
         op_name.set(lazy_metadata["name"])
         id.set(profiler_native.record_scope())
         profiler_native.enter_op(id.get(), lazy_metadata["name"])

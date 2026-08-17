@@ -11,10 +11,10 @@ import importlib.util
 import json
 import os
 
-
 fd = compiler_binding()
 if fd is None:
-    pytest.skip("flagtree-debugger native binding is unavailable", allow_module_level=True)
+    pytest.skip("flagtree-debugger native binding is unavailable",
+                allow_module_level=True)
 
 
 def _source(fn):
@@ -26,16 +26,19 @@ def _source(fn):
 
 def _target():
     if os.environ.get("FLAGTREE_BACKEND") == "ascend":
-        return GPUTarget("npu", os.environ.get("ASCEND_TEST_ARCH", "Ascend910B"), 0)
+        return GPUTarget("npu", os.environ.get("ASCEND_TEST_ARCH",
+                                               "Ascend910B"), 0)
     return GPUTarget("cuda", 80, 32)
 
 
 def _require_compile_runtime():
     if os.environ.get("FLAGTREE_BACKEND") != "ascend":
         return
-    if importlib.util.find_spec("mindspore") or importlib.util.find_spec("torch_npu"):
+    if importlib.util.find_spec("mindspore") or importlib.util.find_spec(
+            "torch_npu"):
         return
-    pytest.skip("Ascend full compile requires mindspore or torch_npu runtime package")
+    pytest.skip(
+        "Ascend full compile requires mindspore or torch_npu runtime package")
 
 
 def _find_tracked_op(rows, access_type):
@@ -128,10 +131,14 @@ def test_debug_compile_metadata_keys():
         assert row["alignmentRequired"] == 4
         assert row["result"]["elementDtype"] == "f32"
         assert row["result"]["elementBits"] == 32
-        assert any(operand["operandRole"] == "ptr" and operand["value"]["addrSpace"] == "global"
+        assert any(operand["operandRole"] == "ptr"
+                   and operand["value"]["addrSpace"] == "global"
                    for operand in row["operands"])
 
-    store_value = [operand for operand in store["operands"] if operand["operandRole"] == "value"]
+    store_value = [
+        operand for operand in store["operands"]
+        if operand["operandRole"] == "value"
+    ]
     assert len(store_value) == 1
     assert store_value[0]["producerOpId"] == load["opId"]
 
@@ -320,7 +327,8 @@ def test_debug_collect_tensor_pointer_ops_are_metadata_only(tmp_path):
     assert metadata["debug_metadata_only_reason"] == "triton_tensor_pointer"
 
 
-def test_debug_collect_large_store_level1_keeps_representative_memory_event(tmp_path):
+def test_debug_collect_large_store_level1_keeps_representative_memory_event(
+        tmp_path):
     ctx = ir.context()
     ir.load_dialects(ctx)
     fd.load_dialects(ctx)

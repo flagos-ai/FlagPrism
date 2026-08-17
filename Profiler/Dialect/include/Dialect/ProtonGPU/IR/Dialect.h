@@ -1,12 +1,12 @@
 #ifndef DIALECT_PROTONGPU_IR_DIALECT_H_
 #define DIALECT_PROTONGPU_IR_DIALECT_H_
 
-#include "mlir/IR/Attributes.h"
-#include "mlir/IR/BuiltinOps.h"
-#include "mlir/IR/Dialect.h"
 #include "Profiler/Dialect/include/Dialect/Proton/IR/Dialect.h"
 #include "Profiler/Dialect/include/Dialect/ProtonGPU/IR/Dialect.h.inc"
 #include "Profiler/Dialect/include/Dialect/ProtonGPU/IR/Types.h"
+#include "mlir/IR/Attributes.h"
+#include "mlir/IR/BuiltinOps.h"
+#include "mlir/IR/Dialect.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
 

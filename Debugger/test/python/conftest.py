@@ -4,7 +4,6 @@ import tempfile
 
 import pytest
 
-
 _MARKERS = {
     "module_a": "FlagPrism debugger Module A coverage",
     "module_a_a1": "Module A frontend marker coverage",

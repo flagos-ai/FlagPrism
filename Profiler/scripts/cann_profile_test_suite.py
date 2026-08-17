@@ -23,9 +23,7 @@ import sys
 import time
 from typing import Any
 
-
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
-
 
 SUITE_SCRIPTS = {
     "custom": SCRIPT_DIR / "cann_operator_profile_suite.py",
@@ -36,7 +34,8 @@ SUITE_SCRIPTS = {
 
 def _make_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", default="/tmp/flagtree_profiler_cann_profile_tests")
+    parser.add_argument("--out",
+                        default="/tmp/flagtree_profiler_cann_profile_tests")
     parser.add_argument("--clean", action="store_true")
     parser.add_argument("--device", type=int, default=0)
     parser.add_argument("--warmup", type=int, default=1)
@@ -66,7 +65,8 @@ def _make_arg_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--liger-source",
-        help="Existing Liger-Kernel checkout. Omit to let the Liger suite clone into its output directory.",
+        help=
+        "Existing Liger-Kernel checkout. Omit to let the Liger suite clone into its output directory.",
     )
     parser.add_argument(
         "--liger-case",
@@ -77,9 +77,12 @@ def _make_arg_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--flaggems-source",
-        help="Existing FlagGems checkout. Omit to let the FlagGems suite clone into its output directory.",
+        help=
+        "Existing FlagGems checkout. Omit to let the FlagGems suite clone into its output directory.",
     )
-    parser.add_argument("--flaggems-all", action="store_true", help="Run all FlagGems op-level cases.")
+    parser.add_argument("--flaggems-all",
+                        action="store_true",
+                        help="Run all FlagGems op-level cases.")
     parser.add_argument(
         "--flaggems-op",
         action="append",
@@ -119,11 +122,13 @@ def _repo_root() -> pathlib.Path:
     return pathlib.Path.cwd()
 
 
-def _flagtree_python_build_path(repo_root: pathlib.Path) -> pathlib.Path | None:
+def _flagtree_python_build_path(
+        repo_root: pathlib.Path) -> pathlib.Path | None:
     build_root = repo_root / "python" / "build"
     if not build_root.exists():
         return None
-    candidates = sorted(path for path in build_root.glob("lib.*") if path.is_dir())
+    candidates = sorted(path for path in build_root.glob("lib.*")
+                        if path.is_dir())
     return candidates[-1] if candidates else None
 
 
@@ -143,12 +148,14 @@ def _child_env(repo_root: pathlib.Path) -> dict[str, str]:
     return env
 
 
-def _run(cmd: list[str], cwd: pathlib.Path, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+def _run(cmd: list[str], cwd: pathlib.Path,
+         env: dict[str, str]) -> subprocess.CompletedProcess[str]:
     print("+", " ".join(cmd), flush=True)
     return subprocess.run(cmd, cwd=cwd, text=True, env=env)
 
 
-def _suite_command(suite: str, suite_out: pathlib.Path, args: argparse.Namespace) -> list[str]:
+def _suite_command(suite: str, suite_out: pathlib.Path,
+                   args: argparse.Namespace) -> list[str]:
     cmd = [
         sys.executable,
         str(SUITE_SCRIPTS[suite]),
@@ -180,7 +187,9 @@ def _suite_command(suite: str, suite_out: pathlib.Path, args: argparse.Namespace
         return cmd
 
     if suite == "flaggems":
-        cmd.extend(["--op-level", "--pytest-timeout", str(args.pytest_timeout)])
+        cmd.extend(
+            ["--op-level", "--pytest-timeout",
+             str(args.pytest_timeout)])
         if args.flaggems_source:
             cmd.extend(["--flaggems-source", args.flaggems_source])
         if args.flaggems_all:
@@ -229,13 +238,11 @@ def main() -> int:
         }
         results.append(result)
         if completed.returncode != 0:
-            failures.append(
-                {
-                    "suite": suite,
-                    "returncode": completed.returncode,
-                    "summary_json": str(summary_path),
-                }
-            )
+            failures.append({
+                "suite": suite,
+                "returncode": completed.returncode,
+                "summary_json": str(summary_path),
+            })
             if args.require_all:
                 break
 
@@ -249,11 +256,13 @@ def main() -> int:
         "failures": failures,
         "elapsed_s": time.perf_counter() - start,
         "repo_root": str(repo_root),
-        "flagtree_python_build": str(_flagtree_python_build_path(repo_root) or ""),
+        "flagtree_python_build":
+        str(_flagtree_python_build_path(repo_root) or ""),
         "results": results,
         "summary_json": str(out / "summary.json"),
     }
-    (out / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
+    (out / "summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True))
     print(json.dumps(summary, indent=2, sort_keys=True))
     if failures and args.require_all:
         return 4

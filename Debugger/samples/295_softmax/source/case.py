@@ -3,7 +3,6 @@ import os
 
 import flag_gems
 import torch
-import triton
 import flagtree.debugger as debugger
 
 try:
@@ -19,16 +18,14 @@ def sync_device():
         torch.cuda.synchronize()
 
 
-output_dir = os.environ.get(
-    "FLAGTREE_DEBUGGER_BATCH_OUTPUT_DIR", "/tmp/flagtree_debugger_samples/softmax"
-)
+output_dir = os.environ.get("FLAGTREE_DEBUGGER_BATCH_OUTPUT_DIR",
+                            "/tmp/flagtree_debugger_samples/softmax")
 debugger.configure(
     output_dir=output_dir,
     record_capacity=int(
-        os.environ.get("FLAGTREE_DEBUGGER_BATCH_RECORD_CAPACITY", "4096")
-    ),
-    export_raw_records=os.environ.get("FLAGTREE_DEBUGGER_BATCH_EXPORT_RAW", "0")
-    == "1",
+        os.environ.get("FLAGTREE_DEBUGGER_BATCH_RECORD_CAPACITY", "4096")),
+    export_raw_records=os.environ.get("FLAGTREE_DEBUGGER_BATCH_EXPORT_RAW",
+                                      "0") == "1",
 )
 debugger.activate(
     level=int(os.environ.get("FLAGTREE_DEBUGGER_BATCH_LEVEL", "1")),
@@ -54,5 +51,4 @@ print(
             "device": str(result.device),
         },
         sort_keys=True,
-    )
-)
+    ))

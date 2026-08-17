@@ -14,7 +14,8 @@ from pathlib import Path
 import pytest
 
 _unit = Path(__file__).resolve().parents[1]
-_spec = importlib.util.spec_from_file_location("_module_a_doc", _unit / "_module_a_doc.py")
+_spec = importlib.util.spec_from_file_location("_module_a_doc",
+                                               _unit / "_module_a_doc.py")
 _mad = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 _spec.loader.exec_module(_mad)
@@ -93,13 +94,15 @@ def _source(fn):
 
 def _target():
     if os.environ.get("FLAGTREE_BACKEND") == "ascend":
-        return GPUTarget("npu", os.environ.get("ASCEND_TEST_ARCH", "Ascend910B"), 0)
+        return GPUTarget("npu", os.environ.get("ASCEND_TEST_ARCH",
+                                               "Ascend910B"), 0)
     return GPUTarget("cuda", 80, 32)
 
 
 @pytest.mark.module_a
 @pytest.mark.module_a_a2
-def test_module_a_A2_metadata_keys_when_collect(fresh_triton_cache, monkeypatch):
+def test_module_a_A2_metadata_keys_when_collect(fresh_triton_cache,
+                                                monkeypatch):
     monkeypatch.delenv("TRITON_FLAGTREE_DEBUG_LAUNCH_PTR", raising=False)
     _ = fresh_triton_cache
     kernel = _kernel_collect()
@@ -123,14 +126,16 @@ def test_module_a_A2_metadata_keys_when_collect(fresh_triton_cache, monkeypatch)
     res = row["result"]
     assert isinstance(res, dict)
     assert not (_RESULT_VALUE_REQUIRED_KEYS - res.keys())
-    store = next(row for row in md.debug_tracked_table if row["accessType"] == "store")
+    store = next(row for row in md.debug_tracked_table
+                 if row["accessType"] == "store")
     assert store["tritonStatement"] == "tl.store(x_ptr + offsets, x)"
     assert md.debug_launch_hidden_arg is False
 
 
 @pytest.mark.module_a
 @pytest.mark.module_a_a2
-def test_module_a_A2_debug_launch_hidden_arg_follows_env(fresh_triton_cache, monkeypatch):
+def test_module_a_A2_debug_launch_hidden_arg_follows_env(
+        fresh_triton_cache, monkeypatch):
     monkeypatch.setenv("TRITON_FLAGTREE_DEBUG_LAUNCH_PTR", "1")
     _ = fresh_triton_cache
     kernel = _kernel_collect()
@@ -141,7 +146,8 @@ def test_module_a_A2_debug_launch_hidden_arg_follows_env(fresh_triton_cache, mon
 
 @pytest.mark.module_a
 @pytest.mark.module_a_a2
-def test_module_a_A2_zero_record_collect_disables_hidden_arg(fresh_triton_cache, monkeypatch):
+def test_module_a_A2_zero_record_collect_disables_hidden_arg(
+        fresh_triton_cache, monkeypatch):
     monkeypatch.setenv("TRITON_FLAGTREE_DEBUG_LAUNCH_PTR", "1")
     _ = fresh_triton_cache
 
@@ -169,11 +175,14 @@ def test_module_a_A2_debug_launch_hidden_arg_follows_debugger_api(monkeypatch):
     debugger.activate()
     try:
         assert flagtree_debug._debug_launch_hidden_arg_enabled({
-            "target": GPUTarget("npu", "Ascend910B", 0),
+            "target":
+            GPUTarget("npu", "Ascend910B", 0),
         }) is True
-        for backend, arch, warp_size in (("cuda", 80, 32), ("hip", "gfx942", 64)):
+        for backend, arch, warp_size in (("cuda", 80, 32), ("hip", "gfx942",
+                                                            64)):
             assert flagtree_debug._debug_launch_hidden_arg_enabled({
-                "target": GPUTarget(backend, arch, warp_size),
+                "target":
+                GPUTarget(backend, arch, warp_size),
             }) is False
     finally:
         debugger.deactivate()
@@ -181,7 +190,8 @@ def test_module_a_A2_debug_launch_hidden_arg_follows_debugger_api(monkeypatch):
 
 @pytest.mark.module_a
 @pytest.mark.module_a_a2
-def test_module_a_A2_metadata_namedtuple_dict_and_json(fresh_triton_cache, monkeypatch):
+def test_module_a_A2_metadata_namedtuple_dict_and_json(fresh_triton_cache,
+                                                       monkeypatch):
     monkeypatch.delenv("TRITON_FLAGTREE_DEBUG_LAUNCH_PTR", raising=False)
     _ = fresh_triton_cache
     kernel = _kernel_collect()
@@ -212,7 +222,8 @@ def test_module_a_A2_metadata_namedtuple_dict_and_json(fresh_triton_cache, monke
 
 @pytest.mark.module_a
 @pytest.mark.module_a_a2
-def test_module_a_A2_no_collect_debug_disabled(fresh_triton_cache, monkeypatch):
+def test_module_a_A2_no_collect_debug_disabled(fresh_triton_cache,
+                                               monkeypatch):
     monkeypatch.delenv("TRITON_FLAGTREE_DEBUG_LAUNCH_PTR", raising=False)
     _ = fresh_triton_cache
 

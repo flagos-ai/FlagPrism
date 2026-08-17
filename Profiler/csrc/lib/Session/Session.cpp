@@ -61,7 +61,8 @@ std::vector<std::string> splitMode(const std::string &mode) {
   size_t start = 0;
   while (start <= mode.size()) {
     size_t next = mode.find(':', start);
-    parts.push_back(mode.substr(start, next == std::string::npos ? std::string::npos : next - start));
+    parts.push_back(mode.substr(
+        start, next == std::string::npos ? std::string::npos : next - start));
     if (next == std::string::npos)
       break;
     start = next + 1;
@@ -76,7 +77,8 @@ Profiler *validateAndSetProfilerMode(
   for (const auto &[id, session] : sessions) {
     if (session->getProfiler() == profiler &&
         session->getProfiler()->getMode() != modeAndOptions) {
-      throw std::runtime_error("Cannot reuse a profiler with a different mode across active sessions");
+      throw std::runtime_error("Cannot reuse a profiler with a different mode "
+                               "across active sessions");
     }
   }
   return profiler->setMode(modeAndOptions);
@@ -148,7 +150,8 @@ json summarizeVendorArtifact(const VendorProfileArtifact &artifact) {
   for (const auto &association : artifact.associations) {
     countsBySource[association.source]++;
     countsByState[vendorMetricStateToString(association.state)]++;
-    if (association.runtimeEvent.endTimeNs > association.runtimeEvent.startTimeNs) {
+    if (association.runtimeEvent.endTimeNs >
+        association.runtimeEvent.startTimeNs) {
       timedAssociationCount++;
     }
     if (association.source == "msprof_mstx") {
@@ -208,9 +211,9 @@ std::string metricValueToString(const MetricValueType &value) {
       value);
 }
 
-std::string metricValueOrEmpty(
-    const std::map<std::string, MetricValueType> &metrics,
-    const std::string &name) {
+std::string
+metricValueOrEmpty(const std::map<std::string, MetricValueType> &metrics,
+                   const std::string &name) {
   auto it = metrics.find(name);
   if (it == metrics.end()) {
     return "";
@@ -218,8 +221,9 @@ std::string metricValueOrEmpty(
   return metricValueToString(it->second);
 }
 
-std::string makeSupplementalVendorOpName(
-    const VendorMetricAssociation &association, uint64_t syntheticIndex) {
+std::string
+makeSupplementalVendorOpName(const VendorMetricAssociation &association,
+                             uint64_t syntheticIndex) {
   std::string name = "CANN " + association.source;
   auto rowIndex = metricValueOrEmpty(association.metrics, "summary_row_index");
   name += " #" + std::to_string(syntheticIndex);
@@ -252,13 +256,13 @@ std::string makeUniqueRuntimeOpName(const RuntimeTraceEventKey &event) {
   return name;
 }
 
-std::map<std::string, MetricValueType> makeVendorMetrics(
-    const VendorMetricAssociation &association,
-    const RuntimeTraceEventKey &event, bool syntheticTimelineEvent) {
+std::map<std::string, MetricValueType>
+makeVendorMetrics(const VendorMetricAssociation &association,
+                  const RuntimeTraceEventKey &event,
+                  bool syntheticTimelineEvent) {
   std::map<std::string, MetricValueType> vendorMetrics;
   vendorMetrics["vendor.source"] = association.source;
-  vendorMetrics["vendor.state"] =
-      vendorMetricStateToString(association.state);
+  vendorMetrics["vendor.state"] = vendorMetricStateToString(association.state);
   vendorMetrics["vendor.synthetic_timeline_event"] =
       syntheticTimelineEvent ? std::string("true") : std::string("false");
   if (!association.note.empty()) {
@@ -297,8 +301,7 @@ void preserveLaunchTimingForMergedOpSummary(
   }
   auto taskDurationIt = association.metrics.find("task_duration_us");
   if (taskDurationIt != association.metrics.end()) {
-    vendorMetrics["cann.op_summary_task_duration_us"] =
-        taskDurationIt->second;
+    vendorMetrics["cann.op_summary_task_duration_us"] = taskDurationIt->second;
   }
   vendorMetrics.erase("cann.task_duration_us");
   vendorMetrics.erase("runtime.duration_us");
@@ -387,8 +390,7 @@ bool adapterOptionEnabled(const std::map<std::string, std::string> &options,
 
 void isolateCannRuntimeOutputPath(VendorProfilePlan &plan, size_t sessionId) {
   if (!adapterOptionEnabled(plan.requested.adapterOptions,
-                            {"aclprof_runtime_enabled",
-                             "cann_aclprof_runtime"},
+                            {"aclprof_runtime_enabled", "cann_aclprof_runtime"},
                             false)) {
     return;
   }
@@ -568,9 +570,8 @@ size_t countAssociationsBySource(const VendorProfileArtifact &artifact,
   return count;
 }
 
-size_t countAssociationsBySources(
-    const VendorProfileArtifact &artifact,
-    const std::set<std::string> &sources) {
+size_t countAssociationsBySources(const VendorProfileArtifact &artifact,
+                                  const std::set<std::string> &sources) {
   size_t count = 0;
   for (const auto &association : artifact.associations) {
     if (sources.count(association.source) > 0) {
@@ -675,8 +676,8 @@ void Session::finalize(const std::string &outputFormat) {
       metadata.vendorMetricsRequested.push_back(request.name);
     }
     metadata.vendorMetricsEnabled = vendorPlan.enabledVendorMetrics;
-    metadata.config["artifact_layout"] =
-        "<base>.hatchet,<base>.timeline.json,<base>.meta.json,<base>.vendor.json";
+    metadata.config["artifact_layout"] = "<base>.hatchet,<base>.timeline.json,<"
+                                         "base>.meta.json,<base>.vendor.json";
     for (const auto &[key, value] : vendorPlan.requested.adapterOptions) {
       metadata.config[key] = value;
     }
@@ -735,8 +736,7 @@ void Session::finalize(const std::string &outputFormat) {
                  {"hook", metadata.hook},
                  {"mode", metadata.mode},
                  {"runtime_base_enabled", metadata.runtimeBaseEnabled},
-                 {"vendor_metrics_requested",
-                  metadata.vendorMetricsRequested},
+                 {"vendor_metrics_requested", metadata.vendorMetricsRequested},
                  {"vendor_metrics_enabled", metadata.vendorMetricsEnabled},
                  {"degrade_reasons", metadata.degradeReasons},
                  {"config", std::move(config)},
@@ -757,9 +757,9 @@ size_t Session::getContextDepth() { return contextSource->getDepth(); }
 
 std::unique_ptr<Session> SessionManager::makeSession(
     size_t id, const std::string &path, const std::string &profilerName,
-    const std::string &profilerPath,
-    const std::string &contextSourceName, const std::string &dataName,
-    const std::string &mode, const std::string &hookName) {
+    const std::string &profilerPath, const std::string &contextSourceName,
+    const std::string &dataName, const std::string &mode,
+    const std::string &hookName) {
   if (const auto *vendorAdapter = VendorAdapterRegistry::find(profilerName)) {
     for (const auto &[existingId, existingSession] : sessions) {
       (void)existingId;
@@ -797,11 +797,10 @@ std::unique_ptr<Session> SessionManager::makeSession(
     auto contextSource = makeContextSource(contextSourceName);
     auto data = makeData("tree", path, contextSource.get());
     auto timelineData = std::make_unique<TraceData>(path, contextSource.get());
-    auto *session =
-        new Session(id, path, profiler, std::move(contextSource),
-                    std::move(data), profilerName, contextSourceName, dataName,
-                    mode, hookName, vendorAdapter, std::move(vendorPlan),
-                    std::move(timelineData));
+    auto *session = new Session(
+        id, path, profiler, std::move(contextSource), std::move(data),
+        profilerName, contextSourceName, dataName, mode, hookName,
+        vendorAdapter, std::move(vendorPlan), std::move(timelineData));
     return std::unique_ptr<Session>(session);
   }
 
@@ -809,9 +808,9 @@ std::unique_ptr<Session> SessionManager::makeSession(
   profiler = validateAndSetProfilerMode(profiler, mode, sessions);
   auto contextSource = makeContextSource(contextSourceName);
   auto data = makeData(dataName, path, contextSource.get());
-  auto *session = new Session(id, path, profiler, std::move(contextSource),
-                              std::move(data), profilerName, contextSourceName,
-                              dataName, mode, hookName);
+  auto *session =
+      new Session(id, path, profiler, std::move(contextSource), std::move(data),
+                  profilerName, contextSourceName, dataName, mode, hookName);
   return std::unique_ptr<Session>(session);
 }
 
@@ -890,9 +889,9 @@ size_t SessionManager::addSession(const std::string &path,
   }
   auto sessionId = nextSessionId++;
   sessionPaths[path] = sessionId;
-  sessions[sessionId] = makeSession(sessionId, path, profilerName,
-                                    profilerPath, contextSourceName, dataName, mode,
-                                    hookName);
+  sessions[sessionId] =
+      makeSession(sessionId, path, profilerName, profilerPath,
+                  contextSourceName, dataName, mode, hookName);
   return sessionId;
 }
 
@@ -1003,9 +1002,8 @@ void SessionManager::initFunctionMetadata(
   }
 }
 
-void SessionManager::enterInstrumentedOp(uint64_t streamId,
-                                         uint64_t functionId, uint8_t *buffer,
-                                         size_t size) {
+void SessionManager::enterInstrumentedOp(uint64_t streamId, uint64_t functionId,
+                                         uint8_t *buffer, size_t size) {
   std::shared_lock<std::shared_mutex> lock(mutex);
   for (const auto &[interface, count] : instrumentationInterfaceCounts) {
     if (count > 0) {
@@ -1014,9 +1012,8 @@ void SessionManager::enterInstrumentedOp(uint64_t streamId,
   }
 }
 
-void SessionManager::exitInstrumentedOp(uint64_t streamId,
-                                        uint64_t functionId, uint8_t *buffer,
-                                        size_t size) {
+void SessionManager::exitInstrumentedOp(uint64_t streamId, uint64_t functionId,
+                                        uint8_t *buffer, size_t size) {
   std::shared_lock<std::shared_mutex> lock(mutex);
   for (const auto &[interface, count] : instrumentationInterfaceCounts) {
     if (count > 0) {

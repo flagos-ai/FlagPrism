@@ -298,14 +298,13 @@ void synthesizeExportHeader(const DebugLaunchContext &ctx,
   }
 
   auto *header = reinterpret_cast<RingBufferHeader *>(allocation.hostBuffer);
-  uint64_t totalSlots = saturatingMul(ctx.runtimeMetadata.gridX,
-                                      ctx.runtimeMetadata.gridY);
+  uint64_t totalSlots =
+      saturatingMul(ctx.runtimeMetadata.gridX, ctx.runtimeMetadata.gridY);
   totalSlots = saturatingMul(totalSlots, ctx.runtimeMetadata.gridZ);
   totalSlots =
       saturatingMul(totalSlots, ctx.runtimeMetadata.recordsPerInstance);
   const uint64_t capacity = header->capacity;
-  const uint64_t overflow =
-      totalSlots > capacity ? totalSlots - capacity : 0;
+  const uint64_t overflow = totalSlots > capacity ? totalSlots - capacity : 0;
 
   header->writeIdx = saturatingU32(totalSlots);
   header->overflowCount = saturatingU32(overflow);

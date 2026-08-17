@@ -39,8 +39,7 @@ int readEnvInt(const char *name, int fallback) {
     message += recent;
     message += "\"";
   }
-  std::fprintf(stderr,
-               "FlagPrism debugger async export loop test failed: %s\n",
+  std::fprintf(stderr, "FlagPrism debugger async export loop test failed: %s\n",
                message.c_str());
   std::exit(250);
 }
@@ -188,12 +187,12 @@ int runCannAsyncExportLoopTest() {
     header.payloadOffset = static_cast<uint32_t>(ctx.layout.payloadOffset);
     std::memcpy(staging.data(), &header, sizeof(header));
 
-    for (int recordIndex = 0; recordIndex < recordsPerIteration; ++recordIndex) {
+    for (int recordIndex = 0; recordIndex < recordsPerIteration;
+         ++recordIndex) {
       SummaryRecord record{};
       record.header.recordKind = RecordKind::SUMMARY;
-      record.header.opId =
-          static_cast<uint32_t>(1000 + iteration * recordsPerIteration +
-                                recordIndex);
+      record.header.opId = static_cast<uint32_t>(
+          1000 + iteration * recordsPerIteration + recordIndex);
       record.header.logicalInstanceId =
           static_cast<uint64_t>(iteration) * 100 + recordIndex;
       record.collectorKind = CollectorKind::ELEMENT_COUNT;
@@ -243,7 +242,8 @@ int runCannAsyncExportLoopTest() {
       return 2;
     }
 
-    for (int recordIndex = 0; recordIndex < recordsPerIteration; ++recordIndex) {
+    for (int recordIndex = 0; recordIndex < recordsPerIteration;
+         ++recordIndex) {
       const auto *record = reinterpret_cast<const SummaryRecord *>(
           hostBytes + getRecordSlotOffset(ctx.layout, recordIndex));
       observedOpIdSum += record->header.opId;
@@ -273,8 +273,8 @@ int runCannAsyncExportLoopTest() {
     return 3;
   }
 
-  const auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-      end - start);
+  const auto elapsedMs =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
   std::cout << "FlagPrism debugger async export loop passed\n";
   std::cout << "device=" << deviceId << "\n";
   std::cout << "iterations=" << iterations << "\n";
@@ -292,9 +292,9 @@ int main() {
 #if FLAGTREE_DEBUGGER_HAS_CANN_RUNTIME
   return runCannAsyncExportLoopTest();
 #else
-  std::fprintf(stderr,
-               "FlagPrism debugger async export loop test requires CANN runtime "
-               "support in this build\n");
+  std::fprintf(
+      stderr, "FlagPrism debugger async export loop test requires CANN runtime "
+              "support in this build\n");
   return 200;
 #endif
 }

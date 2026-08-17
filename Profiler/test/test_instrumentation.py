@@ -32,15 +32,20 @@ def supports_ws():
 
 
 HAS_TENSOR_DESC = supports_tma() and hasattr(tl, "make_tensor_descriptor")
-HAS_HOST_TENSOR_DESC = supports_tma() and hasattr(triton.tools.tensor_descriptor, "TensorDescriptor")
+HAS_HOST_TENSOR_DESC = supports_tma() and hasattr(
+    triton.tools.tensor_descriptor, "TensorDescriptor")
 HAS_WARP_SPECIALIZE = supports_ws() and HAS_TENSOR_DESC
 
 
-@pytest.mark.parametrize("mode",
-                         ["default", "default:metric_type=cycle", "default:metric_type=cycle:buffer_size=4096", "mma"])
+@pytest.mark.parametrize("mode", [
+    "default", "default:metric_type=cycle",
+    "default:metric_type=cycle:buffer_size=4096", "mma"
+])
 def test_mode_str(mode, tmp_path: pathlib.Path):
     temp_file = tmp_path / "test_mode_str.hatchet"
-    profiler.start(str(temp_file.with_suffix("")), backend="instrumentation", mode=mode)
+    profiler.start(str(temp_file.with_suffix("")),
+                   backend="instrumentation",
+                   mode=mode)
     profiler.finalize()
 
 
@@ -55,7 +60,9 @@ def test_mode_str(mode, tmp_path: pathlib.Path):
 )
 def test_mode_obj(mode, tmp_path: pathlib.Path):
     temp_file = tmp_path / "test_mode_simple.hatchet"
-    profiler.start(str(temp_file.with_suffix("")), backend="instrumentation", mode=mode)
+    profiler.start(str(temp_file.with_suffix("")),
+                   backend="instrumentation",
+                   mode=mode)
     profiler.finalize()
 
 
@@ -75,7 +82,9 @@ def test_jit(tmp_path):
     assert len(foo.device_caches[device][0]) == 1, "Kernel should be cached"
     profiler.finalize()
     foo[(1, )](x, 1, y, num_warps=4)
-    assert len(foo.device_caches[device][0]) == 2, "Instrumented and uninstrumented kernels both should be cached"
+    assert len(
+        foo.device_caches[device][0]
+    ) == 2, "Instrumented and uninstrumented kernels both should be cached"
 
 
 @pytest.mark.parametrize("method", ["operator", "context_manager"])
@@ -85,7 +94,8 @@ def test_record(method, tmp_path: pathlib.Path):
     @contextmanager
     def instrumentation(file_path):
         profiler.hooks.InstrumentationHook.enable_host_buffer = True
-        profiler.start(str(file_path.with_suffix("")), backend="instrumentation")
+        profiler.start(str(file_path.with_suffix("")),
+                       backend="instrumentation")
         try:
             yield
         finally:
@@ -125,24 +135,39 @@ def test_record(method, tmp_path: pathlib.Path):
     n_elements = output.numel()
     grid = (1, 1, 1)
     with instrumentation(temp_file):
-        pgm = add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=1024, METHOD=method)
+        pgm = add_kernel[grid](x,
+                               y,
+                               output,
+                               n_elements,
+                               BLOCK_SIZE=1024,
+                               METHOD=method)
         # FIXME(fywkevin): have a dedicated place to put those decoding related constants
-        payload_offset = int.from_bytes(profiler.hooks.InstrumentationHook.host_buffer[12:16].numpy().tobytes(), "little")
-        host_buffer = profiler.hooks.InstrumentationHook.host_buffer[payload_offset:]
+        payload_offset = int.from_bytes(
+            profiler.hooks.InstrumentationHook.host_buffer[12:16].numpy().
+            tobytes(), "little")
+        host_buffer = profiler.hooks.InstrumentationHook.host_buffer[
+            payload_offset:]
         preamble = host_buffer[0:4]
-        assert int.from_bytes(preamble.numpy().tobytes(), "little") == 0xDEADBEEF
+        assert int.from_bytes(preamble.numpy().tobytes(),
+                              "little") == 0xDEADBEEF
         header_size = 16
         metadata_size = header_size + pgm.metadata.num_warps * 4
         start_tag = host_buffer[metadata_size:metadata_size + 4]
         start_clock = host_buffer[metadata_size + 4:metadata_size + 8]
         end_tag = host_buffer[metadata_size + 8:metadata_size + 12]
         end_clock = host_buffer[metadata_size + 12:metadata_size + 16]
-        assert int.from_bytes(start_tag.numpy().tobytes(), "little") & 0xFFFFF800 == 0
-        assert int.from_bytes(end_tag.numpy().tobytes(), "little") & 0xFFFFF800 == 0x80000000
-        start_clock_val = int.from_bytes(start_tag.numpy().tobytes(), "little") & 0x7FF << 32 | int.from_bytes(
-            start_clock.numpy().tobytes(), "little")
-        end_clock_val = int.from_bytes(end_tag.numpy().tobytes(), "little") & 0x7FF << 32 | int.from_bytes(
-            end_clock.numpy().tobytes(), "little")
+        assert int.from_bytes(start_tag.numpy().tobytes(),
+                              "little") & 0xFFFFF800 == 0
+        assert int.from_bytes(end_tag.numpy().tobytes(),
+                              "little") & 0xFFFFF800 == 0x80000000
+        start_clock_val = int.from_bytes(
+            start_tag.numpy().tobytes(),
+            "little") & 0x7FF << 32 | int.from_bytes(
+                start_clock.numpy().tobytes(), "little")
+        end_clock_val = int.from_bytes(
+            end_tag.numpy().tobytes(),
+            "little") & 0x7FF << 32 | int.from_bytes(
+                end_clock.numpy().tobytes(), "little")
         assert end_clock_val > start_clock_val
 
     # instrumentation context has finalized, now validate assembly
@@ -187,7 +212,9 @@ def test_tree(tmp_path: pathlib.Path, hook):
     output = torch.empty_like(x)
     n_elements = output.numel()
     grid = (1, 1, 1)
-    profiler.start(str(temp_file.with_suffix("")), backend="instrumentation", hook=hook)
+    profiler.start(str(temp_file.with_suffix("")),
+                   backend="instrumentation",
+                   hook=hook)
     add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=1024, num_warps=1)
     profiler.finalize()
 
@@ -256,7 +283,9 @@ def test_trace(tmp_path: pathlib.Path):
     output = torch.empty_like(x)
     n_elements = output.numel()
     grid = (1, 1, 1)
-    profiler.start(str(temp_file.with_suffix("")), backend="instrumentation", data="trace")
+    profiler.start(str(temp_file.with_suffix("")),
+                   backend="instrumentation",
+                   data="trace")
     add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=1024, num_warps=1)
     sub_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=1024, num_warps=1)
     profiler.finalize()
@@ -304,7 +333,8 @@ def test_multi_session(tmp_path: pathlib.Path):
     output = torch.empty_like(x)
     n_elements = output.numel()
     grid = (1, 1, 1)
-    session_id0 = profiler.start(str(temp_file_inst.with_suffix("")), backend="instrumentation")
+    session_id0 = profiler.start(str(temp_file_inst.with_suffix("")),
+                                 backend="instrumentation")
     session_id1 = profiler.start(str(temp_file_driver.with_suffix("")))
     profiler.deactivate(session_id0)
     profiler.deactivate(session_id1)
@@ -372,7 +402,9 @@ def test_autotune(tmp_path: pathlib.Path):
     n_elements = output.numel()
     grid = (1, 1, 1)
     temp_file = tmp_path / "test_autotune.hatchet"
-    profiler.start(str(temp_file.with_suffix("")), backend="instrumentation", hook="triton")
+    profiler.start(str(temp_file.with_suffix("")),
+                   backend="instrumentation",
+                   hook="triton")
     add_kernel[grid](x, y, output, n_elements)
     profiler.finalize()
 
@@ -387,15 +419,28 @@ def test_autotune(tmp_path: pathlib.Path):
 
 def test_sched_barrier(tmp_path: pathlib.Path):
     if is_cuda():
-        pytest.skip("CUDA backend does not support instruction scheduling barriers")
+        pytest.skip(
+            "CUDA backend does not support instruction scheduling barriers")
 
     @triton.jit
-    def matmul_kernel(a_ptr, b_ptr, c_ptr, M, N, K, stride_am, stride_ak,  #
-                      stride_bk, stride_bn,  #
-                      stride_cm, stride_cn, BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr,
-                      BLOCK_SIZE_K: tl.constexpr,  #
-                      GROUP_SIZE_M: tl.constexpr,  #
-                      ):
+    def matmul_kernel(
+            a_ptr,
+            b_ptr,
+            c_ptr,
+            M,
+            N,
+            K,
+            stride_am,
+            stride_ak,  #
+            stride_bk,
+            stride_bn,  #
+            stride_cm,
+            stride_cn,
+            BLOCK_SIZE_M: tl.constexpr,
+            BLOCK_SIZE_N: tl.constexpr,
+            BLOCK_SIZE_K: tl.constexpr,  #
+            GROUP_SIZE_M: tl.constexpr,  #
+    ):
         pl.enter_scope("warpgroup_1")
         pid = tl.program_id(axis=0)
         num_pid_m = tl.cdiv(M, BLOCK_SIZE_M)
@@ -410,15 +455,21 @@ def test_sched_barrier(tmp_path: pathlib.Path):
         offs_am = (pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)) % M
         offs_bn = (pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)) % N
         offs_k = tl.arange(0, BLOCK_SIZE_K)
-        a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_k[None, :] * stride_ak)
-        b_ptrs = b_ptr + (offs_k[:, None] * stride_bk + offs_bn[None, :] * stride_bn)
+        a_ptrs = a_ptr + (offs_am[:, None] * stride_am +
+                          offs_k[None, :] * stride_ak)
+        b_ptrs = b_ptr + (offs_k[:, None] * stride_bk +
+                          offs_bn[None, :] * stride_bn)
 
         accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=tl.float32)
         pl.exit_scope("warpgroup_1")
         pl.enter_scope("warpgroup_2")
         for k in range(0, tl.cdiv(K, BLOCK_SIZE_K)):
-            a = tl.load(a_ptrs, mask=offs_k[None, :] < K - k * BLOCK_SIZE_K, other=0.0)
-            b = tl.load(b_ptrs, mask=offs_k[:, None] < K - k * BLOCK_SIZE_K, other=0.0)
+            a = tl.load(a_ptrs,
+                        mask=offs_k[None, :] < K - k * BLOCK_SIZE_K,
+                        other=0.0)
+            b = tl.load(b_ptrs,
+                        mask=offs_k[:, None] < K - k * BLOCK_SIZE_K,
+                        other=0.0)
             accumulator = tl.dot(a, b, accumulator)
             a_ptrs += BLOCK_SIZE_K * stride_ak
             b_ptrs += BLOCK_SIZE_K * stride_bk
@@ -431,7 +482,8 @@ def test_sched_barrier(tmp_path: pathlib.Path):
         pl.enter_scope("warpgroup_4")
         offs_cm = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
         offs_cn = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
-        c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_cn[None, :]
+        c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_cn[
+            None, :]
         c_mask = (offs_cm[:, None] < M) & (offs_cn[None, :] < N)
         tl.store(c_ptrs, c, mask=c_mask)
         pl.exit_scope("warpgroup_4")
@@ -450,17 +502,31 @@ def test_sched_barrier(tmp_path: pathlib.Path):
     grid = lambda META: (triton.cdiv(M, 128) * triton.cdiv(N, 256), )
 
     temp_file = tmp_path / "test_sched_barrier.hatchet"
-    mode = profiler.mode.Default(metric_type="cycle", optimizations="sched_barriers")
-    profiler.start(str(temp_file.with_suffix("")), backend="instrumentation", mode=mode)
+    mode = profiler.mode.Default(metric_type="cycle",
+                                 optimizations="sched_barriers")
+    profiler.start(str(temp_file.with_suffix("")),
+                   backend="instrumentation",
+                   mode=mode)
 
-    grid = lambda META: (triton.cdiv(M, BLOCK_SIZE_M) * triton.cdiv(N, BLOCK_SIZE_N), )
+    grid = lambda META: (triton.cdiv(M, BLOCK_SIZE_M) * triton.cdiv(
+        N, BLOCK_SIZE_N), )
     kernel = matmul_kernel[grid](
-        a, b, c,  #
-        M, N, K,  #
-        a.stride(0), a.stride(1),  #
-        b.stride(0), b.stride(1),  #
-        c.stride(0), c.stride(1),  #
-        BLOCK_SIZE_M, BLOCK_SIZE_N, BLOCK_SIZE_K, GROUP_SIZE_M)
+        a,
+        b,
+        c,  #
+        M,
+        N,
+        K,  #
+        a.stride(0),
+        a.stride(1),  #
+        b.stride(0),
+        b.stride(1),  #
+        c.stride(0),
+        c.stride(1),  #
+        BLOCK_SIZE_M,
+        BLOCK_SIZE_N,
+        BLOCK_SIZE_K,
+        GROUP_SIZE_M)
     profiler.finalize()
 
     asm = kernel.asm["amdgcn"]
@@ -480,15 +546,20 @@ def test_warp_spec(tmp_path: pathlib.Path):
         pytest.skip("target backend does not support warp specialization")
 
     @triton.jit
-    def matmul_kernel_tma(a_desc, b_desc, c_desc,  #
-                          M, N, K,  #
-                          BLOCK_SIZE_M: tl.constexpr,  #
-                          BLOCK_SIZE_N: tl.constexpr,  #
-                          BLOCK_SIZE_K: tl.constexpr,  #
-                          GROUP_SIZE_M: tl.constexpr,  #
-                          FP8_OUTPUT: tl.constexpr,  #
-                          WARP_SPECIALIZE: tl.constexpr,  #
-                          ):
+    def matmul_kernel_tma(
+            a_desc,
+            b_desc,
+            c_desc,  #
+            M,
+            N,
+            K,  #
+            BLOCK_SIZE_M: tl.constexpr,  #
+            BLOCK_SIZE_N: tl.constexpr,  #
+            BLOCK_SIZE_K: tl.constexpr,  #
+            GROUP_SIZE_M: tl.constexpr,  #
+            FP8_OUTPUT: tl.constexpr,  #
+            WARP_SPECIALIZE: tl.constexpr,  #
+    ):
         dtype = tl.float8e4nv if FP8_OUTPUT else tl.float16
         pl.enter_scope("kernel")
         pid = tl.program_id(axis=0)
@@ -525,7 +596,8 @@ def test_warp_spec(tmp_path: pathlib.Path):
 
     def matmul_tma(a, b, warp_specialize: bool):
         # Check constraints.
-        assert a.shape[1] == b.shape[1], "Incompatible dimensions"  # b is transposed
+        assert a.shape[1] == b.shape[
+            1], "Incompatible dimensions"  # b is transposed
         assert a.dtype == b.dtype, "Incompatible dtypes"
 
         M, K = a.shape
@@ -544,8 +616,12 @@ def test_warp_spec(tmp_path: pathlib.Path):
             return (triton.cdiv(M, BLOCK_M) * triton.cdiv(N, BLOCK_N), )
 
         matmul_kernel_tma[grid](
-            a_desc, b_desc, c_desc,  #
-            M, N, K,  #
+            a_desc,
+            b_desc,
+            c_desc,  #
+            M,
+            N,
+            K,  #
             BLOCK_SIZE_M=128,  #
             BLOCK_SIZE_N=256,  #
             BLOCK_SIZE_K=128,  #
@@ -558,11 +634,15 @@ def test_warp_spec(tmp_path: pathlib.Path):
 
     mode = profiler.mode.Default(metric_type="cycle", optimizations="clock32")
     temp_file = tmp_path / "test_warpspec.hatchet"
-    profiler.start(str(temp_file.with_suffix("")), backend="instrumentation", mode=mode)
+    profiler.start(str(temp_file.with_suffix("")),
+                   backend="instrumentation",
+                   mode=mode)
     torch.manual_seed(0)
     M, N, K = 512, 512, 512
-    a = torch.randn((M, K), device="cuda", dtype=torch.float16).to(torch.float8_e4m3fn)
-    b = torch.randn((K, N), device="cuda", dtype=torch.float16).to(torch.float8_e4m3fn)
+    a = torch.randn((M, K), device="cuda",
+                    dtype=torch.float16).to(torch.float8_e4m3fn)
+    b = torch.randn((K, N), device="cuda",
+                    dtype=torch.float16).to(torch.float8_e4m3fn)
     b = b.T.contiguous()
 
     matmul_tma(a, b, warp_specialize=HAS_WARP_SPECIALIZE)
@@ -579,8 +659,12 @@ def test_warp_spec(tmp_path: pathlib.Path):
 
 def test_timeline(tmp_path: pathlib.Path):
     temp_file = tmp_path / "test_timeline.chrome_trace"
-    mode = profiler.mode.Default(metric_type="cycle", optimizations="time_shift")
-    profiler.start(str(temp_file.with_suffix("")), data="trace", backend="instrumentation", mode=mode)
+    mode = profiler.mode.Default(metric_type="cycle",
+                                 optimizations="time_shift")
+    profiler.start(str(temp_file.with_suffix("")),
+                   data="trace",
+                   backend="instrumentation",
+                   mode=mode)
 
     @triton.jit
     def foo(x, y, size: tl.constexpr):

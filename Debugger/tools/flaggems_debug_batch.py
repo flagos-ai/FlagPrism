@@ -22,14 +22,16 @@ import signal
 import subprocess
 import sys
 import time
-from typing import Any, Iterable
-
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_FLAGGEMS_ROOT = Path(os.environ.get("FLAGGEMS_ROOT", REPO_ROOT.parent / "FlagGems"))
+DEFAULT_FLAGGEMS_ROOT = Path(
+    os.environ.get("FLAGGEMS_ROOT", REPO_ROOT.parent / "FlagGems"))
 DEFAULT_WORKSPACE_ROOT = Path(".cache/flaggems_debugger_batch")
 DEFAULT_PYTHON = Path(os.environ.get("PYTHON", sys.executable))
-ASCEND_SET_ENV = Path(os.environ.get("ASCEND_SET_ENV", "/usr/local/Ascend/ascend-toolkit/set_env.sh"))
+ASCEND_SET_ENV = Path(
+    os.environ.get("ASCEND_SET_ENV",
+                   "/usr/local/Ascend/ascend-toolkit/set_env.sh"))
 
 
 @dataclass
@@ -95,9 +97,12 @@ def load_operator_inventory(flaggems_root: Path) -> list[dict[str, Any]]:
         return ops
 
 
-def select_ops(args: argparse.Namespace, inventory: list[dict[str, Any]]) -> list[str]:
+def select_ops(args: argparse.Namespace,
+               inventory: list[dict[str, Any]]) -> list[str]:
     if args.ops:
-        return [op.strip().lstrip("_") for op in args.ops.split(",") if op.strip()]
+        return [
+            op.strip().lstrip("_") for op in args.ops.split(",") if op.strip()
+        ]
 
     if args.op_list_file:
         selected = []
@@ -107,7 +112,10 @@ def select_ops(args: argparse.Namespace, inventory: list[dict[str, Any]]) -> lis
                 selected.append(stripped.lstrip("_"))
         return selected
 
-    stages = {stage.strip() for stage in args.stages.split(",") if stage.strip()}
+    stages = {
+        stage.strip()
+        for stage in args.stages.split(",") if stage.strip()
+    }
     if "all" in stages:
         stages = {"alpha", "beta", "stable"}
     if not stages:
@@ -131,7 +139,7 @@ def select_ops(args: argparse.Namespace, inventory: list[dict[str, Any]]) -> lis
         selected.append(op_id)
 
     if args.max_ops:
-        selected = selected[: args.max_ops]
+        selected = selected[:args.max_ops]
     return selected
 
 
@@ -144,12 +152,9 @@ def no_cpu_ops(inventory: list[dict[str, Any]]) -> set[str]:
     return result
 
 
-def inventory_by_id(inventory: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    return {
-        str(item["id"]): item
-        for item in inventory
-        if item.get("id")
-    }
+def inventory_by_id(
+        inventory: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return {str(item["id"]): item for item in inventory if item.get("id")}
 
 
 def op_source_candidates(op: str) -> list[str]:
@@ -195,11 +200,8 @@ def copy_flaggems_source(src: Path, dest: Path) -> None:
         }
         return {
             name
-            for name in names
-            if name in ignored
-            or name.endswith(".pyc")
-            or name.endswith(".pyo")
-            or re.match(r"accuracy_.*\.json$", name)
+            for name in names if name in ignored or name.endswith(".pyc")
+            or name.endswith(".pyo") or re.match(r"accuracy_.*\.json$", name)
             or re.match(r"benchmark_.*\.json$", name)
         }
 
@@ -220,28 +222,20 @@ def is_tl_import_present(module: ast.Module) -> bool:
 
 
 def insert_module_import(module: ast.Module, name: str, alias: str) -> None:
-    import_node = ast.Import(
-        names=[ast.alias(name=name, asname=alias)]
-    )
+    import_node = ast.Import(names=[ast.alias(name=name, asname=alias)])
     index = 0
-    if (
-        module.body
-        and isinstance(module.body[0], ast.Expr)
-        and isinstance(module.body[0].value, ast.Constant)
-        and isinstance(module.body[0].value.value, str)
-    ):
+    if (module.body and isinstance(module.body[0], ast.Expr)
+            and isinstance(module.body[0].value, ast.Constant)
+            and isinstance(module.body[0].value.value, str)):
         index = 1
 
-    while (
-        index < len(module.body)
-        and isinstance(module.body[index], ast.ImportFrom)
-        and module.body[index].module == "__future__"
-    ):
+    while (index < len(module.body)
+           and isinstance(module.body[index], ast.ImportFrom)
+           and module.body[index].module == "__future__"):
         index += 1
 
     while index < len(module.body) and isinstance(
-        module.body[index], (ast.Import, ast.ImportFrom)
-    ):
+            module.body[index], (ast.Import, ast.ImportFrom)):
         index += 1
 
     module.body.insert(index, import_node)
@@ -265,6 +259,7 @@ def insert_ftl_import(module: ast.Module) -> None:
 
 
 class ExtLaunchIdNormalizer(ast.NodeTransformer):
+
     def __init__(self):
         self.rewrite_count = 0
 
@@ -273,12 +268,9 @@ class ExtLaunchIdNormalizer(ast.NodeTransformer):
         if not isinstance(node, ast.Call):
             return node
         func = node.func
-        if not (
-            isinstance(func, ast.Attribute)
-            and func.attr in {"program_id", "num_programs"}
-            and isinstance(func.value, ast.Name)
-            and func.value.id == "ext"
-        ):
+        if not (isinstance(func, ast.Attribute)
+                and func.attr in {"program_id", "num_programs"} and isinstance(
+                    func.value, ast.Name) and func.value.id == "ext"):
             return node
 
         self.rewrite_count += 1
@@ -325,12 +317,9 @@ def normalize_ext_launch_ids_in_file(path: Path) -> tuple[int, int, str]:
 
 def decorator_is_triton_jit(decorator: ast.expr) -> bool:
     target = decorator.func if isinstance(decorator, ast.Call) else decorator
-    if (
-        isinstance(target, ast.Attribute)
-        and target.attr == "jit"
-        and isinstance(target.value, ast.Name)
-        and target.value.id == "triton"
-    ):
+    if (isinstance(target, ast.Attribute) and target.attr == "jit"
+            and isinstance(target.value, ast.Name)
+            and target.value.id == "triton"):
         return True
     try:
         return "triton.jit" in ast.unparse(decorator)
@@ -346,24 +335,22 @@ def decorator_mentions(decorator: ast.expr, text: str) -> bool:
 
 
 def function_is_pointwise_dynamic(
-    fn: ast.FunctionDef | ast.AsyncFunctionDef,
-) -> bool:
-    return any(decorator_mentions(d, "pointwise_dynamic") for d in fn.decorator_list)
+    fn: ast.FunctionDef | ast.AsyncFunctionDef, ) -> bool:
+    return any(
+        decorator_mentions(d, "pointwise_dynamic") for d in fn.decorator_list)
 
 
 def is_debug_collect_call(node: ast.AST) -> bool:
     if not isinstance(node, ast.Call):
         return False
     func = node.func
-    return (
-        isinstance(func, ast.Attribute)
-        and func.attr in {"debug_collect_start", "debug_collect_end"}
-        and isinstance(func.value, ast.Name)
-        and func.value.id == "ftl"
-    )
+    return (isinstance(func, ast.Attribute)
+            and func.attr in {"debug_collect_start", "debug_collect_end"}
+            and isinstance(func.value, ast.Name) and func.value.id == "ftl")
 
 
-def function_has_debug_collect(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
+def function_has_debug_collect(
+        fn: ast.FunctionDef | ast.AsyncFunctionDef) -> bool:
     for node in ast.walk(fn):
         if is_debug_collect_call(node):
             return True
@@ -405,34 +392,31 @@ def launched_local_jit_functions(module: ast.Module) -> set[str]:
 
 
 def make_debug_start(level: int, addr_level: int) -> ast.Expr:
-    return ast.Expr(
-        value=ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id="ftl", ctx=ast.Load()),
-                attr="debug_collect_start",
-                ctx=ast.Load(),
-            ),
-            args=[],
-            keywords=[
-                ast.keyword(arg="level", value=ast.Constant(value=level)),
-                ast.keyword(arg="addr_level", value=ast.Constant(value=addr_level)),
-            ],
-        )
-    )
+    return ast.Expr(value=ast.Call(
+        func=ast.Attribute(
+            value=ast.Name(id="ftl", ctx=ast.Load()),
+            attr="debug_collect_start",
+            ctx=ast.Load(),
+        ),
+        args=[],
+        keywords=[
+            ast.keyword(arg="level", value=ast.Constant(value=level)),
+            ast.keyword(arg="addr_level", value=ast.Constant(
+                value=addr_level)),
+        ],
+    ))
 
 
 def make_debug_end() -> ast.Expr:
-    return ast.Expr(
-        value=ast.Call(
-            func=ast.Attribute(
-                value=ast.Name(id="ftl", ctx=ast.Load()),
-                attr="debug_collect_end",
-                ctx=ast.Load(),
-            ),
-            args=[],
-            keywords=[],
-        )
-    )
+    return ast.Expr(value=ast.Call(
+        func=ast.Attribute(
+            value=ast.Name(id="ftl", ctx=ast.Load()),
+            attr="debug_collect_end",
+            ctx=ast.Load(),
+        ),
+        args=[],
+        keywords=[],
+    ))
 
 
 def names_in_function(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
@@ -455,6 +439,7 @@ def unique_temp_name(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> str:
 
 
 class ReturnRewriter(ast.NodeTransformer):
+
     def __init__(self, temp_name: str):
         self.temp_name = temp_name
 
@@ -476,18 +461,15 @@ class ReturnRewriter(ast.NodeTransformer):
             value=node.value,
         )
         new_return = ast.Return(
-            value=ast.Name(id=self.temp_name, ctx=ast.Load())
-        )
+            value=ast.Name(id=self.temp_name, ctx=ast.Load()))
         return [assign, make_debug_end(), new_return]
 
 
-def function_body_insert_index(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
-    if (
-        fn.body
-        and isinstance(fn.body[0], ast.Expr)
-        and isinstance(fn.body[0].value, ast.Constant)
-        and isinstance(fn.body[0].value.value, str)
-    ):
+def function_body_insert_index(
+        fn: ast.FunctionDef | ast.AsyncFunctionDef) -> int:
+    if (fn.body and isinstance(fn.body[0], ast.Expr)
+            and isinstance(fn.body[0].value, ast.Constant)
+            and isinstance(fn.body[0].value.value, str)):
         index = 1
     else:
         index = 0
@@ -505,9 +487,8 @@ def function_body_insert_index(fn: ast.FunctionDef | ast.AsyncFunctionDef) -> in
     return index
 
 
-def first_tensor_region_index(
-    fn: ast.FunctionDef | ast.AsyncFunctionDef, start_index: int
-) -> int | None:
+def first_tensor_region_index(fn: ast.FunctionDef | ast.AsyncFunctionDef,
+                              start_index: int) -> int | None:
     for index in range(start_index, len(fn.body)):
         if contains_tl_region_entry_call(fn.body[index]):
             return index
@@ -524,8 +505,8 @@ def contains_tl_region_entry_call(node: ast.AST) -> bool:
         if not (isinstance(func.value, ast.Name) and func.value.id == "tl"):
             continue
         if func.attr in {
-            "program_id",
-            "num_programs",
+                "program_id",
+                "num_programs",
         }:
             continue
         return True
@@ -560,9 +541,8 @@ def contains_launch_index_call(node: ast.AST) -> bool:
     return False
 
 
-def instrument_function(
-    fn: ast.FunctionDef | ast.AsyncFunctionDef, level: int, addr_level: int
-) -> bool:
+def instrument_function(fn: ast.FunctionDef | ast.AsyncFunctionDef, level: int,
+                        addr_level: int) -> bool:
     if not any(decorator_is_triton_jit(d) for d in fn.decorator_list):
         return False
     if function_is_pointwise_dynamic(fn):
@@ -656,7 +636,8 @@ def instrument_file(
     )
 
 
-def patch_pointwise_dynamic_codegen(root: Path, level: int, addr_level: int) -> bool:
+def patch_pointwise_dynamic_codegen(root: Path, level: int,
+                                    addr_level: int) -> bool:
     """Patch copied FlagGems pointwise generator to emit collect markers.
 
     PointwiseDynamic scalar helpers are @triton.jit functions called from a
@@ -671,10 +652,8 @@ def patch_pointwise_dynamic_codegen(root: Path, level: int, addr_level: int) -> 
     if "ftl.debug_collect_start(level=" in text:
         return False
 
-    start_line = (
-        f'code.writeline("ftl.debug_collect_start(level={level}, '
-        f'addr_level={addr_level})")'
-    )
+    start_line = (f'code.writeline("ftl.debug_collect_start(level={level}, '
+                  f'addr_level={addr_level})")')
     end_line = 'code.writeline("ftl.debug_collect_end()")'
     replacements = [
         (
@@ -757,10 +736,8 @@ def patch_pointwise_dynamic_codegen(root: Path, level: int, addr_level: int) -> 
         applied += count
 
     if applied != expected:
-        raise RuntimeError(
-            "failed to patch pointwise_dynamic.py: "
-            f"applied {applied}/{expected} replacements"
-        )
+        raise RuntimeError("failed to patch pointwise_dynamic.py: "
+                           f"applied {applied}/{expected} replacements")
     write_text(path, patched)
     return True
 
@@ -777,8 +754,7 @@ def instrument_flaggems_tree(
     stats = InstrumentationStats()
     if instrument_pointwise_generated:
         stats.pointwise_dynamic_codegen_patched = patch_pointwise_dynamic_codegen(
-            root, level, addr_level
-        )
+            root, level, addr_level)
     warnings: list[dict[str, str]] = []
     classifications: list[dict[str, Any]] = []
     scan_roots = [root / "src" / "flag_gems", root / "triton_src"]
@@ -788,7 +764,8 @@ def instrument_flaggems_tree(
         for path in scan_root.rglob("*.py"):
             stats.files_scanned += 1
             if normalize_ext_launch_ids:
-                normalized, parse_error, warning = normalize_ext_launch_ids_in_file(path)
+                normalized, parse_error, warning = normalize_ext_launch_ids_in_file(
+                    path)
                 if parse_error:
                     stats.parse_errors += 1
                     warnings.append({"path": str(path), "error": warning})
@@ -959,19 +936,13 @@ def classify_status(
     if exit_code == 5 or "no tests ran" in text.lower():
         return "no_test_found"
     if exit_code == 0:
-        return (
-            "passed"
-            if debug_txt_count > 0 and debug_json_count > 0
-            else "missing_debug_report"
-        )
+        return ("passed" if debug_txt_count > 0 and debug_json_count > 0 else
+                "missing_debug_report")
     lowered = text.lower()
     if "compilationerror" in lowered or "compile" in lowered and "error" in lowered:
         return "compile_error"
-    if (
-        "npu function error" in lowered
-        or "vector core exception" in lowered
-        or "aclrt" in lowered
-    ):
+    if ("npu function error" in lowered or "vector core exception" in lowered
+            or "aclrt" in lowered):
         return "device_error"
     if "runtimeerror" in lowered or "traceback" in lowered or "importerror" in lowered:
         return "runtime_error"
@@ -996,7 +967,9 @@ def run_phase_for_op(
     stdout_log = phase_dir / f"{phase}_stdout.log"
     stderr_log = phase_dir / f"{phase}_stderr.log"
     result_name = f"{phase}_{op}.json"
-    result_src = (worktree / ("tests" if phase == "accuracy" else "benchmark")) / result_name
+    result_src = (
+        worktree /
+        ("tests" if phase == "accuracy" else "benchmark")) / result_name
     result_dst = phase_dir / f"{phase}_result.json"
     if result_src.exists():
         result_src.unlink()
@@ -1041,8 +1014,7 @@ def run_phase_for_op(
     timed_out = False
     exit_code: int | None = None
     with stdout_log.open("w", encoding="utf-8") as out, stderr_log.open(
-        "w", encoding="utf-8"
-    ) as err:
+            "w", encoding="utf-8") as err:
         proc = subprocess.Popen(
             ["/bin/bash", "-lc", command],
             stdout=out,
@@ -1085,8 +1057,7 @@ def run_phase_for_op(
         first_error = (
             "test exited successfully but debugger report is missing or "
             f"incomplete: txt={debug_txt_count}, json={debug_json_count}, "
-            f"dir={debug_dir}"
-        )
+            f"dir={debug_dir}")
     op_status = OpStatus(
         op=op,
         phase=phase,
@@ -1102,7 +1073,8 @@ def run_phase_for_op(
         debug_json_count=debug_json_count,
         first_error=first_error,
     )
-    write_text(phase_dir / "status.json", json.dumps(asdict(op_status), indent=2))
+    write_text(phase_dir / "status.json",
+               json.dumps(asdict(op_status), indent=2))
     return op_status
 
 
@@ -1115,10 +1087,8 @@ def write_unsupported_pointwise_status(
     debug_dir = phase_dir / "debug_reports"
     phase_dir.mkdir(parents=True, exist_ok=True)
     debug_dir.mkdir(parents=True, exist_ok=True)
-    reason = (
-        "skipped: current Ascend debugger mode does not support "
-        "FlagGems pointwise_dynamic generated kernels with tt.call"
-    )
+    reason = ("skipped: current Ascend debugger mode does not support "
+              "FlagGems pointwise_dynamic generated kernels with tt.call")
     op_status = OpStatus(
         op=op,
         phase=phase,
@@ -1136,17 +1106,20 @@ def write_unsupported_pointwise_status(
     )
     write_text(phase_dir / f"{phase}_stdout.log", reason + "\n")
     write_text(phase_dir / f"{phase}_stderr.log", "")
-    write_text(phase_dir / "status.json", json.dumps(asdict(op_status), indent=2))
+    write_text(phase_dir / "status.json",
+               json.dumps(asdict(op_status), indent=2))
     return op_status
 
 
 def write_summary(run_dir: Path, statuses: list[OpStatus]) -> None:
     rows = [asdict(status) for status in statuses]
-    write_text(run_dir / "summary.json", json.dumps(rows, indent=2, sort_keys=True))
+    write_text(run_dir / "summary.json",
+               json.dumps(rows, indent=2, sort_keys=True))
     if not rows:
         write_text(run_dir / "summary.csv", "")
         return
-    with (run_dir / "summary.csv").open("w", encoding="utf-8", newline="") as f:
+    with (run_dir / "summary.csv").open("w", encoding="utf-8",
+                                        newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
@@ -1174,7 +1147,8 @@ def write_manifest(
         "normalize_ext_launch_ids": args.normalize_ext_launch_ids,
         "instrumentation": asdict(stats),
     }
-    write_text(run_dir / "manifest.json", json.dumps(manifest, indent=2, sort_keys=True))
+    write_text(run_dir / "manifest.json",
+               json.dumps(manifest, indent=2, sort_keys=True))
 
 
 def add_bool_argument(
@@ -1185,18 +1159,28 @@ def add_bool_argument(
     help_text: str,
 ) -> None:
     dest = name.replace("-", "_")
-    parser.add_argument(f"--{name}", dest=dest, action="store_true", help=help_text)
+    parser.add_argument(f"--{name}",
+                        dest=dest,
+                        action="store_true",
+                        help=help_text)
     parser.add_argument(f"--no-{name}", dest=dest, action="store_false")
     parser.set_defaults(**{dest: default})
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Batch run FlagGems ops with FlagPrism debugger instrumentation."
-    )
-    parser.add_argument("--flaggems-root", type=Path, default=DEFAULT_FLAGGEMS_ROOT)
-    parser.add_argument("--workspace-root", type=Path, default=DEFAULT_WORKSPACE_ROOT)
-    parser.add_argument("--python", type=Path, default=DEFAULT_PYTHON if DEFAULT_PYTHON.exists() else Path(sys.executable))
+        description=
+        "Batch run FlagGems ops with FlagPrism debugger instrumentation.")
+    parser.add_argument("--flaggems-root",
+                        type=Path,
+                        default=DEFAULT_FLAGGEMS_ROOT)
+    parser.add_argument("--workspace-root",
+                        type=Path,
+                        default=DEFAULT_WORKSPACE_ROOT)
+    parser.add_argument("--python",
+                        type=Path,
+                        default=DEFAULT_PYTHON
+                        if DEFAULT_PYTHON.exists() else Path(sys.executable))
     parser.add_argument("--ops", help="comma-separated op ids")
     parser.add_argument("--op-list-file")
     parser.add_argument("--stages", default="stable")
@@ -1211,11 +1195,10 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         parser,
         "skip-pointwise-dynamic",
         default=False,
-        help_text=(
-            "Skip FlagGems pointwise_dynamic ops instead of patching the copied "
-            "pointwise code generator. Off by default so generated pointwise "
-            "kernels are covered by the debugger sample sweep."
-        ),
+        help_text=
+        ("Skip FlagGems pointwise_dynamic ops instead of patching the copied "
+         "pointwise code generator. Off by default so generated pointwise "
+         "kernels are covered by the debugger sample sweep."),
     )
     parser.add_argument(
         "--normalize-ext-launch-ids",
@@ -1225,10 +1208,11 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
             "In the copied FlagGems tree, rewrite ext.program_id/"
             "ext.num_programs helper calls to native tl.program_id/"
             "tl.num_programs casts. Off by default so the copied source keeps "
-            "FlagGems launch helper calls unchanged."
-        ),
+            "FlagGems launch helper calls unchanged."),
     )
-    parser.add_argument("--no-normalize-ext-launch-ids", dest="normalize_ext_launch_ids", action="store_false")
+    parser.add_argument("--no-normalize-ext-launch-ids",
+                        dest="normalize_ext_launch_ids",
+                        action="store_false")
     parser.set_defaults(normalize_ext_launch_ids=False)
     add_bool_argument(
         parser,
@@ -1236,13 +1220,18 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
         default=True,
         help_text=(
             "Patch the copied FlagGems pointwise_dynamic code generator so "
-            "generated wrapper kernels contain ftl.debug_collect_start/end."
-        ),
+            "generated wrapper kernels contain ftl.debug_collect_start/end."),
     )
     parser.add_argument("--export-raw-records", action="store_true")
-    add_bool_argument(parser, "quick", default=True, help_text="Pass --quick to FlagGems tests.")
+    add_bool_argument(parser,
+                      "quick",
+                      default=True,
+                      help_text="Pass --quick to FlagGems tests.")
     parser.add_argument("--dry-run", action="store_true")
-    add_bool_argument(parser, "keep-worktree", default=True, help_text="Keep copied worktree.")
+    add_bool_argument(parser,
+                      "keep-worktree",
+                      default=True,
+                      help_text="Keep copied worktree.")
     return parser.parse_args(argv)
 
 
@@ -1308,8 +1297,7 @@ def main(argv: list[str]) -> int:
     for index, op in enumerate(ops, start=1):
         print(f"[INFO] [{index}/{len(ops)}] running {op}")
         if args.skip_pointwise_dynamic and op_uses_pointwise_dynamic(
-            worktree, op, inventory_map
-        ):
+                worktree, op, inventory_map):
             for phase in phases:
                 status = write_unsupported_pointwise_status(op, phase, run_dir)
                 statuses.append(status)
@@ -1320,29 +1308,25 @@ def main(argv: list[str]) -> int:
                 )
             continue
         for phase in phases:
-            status = run_phase_for_op(
-                op, phase, worktree, run_dir, bootstrap_dir, no_cpu, args
-            )
+            status = run_phase_for_op(op, phase, worktree, run_dir,
+                                      bootstrap_dir, no_cpu, args)
             statuses.append(status)
             write_summary(run_dir, statuses)
-            print(
-                f"[INFO] {op}/{phase}: {status.status} "
-                f"exit={status.exit_code} reports={status.debug_txt_count}"
-            )
+            print(f"[INFO] {op}/{phase}: {status.status} "
+                  f"exit={status.exit_code} reports={status.debug_txt_count}")
 
     write_summary(run_dir, statuses)
     failing = [
-        status
-        for status in statuses
-        if status.status
-        not in {
+        status for status in statuses if status.status not in {
             "passed",
             "no_test_found",
             "unsupported_pointwise_dynamic",
         }
     ]
     if failing:
-        print(f"[WARN] {len(failing)} phase(s) did not pass. See {run_dir / 'summary.json'}")
+        print(
+            f"[WARN] {len(failing)} phase(s) did not pass. See {run_dir / 'summary.json'}"
+        )
         return 1
     print(f"[INFO] complete. See {run_dir / 'summary.json'}")
     return 0

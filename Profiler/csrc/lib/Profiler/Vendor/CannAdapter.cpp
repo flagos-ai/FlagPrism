@@ -48,7 +48,6 @@ CannMetricsImporter::import(const SessionProfileMetadata &metadata,
   return artifact;
 }
 
-
 const CannAdapter &CannAdapter::instance() {
   static const CannAdapter adapter;
   return adapter;
@@ -56,9 +55,7 @@ const CannAdapter &CannAdapter::instance() {
 
 std::string CannAdapter::getName() const { return "cann"; }
 
-DeviceType CannAdapter::getDeviceType() const {
-  return DeviceType::ASCEND;
-}
+DeviceType CannAdapter::getDeviceType() const { return DeviceType::ASCEND; }
 
 std::vector<std::string> CannAdapter::getSupportedVendorMetrics() const {
   return {"aicore", "bandwidth"};
@@ -98,7 +95,8 @@ CannAdapter::makePlan(const VendorProfileOptions &options) const {
   // Prefer the in-process aclprof path so profiler.start()/finalize()
   // can produce vendor artifacts without requiring users to wrap their program
   // in an external msprof command. Users can still set
-  // aclprof_runtime_enabled=false for file-only import or external-msprof flows.
+  // aclprof_runtime_enabled=false for file-only import or external-msprof
+  // flows.
   if (plan.requested.adapterOptions.count("mstx_domain") == 0 &&
       plan.requested.adapterOptions.count("mstx_domain_name") == 0) {
     plan.requested.adapterOptions["mstx_domain"] = "flagtree_profiler";
@@ -121,7 +119,8 @@ CannAdapter::makePlan(const VendorProfileOptions &options) const {
     aclProfFlags.push_back("ACL_PROF_AICORE_METRICS");
   }
   if (plan.requested.adapterOptions.count("aclprof_data_type_flags") == 0) {
-    plan.requested.adapterOptions["aclprof_data_type_flags"] = join(aclProfFlags);
+    plan.requested.adapterOptions["aclprof_data_type_flags"] =
+        join(aclProfFlags);
   }
   if (plan.requested.adapterOptions.count("aclprof_set_config_mem_freq_hz") ==
       0) {
@@ -129,7 +128,8 @@ CannAdapter::makePlan(const VendorProfileOptions &options) const {
   }
   if (plan.requested.adapterOptions.count("output_path") == 0 &&
       plan.requested.adapterOptions.count("aclprof_output_path") == 0) {
-    const char *envOutputPath = std::getenv("FLAGTREE_PROFILER_CANN_PROFILE_OUTPUT");
+    const char *envOutputPath =
+        std::getenv("FLAGTREE_PROFILER_CANN_PROFILE_OUTPUT");
     if (envOutputPath && *envOutputPath) {
       plan.requested.adapterOptions["aclprof_output_path"] =
           std::string(envOutputPath);
@@ -137,23 +137,25 @@ CannAdapter::makePlan(const VendorProfileOptions &options) const {
       plan.requested.adapterOptions["aclprof_output_path_temporary"] = "true";
     }
   }
-  if (plan.requested.adapterOptions.count("runtime_host_timing_fallback") == 0 &&
+  if (plan.requested.adapterOptions.count("runtime_host_timing_fallback") ==
+          0 &&
       plan.requested.adapterOptions.count("runtime_base_host_fallback") == 0) {
     const char *envHostFallback =
         std::getenv("FLAGTREE_PROFILER_CANN_RUNTIME_HOST_FALLBACK");
     plan.requested.adapterOptions["runtime_host_timing_fallback"] =
         envHostFallback && *envHostFallback ? std::string(envHostFallback)
-                                           : "true";
+                                            : "true";
   }
-  auto useMsprofTx =
-      std::find(plan.enabledVendorMetrics.begin(), plan.enabledVendorMetrics.end(),
-                "aicore") != plan.enabledVendorMetrics.end() ||
-              std::find(plan.enabledVendorMetrics.begin(),
-                        plan.enabledVendorMetrics.end(),
-                        "bandwidth") != plan.enabledVendorMetrics.end();
+  auto useMsprofTx = std::find(plan.enabledVendorMetrics.begin(),
+                               plan.enabledVendorMetrics.end(),
+                               "aicore") != plan.enabledVendorMetrics.end() ||
+                     std::find(plan.enabledVendorMetrics.begin(),
+                               plan.enabledVendorMetrics.end(),
+                               "bandwidth") != plan.enabledVendorMetrics.end();
   if (plan.requested.adapterOptions.count("mstx_enabled") == 0 &&
       plan.requested.adapterOptions.count("msproftx_enabled") == 0) {
-    plan.requested.adapterOptions["mstx_enabled"] = useMsprofTx ? "true" : "false";
+    plan.requested.adapterOptions["mstx_enabled"] =
+        useMsprofTx ? "true" : "false";
   }
   if (plan.requested.adapterOptions.count("aclprof_msproftx_enabled") == 0) {
     plan.requested.adapterOptions["aclprof_msproftx_enabled"] =
@@ -163,7 +165,8 @@ CannAdapter::makePlan(const VendorProfileOptions &options) const {
   // aclprofCreateConfig accepts one aicore metric selector.
   // Prefer memory-access metrics if bandwidth enhancement is requested.
   uint64_t aclAicoreMetric = kAclAicoreArithmeticUtilization;
-  if (std::find(plan.enabledVendorMetrics.begin(), plan.enabledVendorMetrics.end(),
+  if (std::find(plan.enabledVendorMetrics.begin(),
+                plan.enabledVendorMetrics.end(),
                 "bandwidth") != plan.enabledVendorMetrics.end()) {
     aclAicoreMetric = kAclAicoreMemoryAccess;
   } else if (std::find(plan.enabledVendorMetrics.begin(),

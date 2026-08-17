@@ -37,8 +37,7 @@ class DebugCollectRuntime:
         if binding is None:
             raise RuntimeError(
                 "FlagPrism debugger native support is unavailable. Reinstall "
-                "FlagTree with `TRITON_BUILD_FLAGPRISM=ON`."
-            )
+                "FlagTree with `TRITON_BUILD_FLAGPRISM=ON`.")
         return binding
 
     @staticmethod
@@ -56,26 +55,26 @@ class DebugCollectRuntime:
                 result.update(dict(vars(metadata)))
 
             for key in (
-                "debug_enabled",
-                "debug_kernel_id",
-                "debug_protocol_version",
-                "debug_record_level",
-                "debug_addr_level",
-                "debug_export_mode",
-                "debug_record_capacity",
-                "debug_record_size",
-                "debug_records_per_instance",
-                "debug_record_layout",
-                "debug_record_plan",
-                "debug_full_dump_payload_bytes_per_instance",
-                "debug_full_dump_plan",
-                "debug_backend_name",
-                "debug_target_name",
-                "debug_metadata_json",
-                "name",
-                "backend_name",
-                "target_name",
-                "target",
+                    "debug_enabled",
+                    "debug_kernel_id",
+                    "debug_protocol_version",
+                    "debug_record_level",
+                    "debug_addr_level",
+                    "debug_export_mode",
+                    "debug_record_capacity",
+                    "debug_record_size",
+                    "debug_records_per_instance",
+                    "debug_record_layout",
+                    "debug_record_plan",
+                    "debug_full_dump_payload_bytes_per_instance",
+                    "debug_full_dump_plan",
+                    "debug_backend_name",
+                    "debug_target_name",
+                    "debug_metadata_json",
+                    "name",
+                    "backend_name",
+                    "target_name",
+                    "target",
             ):
                 try:
                     value = getattr(metadata, key)
@@ -118,56 +117,54 @@ class DebugCollectRuntime:
         return name
 
     @staticmethod
-    def _normalize_launch_metadata(metadata_dict: dict[str, Any]) -> dict[str, Any]:
+    def _normalize_launch_metadata(
+            metadata_dict: dict[str, Any]) -> dict[str, Any]:
         target = metadata_dict.get("target")
-        target_name = (
-            metadata_dict.get("debug_target_name")
-            or metadata_dict.get("target_name")
-            or DebugCollectRuntime._target_to_name(target)
-        )
-        backend_name = (
-            metadata_dict.get("debug_backend_name")
-            or os.environ.get("FLAGTREE_BACKEND")
-            or metadata_dict.get("backend_name")
-            or DebugCollectRuntime._target_backend(target)
-        )
-        metadata_dict["debug_backend_name"] = DebugCollectRuntime._normalize_backend_name(
-            backend_name
-        )
+        target_name = (metadata_dict.get("debug_target_name")
+                       or metadata_dict.get("target_name")
+                       or DebugCollectRuntime._target_to_name(target))
+        backend_name = (metadata_dict.get("debug_backend_name")
+                        or os.environ.get("FLAGTREE_BACKEND")
+                        or metadata_dict.get("backend_name")
+                        or DebugCollectRuntime._target_backend(target))
+        metadata_dict[
+            "debug_backend_name"] = DebugCollectRuntime._normalize_backend_name(
+                backend_name)
         metadata_dict["debug_target_name"] = str(target_name)
         return metadata_dict
 
-    def prepare(self, metadata: Any, stream, runtime_metadata: Any | None = None) -> DebugLaunchContext:
-        metadata_dict = self._normalize_launch_metadata(self._metadata_to_dict(metadata))
+    def prepare(self,
+                metadata: Any,
+                stream,
+                runtime_metadata: Any | None = None) -> DebugLaunchContext:
+        metadata_dict = self._normalize_launch_metadata(
+            self._metadata_to_dict(metadata))
         runtime_metadata_dict = dict(runtime_metadata or {})
         if metadata_dict.get("debug_record_layout"):
             runtime_metadata_dict.setdefault(
-                "record_layout", metadata_dict["debug_record_layout"]
-            )
+                "record_layout", metadata_dict["debug_record_layout"])
         if metadata_dict.get("debug_record_plan") is not None:
             runtime_metadata_dict.setdefault(
-                "record_plan", metadata_dict["debug_record_plan"]
-            )
+                "record_plan", metadata_dict["debug_record_plan"])
         if metadata_dict.get("debug_records_per_instance") is not None:
             runtime_metadata_dict.setdefault(
-                "records_per_instance", int(metadata_dict["debug_records_per_instance"])
-            )
+                "records_per_instance",
+                int(metadata_dict["debug_records_per_instance"]))
         if metadata_dict.get("debug_full_dump_plan") is not None:
             runtime_metadata_dict.setdefault(
-                "full_dump_plan", metadata_dict["debug_full_dump_plan"]
-            )
-        if (
-            int(metadata_dict.get("debug_record_level", 1)) == 2
-            and int(metadata_dict.get("debug_full_dump_payload_bytes_per_instance", 0)) > 0
-            and metadata_dict.get("debug_full_dump_plan")
-        ):
+                "full_dump_plan", metadata_dict["debug_full_dump_plan"])
+        if (int(metadata_dict.get("debug_record_level", 1)) == 2 and int(
+                metadata_dict.get("debug_full_dump_payload_bytes_per_instance",
+                                  0)) > 0
+                and metadata_dict.get("debug_full_dump_plan")):
             from . import api as process_debugger
 
             if process_debugger.get_output_dir() is None:
-                raise RuntimeError("level-2 debugger full dump requires debugger output_dir")
-        handle = self._binding().prepare_launch(
-            metadata_dict, int(stream or 0), runtime_metadata_dict
-        )
+                raise RuntimeError(
+                    "level-2 debugger full dump requires debugger output_dir")
+        handle = self._binding().prepare_launch(metadata_dict, int(stream
+                                                                   or 0),
+                                                runtime_metadata_dict)
         return DebugLaunchContext(
             debug_kernel_id=int(metadata_dict.get("debug_kernel_id", 0)),
             hidden_arg=int(handle.hidden_arg_value),
@@ -181,21 +178,21 @@ class DebugCollectRuntime:
     def export(self, ctx: DebugLaunchContext, stream) -> DebugExportedRun:
         del stream
         if ctx.handle is None:
-            return DebugExportedRun(debug_kernel_id=ctx.debug_kernel_id, raw_buffer=b"")
+            return DebugExportedRun(debug_kernel_id=ctx.debug_kernel_id,
+                                    raw_buffer=b"")
 
         exported = ctx.handle.finish()
         ctx.handle = None
-        metadata_dict = self._normalize_launch_metadata(self._metadata_to_dict(ctx.metadata))
-        if (
-            int(metadata_dict.get("debug_record_level", 1)) == 2
-            and int(metadata_dict.get("debug_full_dump_payload_bytes_per_instance", 0)) > 0
-            and metadata_dict.get("debug_full_dump_plan")
-        ):
+        metadata_dict = self._normalize_launch_metadata(
+            self._metadata_to_dict(ctx.metadata))
+        if (int(metadata_dict.get("debug_record_level", 1)) == 2 and int(
+                metadata_dict.get("debug_full_dump_payload_bytes_per_instance",
+                                  0)) > 0
+                and metadata_dict.get("debug_full_dump_plan")):
             from . import api as process_debugger
 
             finalized = process_debugger._finalize_exported_run(  # noqa: SLF001
-                dict(exported), metadata_dict
-            )
+                dict(exported), metadata_dict)
             run = DebugExportedRun(
                 debug_kernel_id=ctx.debug_kernel_id,
                 raw_buffer=bytes(finalized.get("raw_buffer", b"")),
@@ -213,7 +210,8 @@ class DebugCollectRuntime:
         report = ""
         metadata_json = getattr(ctx.metadata, "debug_metadata_json", None)
         if metadata_json:
-            report = self._binding().render_text_report(exported, str(metadata_json))
+            report = self._binding().render_text_report(
+                exported, str(metadata_json))
 
         run = DebugExportedRun(
             debug_kernel_id=ctx.debug_kernel_id,

@@ -22,8 +22,8 @@ struct CycleEntry {
 struct CircularLayoutParserResult {
   struct Trace {
     uint32_t uid = 0;
-    std::vector<std::pair<std::shared_ptr<CycleEntry>,
-                          std::shared_ptr<CycleEntry>>>
+    std::vector<
+        std::pair<std::shared_ptr<CycleEntry>, std::shared_ptr<CycleEntry>>>
         profileEvents;
   };
 
@@ -54,8 +54,9 @@ struct KernelTrace {
   std::shared_ptr<KernelMetadata> metadata;
 };
 
-inline void timeShift(int64_t shift,
-                      const std::shared_ptr<CircularLayoutParserResult> &trace) {
+inline void
+timeShift(int64_t shift,
+          const std::shared_ptr<CircularLayoutParserResult> &trace) {
   if (!trace || shift == 0) {
     return;
   }

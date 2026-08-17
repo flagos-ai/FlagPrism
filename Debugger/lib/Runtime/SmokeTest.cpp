@@ -31,8 +31,7 @@ makeDefaultBufferMeta(mlir::flagtree::debugger::BackendKind backendKind =
 }
 
 mlir::flagtree::debugger::DebugBufferPlan
-makeDefaultBufferPlan(uint32_t recordCapacity = 1024,
-                      size_t payloadBytes = 0) {
+makeDefaultBufferPlan(uint32_t recordCapacity = 1024, size_t payloadBytes = 0) {
   using namespace mlir::flagtree::debugger;
   DebugBufferPlan plan;
   plan.recordCapacity = recordCapacity;

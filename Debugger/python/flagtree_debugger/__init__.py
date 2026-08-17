@@ -14,16 +14,14 @@ class _DebuggerComponent:
     name = "debugger"
     api_version = (2, 0)
     version = __version__
-    required_capabilities = frozenset(
-        {
-            "compiler.dialects.v1",
-            "compiler.events.v1",
-            "compiler.options.v1",
-            "frontend.statement_events.v1",
-            "language.debug_collect.v1",
-            "runtime.launch_context.v1",
-        }
-    )
+    required_capabilities = frozenset({
+        "compiler.dialects.v1",
+        "compiler.events.v1",
+        "compiler.options.v1",
+        "frontend.statement_events.v1",
+        "language.debug_collect.v1",
+        "runtime.launch_context.v1",
+    })
 
     @staticmethod
     def load_dialects(context) -> None:

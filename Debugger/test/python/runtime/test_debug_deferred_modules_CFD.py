@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-
 DEBUGGER_ROOT = Path(__file__).resolve().parents[3]
 ROOT = Path(__file__).resolve().parents[6]
 TRITON_OPT = ROOT / "python" / "build" / "cmake.linux-aarch64-cpython-3.11" / "bin" / "triton-opt"
@@ -80,12 +79,18 @@ def _tracked_op(
 
 def _doc_example_metadata_json(*, backend_name: str = "cuda") -> str:
     return json.dumps({
-        "debugKernelId": 99,
-        "kernelName": "doc_example_kernel",
-        "backendName": backend_name,
-        "targetName": "Ascend910B4-1" if backend_name == "ascend" else "host",
-        "scopeCount": 1,
-        "trackedOpCount": 2,
+        "debugKernelId":
+        99,
+        "kernelName":
+        "doc_example_kernel",
+        "backendName":
+        backend_name,
+        "targetName":
+        "Ascend910B4-1" if backend_name == "ascend" else "host",
+        "scopeCount":
+        1,
+        "trackedOpCount":
+        2,
         "trackedOps": [
             _tracked_op(1, "tt.dot", "", "y = tl.dot(a, b)"),
             _tracked_op(2, "arith.addf", "", "z = x + y"),
@@ -96,7 +101,8 @@ def _doc_example_metadata_json(*, backend_name: str = "cuda") -> str:
 def _doc_example_summary_buffer(*, capacity: int = 64) -> bytes:
     record_size = 32
     payload_offset = 32 + capacity * record_size
-    header = struct.pack("<IIIIIIII", 3, capacity, 0, 0, record_size, payload_offset, 0, 0)
+    header = struct.pack("<IIIIIIII", 3, capacity, 0, 0, record_size,
+                         payload_offset, 0, 0)
     records = [
         struct.pack("<HHIQHHIQ", 1, 0, 1, 0, 6, 1, 0, 256),
         struct.pack("<HHIQHHId", 1, 0, 1, 0, 3, 3, 0, 0.125),
@@ -105,18 +111,30 @@ def _doc_example_summary_buffer(*, capacity: int = 64) -> bytes:
     return header + b"".join(records)
 
 
-def _summary_u64(op_id: int, collector: int, value: int, *, instance: int = 0) -> bytes:
-    return struct.pack("<HHIQHHIQ", 1, 0, op_id, instance, collector, 1, 0, value)
+def _summary_u64(op_id: int,
+                 collector: int,
+                 value: int,
+                 *,
+                 instance: int = 0) -> bytes:
+    return struct.pack("<HHIQHHIQ", 1, 0, op_id, instance, collector, 1, 0,
+                       value)
 
 
-def _summary_f32(op_id: int, collector: int, value: float, *, instance: int = 0) -> bytes:
-    return (
-        struct.pack("<HHIQHHI", 1, 0, op_id, instance, collector, 2, 0)
-        + struct.pack("<fI", value, 0)
-    )
+def _summary_f32(op_id: int,
+                 collector: int,
+                 value: float,
+                 *,
+                 instance: int = 0) -> bytes:
+    return (struct.pack("<HHIQHHI", 1, 0, op_id, instance, collector, 2, 0) +
+            struct.pack("<fI", value, 0))
 
 
-def _summary_count_bundle(op_id: int, *, nan: int, inf: int, zero: int, element: int,
+def _summary_count_bundle(op_id: int,
+                          *,
+                          nan: int,
+                          inf: int,
+                          zero: int,
+                          element: int,
                           instance: int = 0) -> bytes:
     return struct.pack(
         "<HHIQQQQQQQ",
@@ -133,8 +151,13 @@ def _summary_count_bundle(op_id: int, *, nan: int, inf: int, zero: int, element:
     )
 
 
-def _summary_value_bundle(op_id: int, *, mean: float, min_val: float, max_val: float,
-                          l2_norm: float, instance: int = 0) -> bytes:
+def _summary_value_bundle(op_id: int,
+                          *,
+                          mean: float,
+                          min_val: float,
+                          max_val: float,
+                          l2_norm: float,
+                          instance: int = 0) -> bytes:
     return struct.pack(
         "<HHIQffffIIIIIIII",
         5,
@@ -156,21 +179,23 @@ def _summary_value_bundle(op_id: int, *, mean: float, min_val: float, max_val: f
     )
 
 
-def _compact_summary_count_bundle(*, nan: int, inf: int, zero: int, element: int) -> bytes:
+def _compact_summary_count_bundle(*, nan: int, inf: int, zero: int,
+                                  element: int) -> bytes:
     record = bytearray(64)
     struct.pack_into("<QQQQ", record, 16, nan, inf, zero, element)
     return bytes(record)
 
 
-def _compact_summary_value_bundle(*, mean: float, min_val: float, max_val: float,
-                                  l2_norm: float) -> bytes:
+def _compact_summary_value_bundle(*, mean: float, min_val: float,
+                                  max_val: float, l2_norm: float) -> bytes:
     record = bytearray(64)
     struct.pack_into("<ffff", record, 16, mean, min_val, max_val, l2_norm)
     return bytes(record)
 
 
 def _require_acl_device():
-    acl = pytest.importorskip("acl", reason="CANN Python ACL runtime is unavailable")
+    acl = pytest.importorskip("acl",
+                              reason="CANN Python ACL runtime is unavailable")
     try:
         ret = acl.init()
     except Exception as exc:
@@ -221,7 +246,8 @@ def _compile_design_example_with_hidden_debug_arg(monkeypatch):
         0,
         str(DEBUGGER_ROOT / "test" / "python" / "language"),
     )
-    design_module = importlib.import_module("test_module_a_design_example_ir_flag")
+    design_module = importlib.import_module(
+        "test_module_a_design_example_ir_flag")
     kernel = design_module._design_debug_kernel
 
     importlib.import_module("triton.backends.ascend.compiler")
@@ -254,9 +280,11 @@ def _compile_design_example_with_hidden_debug_arg(monkeypatch):
 
     make_ir_params = inspect.signature(source.make_ir).parameters
     if "target" in make_ir_params:
-        current = source.make_ir(target, options, codegen, backend.get_module_map(), context)
+        current = source.make_ir(target, options, codegen,
+                                 backend.get_module_map(), context)
     else:
-        current = source.make_ir(options, codegen, backend.get_module_map(), context)
+        current = source.make_ir(options, codegen, backend.get_module_map(),
+                                 context)
 
     metadata = {
         "hash": "module-cfd-compiled-design-example",
@@ -284,16 +312,17 @@ def _compile_design_example_with_hidden_debug_arg(monkeypatch):
     return metadata, ttir, ttadapter_ir, stages
 
 
-def _compiled_design_example_buffer(tracked_ops: list[dict[str, object]], *, capacity: int = 64) -> bytes:
+def _compiled_design_example_buffer(tracked_ops: list[dict[str, object]],
+                                    *,
+                                    capacity: int = 64) -> bytes:
     record_size = 64
     payload_offset = 32 + capacity * record_size
     records = []
     for row in tracked_ops:
         assert row["scopeId"] == 1
         synthetic = bool(row["isSyntheticStatementCapture"])
-        assert row["opCategory"] == (
-            "statement_operand_capture" if synthetic else ""
-        )
+        assert row["opCategory"] == ("statement_operand_capture"
+                                     if synthetic else "")
         assert row["role"] == ("operand" if synthetic else "")
         op_id = int(row["opId"])
         records.extend([
@@ -325,7 +354,8 @@ def _write_host_debug_buffer(hidden_arg_value: int, staging: bytes) -> None:
     ctypes.memmove(hidden_arg_value, staging, len(staging))
 
 
-def test_module_c_instrumentation_marks_summary_memory_and_full_value_records():
+def test_module_c_instrumentation_marks_summary_memory_and_full_value_records(
+):
     output = _run_triton_opt(
         "insert-instrumentation.mlir",
         "-split-input-file",
@@ -443,7 +473,10 @@ def test_module_d_decodes_summary_record_and_exports_text_report():
             "export_mode": 1,
             "backend_kind": 1,
         },
-        "runtime_metadata": {"buffers": [], "tensors": []},
+        "runtime_metadata": {
+            "buffers": [],
+            "tensors": []
+        },
         "raw_buffer": header + summary,
     }
     metadata_json = json.dumps({
@@ -491,7 +524,10 @@ def test_module_f_cann_export_decodes_to_module_d_report_for_doc_example():
             "debug_metadata_json": metadata_json,
         },
         0,
-        {"buffers": [], "tensors": []},
+        {
+            "buffers": [],
+            "tensors": []
+        },
     )
     assert int(handle.hidden_arg_value) != 0
 
@@ -529,19 +565,22 @@ def test_module_f_cann_export_decodes_to_module_d_report_for_doc_example():
     assert "latest.element_count=256" not in report
 
 
-def test_compiled_design_example_instrumented_ir_exports_final_debugger_report(monkeypatch):
+def test_compiled_design_example_instrumented_ir_exports_final_debugger_report(
+        monkeypatch):
     from flagtree.debugger.native import runtime_binding
     dbg = runtime_binding()
     assert dbg is not None
 
-    metadata, instrumented_ttir, ttadapter_ir, _ = _compile_design_example_with_hidden_debug_arg(monkeypatch)
+    metadata, instrumented_ttir, ttadapter_ir, _ = _compile_design_example_with_hidden_debug_arg(
+        monkeypatch)
     compiled_metadata = json.loads(metadata["debug_metadata_json"])
     tracked_ops = metadata["debug_tracked_table"]
 
     assert metadata["debug_enabled"] is True
     assert metadata["debug_launch_hidden_arg"] is True
     assert metadata["debug_record_layout"] == "deterministic_compact_v1"
-    assert metadata["debug_records_per_instance"] == len(metadata["debug_record_plan"])
+    assert metadata["debug_records_per_instance"] == len(
+        metadata["debug_record_plan"])
     assert compiled_metadata["debugKernelId"] == metadata["debug_kernel_id"]
     assert compiled_metadata["trackedOps"] == tracked_ops
     assert [row["mlirOpName"] for row in tracked_ops] == [
@@ -620,8 +659,7 @@ def test_compiled_design_example_instrumented_ir_exports_final_debugger_report(m
         5,
     ]
     assert [record["record_kind"] for record in decoded["records"]] == [
-        kind
-        for _ in tracked_ops
+        kind for _ in tracked_ops
         for kind in ("SUMMARY_COUNT_BUNDLE_U64", "SUMMARY_VALUE_BUNDLE_F32")
     ]
     count_records = [
@@ -651,12 +689,14 @@ def test_compiled_design_example_instrumented_ir_exports_final_debugger_report(m
     assert "latest.element_count=16" not in report
 
 
-def test_compiled_design_example_ttadapter_reaches_bishengir_binary_stage(monkeypatch):
+def test_compiled_design_example_ttadapter_reaches_bishengir_binary_stage(
+        monkeypatch):
     compiler = shutil.which("bishengir-compile")
     if compiler is None:
         pytest.skip("bishengir-compile is unavailable")
 
-    metadata, _, binary_source, stages = _compile_design_example_with_hidden_debug_arg(monkeypatch)
+    metadata, _, binary_source, stages = _compile_design_example_with_hidden_debug_arg(
+        monkeypatch)
     if "mlirbc" in stages:
         binary_source = stages["mlirbc"](binary_source, metadata)
         binary_source = stages["bcmlir"](binary_source, metadata)

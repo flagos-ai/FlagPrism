@@ -8,7 +8,9 @@ try:
     import hatchet as ht
     from hatchet.query import NegationQuery
 except ImportError:
-    raise ImportError("Failed to import hatchet. `pip install llnl-hatchet` to get the correct version.")
+    raise ImportError(
+        "Failed to import hatchet. `pip install llnl-hatchet` to get the correct version."
+    )
 import numpy as np
 from .hooks.launch import COMPUTE_METADATA_SCOPE_NAME, LaunchHook
 from . import specs
@@ -28,7 +30,9 @@ def match_available_metrics(metrics, inclusive_metrics, exclusive_metrics):
                     ret.append(raw_metric + suffix)
                     break
     if len(ret) == 0:
-        raise RuntimeError(f"Metric {metric} is not found. Use the --list flag to list available metrics")
+        raise RuntimeError(
+            f"Metric {metric} is not found. Use the --list flag to list available metrics"
+        )
     return ret
 
 
@@ -42,14 +46,19 @@ def match_raw_metric(metric, inclusive_metrics, exclusive_metrics):
         raw_metric_no_unit = _metric_base_name(raw_metric).lower()
         if metric in (raw_metric.lower(), raw_metric_no_unit):
             return raw_metric
-    raise RuntimeError(f"Metric {metric} is not found. Use the --list flag to list available metrics")
+    raise RuntimeError(
+        f"Metric {metric} is not found. Use the --list flag to list available metrics"
+    )
 
 
 def is_aggregable_metric(metric):
     name = _metric_base_name(metric).lower()
-    if name in {"cann.op_summary_begin_time_us", "cann.op_summary_finish_time_us"}:
+    if name in {
+            "cann.op_summary_begin_time_us", "cann.op_summary_finish_time_us"
+    }:
         return False
-    if any(token in name for token in ("bandwidth", "throughput", "variance", "util")):
+    if any(token in name
+           for token in ("bandwidth", "throughput", "variance", "util")):
         return False
     if name.endswith(("_ratio", ".ratio", "_rate", ".rate")):
         return False
@@ -104,7 +113,10 @@ def get_raw_metrics(file):
     device_info = database.pop(1)
     gf = ht.GraphFrame.from_literal(database)
     inclusive_metrics = gf.show_metric_columns()
-    exclusive_metrics = [metric for metric in gf.dataframe.columns if metric not in inclusive_metrics]
+    exclusive_metrics = [
+        metric for metric in gf.dataframe.columns
+        if metric not in inclusive_metrics
+    ]
     return gf, inclusive_metrics, exclusive_metrics, device_info
 
 
@@ -120,8 +132,10 @@ def get_min_time_flops(df, device_info):
                 device_frames = df[idx]
                 if f"flops{width}" not in device_frames.columns:
                     continue
-                max_flops = specs.max_flops(device_type, arch, width, num_sms, clock_rate)
-                min_time_flops.loc[idx, "min_time"] += device_frames[f"flops{width}"].fillna(0) / max_flops
+                max_flops = specs.max_flops(device_type, arch, width, num_sms,
+                                            clock_rate)
+                min_time_flops.loc[idx, "min_time"] += device_frames[
+                    f"flops{width}"].fillna(0) / max_flops
     return min_time_flops
 
 
@@ -134,35 +148,64 @@ def get_min_time_bytes(df, device_info):
             device = device_info[device_type][device_index]
             memory_clock_rate = device["memory_clock_rate"]  # in khz
             bus_width = device["bus_width"]  # in bits
-            peak_bandwidth = specs.max_bps(device_type, device['arch'], bus_width, memory_clock_rate)
-            min_time_bytes.loc[idx, "min_time"] += device_frames["bytes"] / peak_bandwidth
+            peak_bandwidth = specs.max_bps(device_type, device['arch'],
+                                           bus_width, memory_clock_rate)
+            min_time_bytes.loc[
+                idx, "min_time"] += device_frames["bytes"] / peak_bandwidth
     return min_time_bytes
 
 
 FactorDict = namedtuple("FactorDict", ["name", "factor"])
-time_factor_dict = FactorDict("time", {"time/s": 1, "time/ms": 1e-3, "time/us": 1e-6, "time/ns": 1e-9})
-avg_time_factor_dict = FactorDict("avg_time", {f"avg_{key}": value for key, value in time_factor_dict.factor.items()})
-cpu_time_factor_dict = FactorDict("cpu_time",
-                                  {"cpu_time/s": 1, "cpu_time/ms": 1e-3, "cpu_time/us": 1e-6, "cpu_time/ns": 1e-9})
-avg_cpu_time_factor_dict = FactorDict("avg_cpu_time",
-                                      {f"avg_{key}": value
-                                       for key, value in cpu_time_factor_dict.factor.items()})
-bytes_factor_dict = FactorDict("bytes", {"byte/s": 1, "gbyte/s": 1e9, "tbyte/s": 1e12})
+time_factor_dict = FactorDict("time", {
+    "time/s": 1,
+    "time/ms": 1e-3,
+    "time/us": 1e-6,
+    "time/ns": 1e-9
+})
+avg_time_factor_dict = FactorDict("avg_time", {
+    f"avg_{key}": value
+    for key, value in time_factor_dict.factor.items()
+})
+cpu_time_factor_dict = FactorDict("cpu_time", {
+    "cpu_time/s": 1,
+    "cpu_time/ms": 1e-3,
+    "cpu_time/us": 1e-6,
+    "cpu_time/ns": 1e-9
+})
+avg_cpu_time_factor_dict = FactorDict("avg_cpu_time", {
+    f"avg_{key}": value
+    for key, value in cpu_time_factor_dict.factor.items()
+})
+bytes_factor_dict = FactorDict("bytes", {
+    "byte/s": 1,
+    "gbyte/s": 1e9,
+    "tbyte/s": 1e12
+})
 
 derivable_metrics = {
-    **{key: bytes_factor_dict
-       for key in bytes_factor_dict.factor.keys()},
+    **{
+        key: bytes_factor_dict
+        for key in bytes_factor_dict.factor.keys()
+    },
 }
 
 # FLOPS have a specific width to their metric
 default_flop_factor_dict = {"flop/s": 1, "gflop/s": 1e9, "tflop/s": 1e12}
-derivable_metrics.update(
-    {key: FactorDict("flops", default_flop_factor_dict)
-     for key in default_flop_factor_dict.keys()})
+derivable_metrics.update({
+    key: FactorDict("flops", default_flop_factor_dict)
+    for key in default_flop_factor_dict.keys()
+})
 for width in LaunchHook.flops_width:
     factor_name = f"flops{width}"
-    factor_dict = {f"flop{width}/s": 1, f"gflop{width}/s": 1e9, f"tflop{width}/s": 1e12}
-    derivable_metrics.update({key: FactorDict(factor_name, factor_dict) for key in factor_dict.keys()})
+    factor_dict = {
+        f"flop{width}/s": 1,
+        f"gflop{width}/s": 1e9,
+        f"tflop{width}/s": 1e12
+    }
+    derivable_metrics.update({
+        key: FactorDict(factor_name, factor_dict)
+        for key in factor_dict.keys()
+    })
 
 
 def cann_derived_metric_spec(metric):
@@ -182,10 +225,11 @@ def derive_cann_metric(gf, metric, inclusive_metrics, exclusive_metrics):
         return None
     numerator_name, scale = spec
     try:
-        numerator_metric = match_raw_metric(numerator_name, inclusive_metrics, exclusive_metrics)
-        duration_metric = match_raw_metric(
-            "cann.task_duration_us", inclusive_metrics, exclusive_metrics
-        )
+        numerator_metric = match_raw_metric(numerator_name, inclusive_metrics,
+                                            exclusive_metrics)
+        duration_metric = match_raw_metric("cann.task_duration_us",
+                                           inclusive_metrics,
+                                           exclusive_metrics)
     except RuntimeError:
         return None
 
@@ -220,12 +264,10 @@ def derive_cann_metric(gf, metric, inclusive_metrics, exclusive_metrics):
 
 def get_cann_scope_elapsed_seconds(gf, inclusive_metrics, exclusive_metrics):
     try:
-        begin_metric = match_raw_metric(
-            "cann.op_summary_begin_time_us", inclusive_metrics, exclusive_metrics
-        )
-        finish_metric = match_raw_metric(
-            "cann.op_summary_finish_time_us", inclusive_metrics, exclusive_metrics
-        )
+        begin_metric = match_raw_metric("cann.op_summary_begin_time_us",
+                                        inclusive_metrics, exclusive_metrics)
+        finish_metric = match_raw_metric("cann.op_summary_finish_time_us",
+                                         inclusive_metrics, exclusive_metrics)
     except RuntimeError:
         return None
 
@@ -244,14 +286,14 @@ def get_cann_scope_elapsed_seconds(gf, inclusive_metrics, exclusive_metrics):
         for child in node.children:
             child_begin, child_finish = visit(child)
             if child_begin is not None:
-                min_begin = child_begin if min_begin is None else min(min_begin, child_begin)
+                min_begin = child_begin if min_begin is None else min(
+                    min_begin, child_begin)
             if child_finish is not None:
-                max_finish = child_finish if max_finish is None else max(max_finish, child_finish)
-        elapsed_us[node] = (
-            max_finish - min_begin
-            if min_begin is not None and max_finish is not None and max_finish >= min_begin
-            else np.nan
-        )
+                max_finish = child_finish if max_finish is None else max(
+                    max_finish, child_finish)
+        elapsed_us[node] = (max_finish - min_begin
+                            if min_begin is not None and max_finish is not None
+                            and max_finish >= min_begin else np.nan)
         return min_begin, max_finish
 
     for root in gf.graph.roots:
@@ -262,23 +304,24 @@ def get_cann_scope_elapsed_seconds(gf, inclusive_metrics, exclusive_metrics):
     )
 
 
-def derive_metrics(gf, metrics, inclusive_metrics, exclusive_metrics, device_info):
+def derive_metrics(gf, metrics, inclusive_metrics, exclusive_metrics,
+                   device_info):
     derived_metrics = []
     cann_scope_time_seconds = get_cann_scope_elapsed_seconds(
-        gf, inclusive_metrics, exclusive_metrics
-    )
+        gf, inclusive_metrics, exclusive_metrics)
 
     def get_time_seconds(df, metric, factor_dict):
         if metric == "time" and cann_scope_time_seconds is not None:
             return cann_scope_time_seconds
-        time_metric_name = match_available_metrics(metric, inclusive_metrics, exclusive_metrics)[0]
-        time_unit = factor_dict.name + "/" + time_metric_name.split("(")[1].split(")")[0]
+        time_metric_name = match_available_metrics(metric, inclusive_metrics,
+                                                   exclusive_metrics)[0]
+        time_unit = factor_dict.name + "/" + time_metric_name.split(
+            "(")[1].split(")")[0]
         return df[time_metric_name] * factor_dict.factor[time_unit]
 
     for metric in metrics:
-        cann_metric = derive_cann_metric(
-            gf, metric, inclusive_metrics, exclusive_metrics
-        )
+        cann_metric = derive_cann_metric(gf, metric, inclusive_metrics,
+                                         exclusive_metrics)
         if cann_metric is not None:
             derived_metrics.append(cann_metric)
         elif metric == "util":  # exclusive
@@ -286,47 +329,56 @@ def derive_metrics(gf, metrics, inclusive_metrics, exclusive_metrics, device_inf
             min_time_flops = get_min_time_flops(gf.dataframe, device_info)
             time_sec = get_time_seconds(gf.dataframe, "time", time_factor_dict)
             internal_frame_indices = gf.dataframe["device_id"].isna()
-            gf.dataframe["util"] = min_time_flops["min_time"].combine(min_time_bytes["min_time"], max) / time_sec
+            gf.dataframe["util"] = min_time_flops["min_time"].combine(
+                min_time_bytes["min_time"], max) / time_sec
             gf.dataframe.loc[internal_frame_indices, "util"] = np.nan
             derived_metrics.append("util")
         elif metric in derivable_metrics:  # flop<width>/s, <t/g>byte/s, inclusive
             derivable_metric = derivable_metrics[metric]
             metric_name = derivable_metric.name
             metric_factor_dict = derivable_metric.factor
-            matched_metric_name = match_available_metrics(metric_name, inclusive_metrics, exclusive_metrics)[0]
-            gf.dataframe[f"{metric} (inc)"] = (gf.dataframe[matched_metric_name] /
-                                               (get_time_seconds(gf.dataframe, "time", time_factor_dict)) /
-                                               metric_factor_dict[metric])
+            matched_metric_name = match_available_metrics(
+                metric_name, inclusive_metrics, exclusive_metrics)[0]
+            gf.dataframe[f"{metric} (inc)"] = (
+                gf.dataframe[matched_metric_name] /
+                (get_time_seconds(gf.dataframe, "time", time_factor_dict)) /
+                metric_factor_dict[metric])
             derived_metrics.append(f"{metric} (inc)")
-        elif (metric in time_factor_dict.factor or metric in cpu_time_factor_dict.factor
-              or metric in avg_time_factor_dict.factor or metric in avg_cpu_time_factor_dict.factor):  # inclusive
+        elif (metric in time_factor_dict.factor
+              or metric in cpu_time_factor_dict.factor
+              or metric in avg_time_factor_dict.factor
+              or metric in avg_cpu_time_factor_dict.factor):  # inclusive
             is_cpu = metric in cpu_time_factor_dict.factor or metric in avg_cpu_time_factor_dict.factor
             is_avg = metric in avg_time_factor_dict.factor or metric in avg_cpu_time_factor_dict.factor
 
-            factor_dict = ((avg_cpu_time_factor_dict if is_avg else cpu_time_factor_dict) if is_cpu else
-                           (avg_time_factor_dict if is_avg else time_factor_dict))
+            factor_dict = (
+                (avg_cpu_time_factor_dict if is_avg else cpu_time_factor_dict)
+                if is_cpu else
+                (avg_time_factor_dict if is_avg else time_factor_dict))
             metric_name = "cpu_time" if is_cpu else "time"
             metric_time_unit = factor_dict.name + "/" + metric.split("/")[1]
 
-            time_value = get_time_seconds(gf.dataframe, metric_name, factor_dict)
+            time_value = get_time_seconds(gf.dataframe, metric_name,
+                                          factor_dict)
             if is_avg:
                 time_value = time_value / gf.dataframe["count (inc)"]
 
-            output_metric = (
-                f"{metric} (cann elapsed)"
-                if not is_cpu and cann_scope_time_seconds is not None
-                else f"{metric} (inc)"
-            )
-            gf.dataframe[output_metric] = time_value / factor_dict.factor[metric_time_unit]
+            output_metric = (f"{metric} (cann elapsed)" if not is_cpu
+                             and cann_scope_time_seconds is not None else
+                             f"{metric} (inc)")
+            gf.dataframe[output_metric] = time_value / factor_dict.factor[
+                metric_time_unit]
             derived_metrics.append(output_metric)
         else:
             metric_name_and_unit = metric.split("/")
             metric_name = metric_name_and_unit[0]
-            if len(metric_name_and_unit) > 1:  # percentage, exclusive or inclusive
+            if len(metric_name_and_unit
+                   ) > 1:  # percentage, exclusive or inclusive
                 metric_unit = metric_name_and_unit[1]
                 if metric_unit != "%":
                     raise ValueError(f"Unsupported unit {metric_unit}")
-                matched_metric_name = match_available_metrics(metric_name, inclusive_metrics, exclusive_metrics)[0]
+                matched_metric_name = match_available_metrics(
+                    metric_name, inclusive_metrics, exclusive_metrics)[0]
                 single_frame = gf.dataframe[matched_metric_name]
                 suffix = ""
                 if "(inc)" in matched_metric_name:
@@ -337,8 +389,10 @@ def derive_metrics(gf, metrics, inclusive_metrics, exclusive_metrics, device_inf
                 gf.dataframe[metric + suffix] = (single_frame / total) * 100.0
                 derived_metrics.append(metric + suffix)
             else:
-                matched_metric_name = match_available_metrics(metric_name, inclusive_metrics, exclusive_metrics)[0]
-                clear_internal_values_for_nonaggregable_metric(gf, matched_metric_name)
+                matched_metric_name = match_available_metrics(
+                    metric_name, inclusive_metrics, exclusive_metrics)[0]
+                clear_internal_values_for_nonaggregable_metric(
+                    gf, matched_metric_name)
                 derived_metrics.append(matched_metric_name)
 
     # Update derived metrics to the graph frame
@@ -353,12 +407,16 @@ def derive_metrics(gf, metrics, inclusive_metrics, exclusive_metrics, device_inf
 
 def format_frames(gf, format):
     if format == "file_function_line":
-        gf.dataframe["name"] = gf.dataframe["name"].apply(lambda x: x.split("/")[-1])
+        gf.dataframe["name"] = gf.dataframe["name"].apply(
+            lambda x: x.split("/")[-1])
     elif format == "function_line":
-        gf.dataframe["name"] = gf.dataframe["name"].apply(lambda x: x.split(":")[-1])
+        gf.dataframe["name"] = gf.dataframe["name"].apply(
+            lambda x: x.split(":")[-1])
     elif format == "file_function":
         gf.dataframe["name"] = gf.dataframe["name"].apply(
-            lambda x: f"{x.split('/')[-1].split(':')[0]}@{x.split('@')[-1].split(':')[0]}")
+            lambda x:
+            f"{x.split('/')[-1].split(':')[0]}@{x.split('@')[-1].split(':')[0]}"
+        )
     return gf
 
 
@@ -387,35 +445,46 @@ def emit_warnings(gf, metrics):
         byte_values = gf.dataframe["bytes (inc)"].values
         min_byte_value = np.nanmin(byte_values)
         if min_byte_value < 0:
-            print("Warning: Negative byte values detected, this is usually the result of a datatype overflow\n")
+            print(
+                "Warning: Negative byte values detected, this is usually the result of a datatype overflow\n"
+            )
 
 
 def print_tree(gf, metrics, depth=100, format=None, print_sorted=False):
     gf = format_frames(gf, format)
     print("Metrics: " + " | ".join(metrics))
-    print(gf.tree(metric_column=metrics, expand_name=True, depth=depth, render_header=False))
+    print(
+        gf.tree(metric_column=metrics,
+                expand_name=True,
+                depth=depth,
+                render_header=False))
 
     if print_sorted:
         print("Sorted kernels by metric " + metrics[0])
         sorted_df = gf.dataframe.sort_values(by=[metrics[0]], ascending=False)
         for row in range(1, len(sorted_df)):
             kernel_name = (sorted_df.iloc[row]["name"][:100] +
-                           "..." if len(sorted_df.iloc[row]["name"]) > 100 else sorted_df.iloc[row]["name"])
-            print("{:105} {:.4}".format(kernel_name, sorted_df.iloc[row][metrics[0]]))
+                           "..." if len(sorted_df.iloc[row]["name"]) > 100 else
+                           sorted_df.iloc[row]["name"])
+            print("{:105} {:.4}".format(kernel_name,
+                                        sorted_df.iloc[row][metrics[0]]))
     emit_warnings(gf, metrics)
 
 
 def read(filename):
     with open(filename, "r") as f:
-        gf, inclusive_metrics, exclusive_metrics, device_info = get_raw_metrics(f)
-        assert len(inclusive_metrics + exclusive_metrics) > 0, "No metrics found in the input file"
+        gf, inclusive_metrics, exclusive_metrics, device_info = get_raw_metrics(
+            f)
+        assert len(inclusive_metrics +
+                   exclusive_metrics) > 0, "No metrics found in the input file"
         gf.update_inclusive_columns()
         return gf, inclusive_metrics, exclusive_metrics, device_info
 
 
 def parse(metrics, filename, include=None, exclude=None, threshold=None):
     gf, inclusive_metrics, exclusive_metrics, device_info = read(filename)
-    metrics = derive_metrics(gf, metrics, inclusive_metrics, exclusive_metrics, device_info)
+    metrics = derive_metrics(gf, metrics, inclusive_metrics, exclusive_metrics,
+                             device_info)
     # TODO: generalize to support multiple metrics, not just the first one
     gf = filter_frames(gf, include, exclude, threshold, metrics[0])
     return gf, metrics
@@ -445,7 +514,8 @@ def main():
         "-l",
         "--list",
         action="store_true",
-        help="""List available metrics. Metric names are case insensitive and ignore units.
+        help=
+        """List available metrics. Metric names are case insensitive and ignore units.
 Derived metrics can be created when source metrics are available.
 - time/s, time/ms, time/us, time/ns: time
 - avg_time/s, avg_time/ms, avg_time/us, avg_time/ns: time / count
@@ -484,7 +554,8 @@ flagtree-profiler-viewer -i ".*test.*" path/to/file.json
         "--exclude",
         type=str,
         default=None,
-        help="""Exclude frames that match the given regular expression and their children.
+        help=
+        """Exclude frames that match the given regular expression and their children.
 For example, the following command will exclude all paths starting from frames that contains "test":
 ```
 flagtree-profiler-viewer -e ".*test.*" path/to/file.json
@@ -510,7 +581,9 @@ flagtree-profiler-viewer -e ".*test.*" path/to/file.json
         "-f",
         "--format",
         type=str,
-        choices=["full", "file_function_line", "function_line", "file_function"],
+        choices=[
+            "full", "file_function_line", "function_line", "file_function"
+        ],
         default="full",
         help="""Formatting the frame name.
 - full: include the path, file name, function name and line number.
@@ -530,7 +603,8 @@ flagtree-profiler-viewer -e ".*test.*" path/to/file.json
         "-diff",
         type=str,
         default=None,
-        help="Compare two profiles. When used as 'flagtree-profiler-viewer -m time -diff file1.log file2.log', "
+        help=
+        "Compare two profiles. When used as 'flagtree-profiler-viewer -m time -diff file1.log file2.log', "
         "computes the difference: file2['time'] - file1['time']",
     )
 
@@ -551,7 +625,8 @@ flagtree-profiler-viewer -e ".*test.*" path/to/file.json
     if args.list:
         show_metrics(file_name)
     elif metrics:
-        gf, derived_metrics = parse(metrics, file_name, include, exclude, threshold)
+        gf, derived_metrics = parse(metrics, file_name, include, exclude,
+                                    threshold)
         if diff:
             gf2, _ = parse(metrics, diff, include, exclude, threshold)
             gf = gf.sub(gf2)

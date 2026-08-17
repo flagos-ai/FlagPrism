@@ -17,4 +17,5 @@ def runtime_binding() -> ModuleType | None:
 
 def compiler_binding() -> ModuleType | None:
     libtriton = _optional_module("triton._C.libtriton")
-    return getattr(libtriton, "debugger", None) if libtriton is not None else None
+    return getattr(libtriton, "debugger",
+                   None) if libtriton is not None else None

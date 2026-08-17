@@ -22,7 +22,8 @@ def _make_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--aic-metrics",
         default="MemoryAccess",
-        help="msprof --aic-metrics value. MemoryAccess exports per-op memory counters used for bandwidth.",
+        help=
+        "msprof --aic-metrics value. MemoryAccess exports per-op memory counters used for bandwidth.",
     )
     parser.add_argument(
         "--sys-hardware-mem-freq",
@@ -74,33 +75,29 @@ def main() -> int:
         f"--output={msprof_out}",
     ]
     if not args.disable_bandwidth_capture:
-        msprof_cmd.extend(
-            [
-                f"--aic-metrics={args.aic_metrics}",
-                "--task-memory=on",
-                "--sys-hardware-mem=on",
-                f"--sys-hardware-mem-freq={args.sys_hardware_mem_freq}",
-            ]
-        )
+        msprof_cmd.extend([
+            f"--aic-metrics={args.aic_metrics}",
+            "--task-memory=on",
+            "--sys-hardware-mem=on",
+            f"--sys-hardware-mem-freq={args.sys_hardware_mem_freq}",
+        ])
 
-    msprof_cmd.extend(
-        [
-            sys.executable,
-            str(workload),
-            "--name",
-            str(profile_base),
-            "--vendor-output",
-            str(msprof_out),
-            "--device",
-            str(args.device),
-            "--size",
-            str(args.size),
-            "--iters",
-            str(args.iters),
-            "--warmup",
-            str(args.warmup),
-        ]
-    )
+    msprof_cmd.extend([
+        sys.executable,
+        str(workload),
+        "--name",
+        str(profile_base),
+        "--vendor-output",
+        str(msprof_out),
+        "--device",
+        str(args.device),
+        "--size",
+        str(args.size),
+        "--iters",
+        str(args.iters),
+        "--warmup",
+        str(args.warmup),
+    ])
     _run(msprof_cmd)
 
     csv_files = sorted(msprof_out.rglob("*.csv"))
@@ -108,20 +105,19 @@ def main() -> int:
     for path in csv_files[:40]:
         print("exported_csv", path)
 
-    _run(
-        [
-            sys.executable,
-            str(post_import),
-            "--base",
-            str(post_import_base),
-            "--msprof-output",
-            str(msprof_out),
-        ]
-    )
+    _run([
+        sys.executable,
+        str(post_import),
+        "--base",
+        str(post_import_base),
+        "--msprof-output",
+        str(msprof_out),
+    ])
 
     print("DONE")
     print("profile_vendor_json", profile_base.with_suffix(".vendor.json"))
-    print("post_import_vendor_json", post_import_base.with_suffix(".vendor.json"))
+    print("post_import_vendor_json",
+          post_import_base.with_suffix(".vendor.json"))
     return 0
 
 

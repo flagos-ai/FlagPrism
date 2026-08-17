@@ -102,18 +102,22 @@ class InstrumentationMode(BaseMode):
 
         values_str = getattr(self, "optimizations")
         if isinstance(values_str, str):
-            values = [value.strip() for value in values_str.split(",")] if len(values_str) > 0 else []
+            values = [value.strip() for value in values_str.split(",")
+                      ] if len(values_str) > 0 else []
             for value in values:
                 if value not in optimizations:
                     raise ValueError(f"Unknown optimization: {value}")
-            object.__setattr__(self, "optimizations", [optimizations[value] for value in values])
+            object.__setattr__(self, "optimizations",
+                               [optimizations[value] for value in values])
 
     def __str__(self):
         optimizations_str = ",".join([str(opt) for opt in self.optimizations])
-        return (f"{self.name}:metric_type={self.metric_type}:sampling_strategy={self.sampling_strategy}"
-                f":sampling_options={self.sampling_options}:granularity={self.granularity}"
-                f":buffer_strategy={self.buffer_strategy}:buffer_type={self.buffer_type}"
-                f":buffer_size={self.buffer_size}:optimizations={optimizations_str}")
+        return (
+            f"{self.name}:metric_type={self.metric_type}:sampling_strategy={self.sampling_strategy}"
+            f":sampling_options={self.sampling_options}:granularity={self.granularity}"
+            f":buffer_strategy={self.buffer_strategy}:buffer_type={self.buffer_type}"
+            f":buffer_size={self.buffer_size}:optimizations={optimizations_str}"
+        )
 
 
 @dataclass(frozen=True)

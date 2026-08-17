@@ -17,14 +17,14 @@ def runtime_binding() -> ModuleType:
     if binding is None:
         raise RuntimeError(
             "FlagTree profiler native support is unavailable. Reinstall FlagTree "
-            "with `TRITON_BUILD_FLAGPRISM=ON`."
-        )
+            "with `TRITON_BUILD_FLAGPRISM=ON`.")
     return binding
 
 
 def compiler_binding() -> ModuleType:
     libtriton = _optional_module("triton._C.libtriton")
-    binding = getattr(libtriton, "proton", None) if libtriton is not None else None
+    binding = getattr(libtriton, "proton",
+                      None) if libtriton is not None else None
     if binding is None:
         raise RuntimeError(
             "FlagTree profiler compiler interface is unavailable in this FlagTree build."

@@ -154,20 +154,19 @@ void writeSummaryRecordsToSink(uint32_t opId, uint64_t logicalInstanceId,
     SummaryRecord record{};
     switch (kind) {
     case CollectorKind::NAN_COUNT:
-      record = buildSummaryU64Record(opId, logicalInstanceId, kind,
-                                     stats.nanCount);
+      record =
+          buildSummaryU64Record(opId, logicalInstanceId, kind, stats.nanCount);
       break;
     case CollectorKind::INF_COUNT:
-      record = buildSummaryU64Record(opId, logicalInstanceId, kind,
-                                     stats.infCount);
+      record =
+          buildSummaryU64Record(opId, logicalInstanceId, kind, stats.infCount);
       break;
     case CollectorKind::ZERO_COUNT:
-      record = buildSummaryU64Record(opId, logicalInstanceId, kind,
-                                     stats.zeroCount);
+      record =
+          buildSummaryU64Record(opId, logicalInstanceId, kind, stats.zeroCount);
       break;
     case CollectorKind::MEAN_FINITE:
-      record =
-          buildSummaryF64Record(opId, logicalInstanceId, kind, stats.mean);
+      record = buildSummaryF64Record(opId, logicalInstanceId, kind, stats.mean);
       break;
     case CollectorKind::MIN_FINITE:
       record = buildSummaryF64Record(opId, logicalInstanceId, kind, stats.min);

@@ -28,7 +28,6 @@ import time
 from collections import Counter
 from typing import Any
 
-
 DEFAULT_CASES = (
     "test_add.py",
     "test_addmm.py",
@@ -47,12 +46,15 @@ DEFAULT_CASES = (
 
 def _make_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", default="/tmp/flagtree_profiler_cann_flaggems_full")
-    parser.add_argument("--flaggems-source", help="Path to a FlagGems checkout.")
+    parser.add_argument("--out",
+                        default="/tmp/flagtree_profiler_cann_flaggems_full")
+    parser.add_argument("--flaggems-source",
+                        help="Path to a FlagGems checkout.")
     parser.add_argument(
         "--clone-flaggems",
         action="store_true",
-        help="Clone FlagGems into --flaggems-source, or <out>/FlagGems when omitted. This is the default when --flaggems-source is not set.",
+        help=
+        "Clone FlagGems into --flaggems-source, or <out>/FlagGems when omitted. This is the default when --flaggems-source is not set.",
     )
     parser.add_argument(
         "--no-clone-flaggems",
@@ -68,25 +70,34 @@ def _make_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--pytest-timeout", type=float, default=300.0)
     parser.add_argument("--warmup", type=int, default=1)
     parser.add_argument("--iters", type=int, default=1)
-    parser.add_argument("--level", choices=("core", "comprehensive"), default="core")
+    parser.add_argument("--level",
+                        choices=("core", "comprehensive"),
+                        default="core")
     parser.add_argument(
         "--dtypes",
         action="append",
         default=["float32"],
-        help="FlagGems benchmark dtype. Repeat to pass multiple --dtypes values.",
+        help=
+        "FlagGems benchmark dtype. Repeat to pass multiple --dtypes values.",
     )
     parser.add_argument(
         "--case",
         action="append",
         dest="cases",
-        help="Benchmark file name, stem, or path relative to FlagGems. May be repeated.",
+        help=
+        "Benchmark file name, stem, or path relative to FlagGems. May be repeated.",
     )
-    parser.add_argument("--max-cases", type=int, help="Run only the first N selected cases.")
-    parser.add_argument("--all", action="store_true", help="Run all benchmark/test_*.py files.")
+    parser.add_argument("--max-cases",
+                        type=int,
+                        help="Run only the first N selected cases.")
+    parser.add_argument("--all",
+                        action="store_true",
+                        help="Run all benchmark/test_*.py files.")
     parser.add_argument(
         "--op-level",
         action="store_true",
-        help="Run benchmark operators one by one using pytest markers instead of whole files.",
+        help=
+        "Run benchmark operators one by one using pytest markers instead of whole files.",
     )
     parser.add_argument(
         "--op",
@@ -94,11 +105,14 @@ def _make_arg_parser() -> argparse.ArgumentParser:
         dest="ops",
         help="Operator marker/name to run in --op-level mode. May be repeated.",
     )
-    parser.add_argument("--max-ops", type=int, help="Run only the first N selected operator cases.")
+    parser.add_argument("--max-ops",
+                        type=int,
+                        help="Run only the first N selected operator cases.")
     parser.add_argument(
         "--list-ops",
         action="store_true",
-        help="Discover FlagGems benchmark operators and write summary.json without running them.",
+        help=
+        "Discover FlagGems benchmark operators and write summary.json without running them.",
     )
     parser.add_argument("--clean", action="store_true")
     parser.add_argument(
@@ -107,12 +121,16 @@ def _make_arg_parser() -> argparse.ArgumentParser:
         help="Return non-zero when any selected FlagGems case fails.",
     )
 
-    parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--worker",
+                        action="store_true",
+                        help=argparse.SUPPRESS)
     parser.add_argument("--case-name", help=argparse.SUPPRESS)
     parser.add_argument("--case-path", help=argparse.SUPPRESS)
     parser.add_argument("--pytest-marker", help=argparse.SUPPRESS)
     parser.add_argument("--pytest-function", help=argparse.SUPPRESS)
-    parser.add_argument("--phase", choices=("baseline", "profiled"), help=argparse.SUPPRESS)
+    parser.add_argument("--phase",
+                        choices=("baseline", "profiled"),
+                        help=argparse.SUPPRESS)
     parser.add_argument("--result-json", help=argparse.SUPPRESS)
     parser.add_argument("--pytest-json", help=argparse.SUPPRESS)
     parser.add_argument("--profile-base", help=argparse.SUPPRESS)
@@ -125,8 +143,10 @@ def _run(cmd: list[str], cwd: pathlib.Path | None = None) -> None:
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
-def _prepare_flaggems(args: argparse.Namespace, out: pathlib.Path) -> pathlib.Path:
-    source = pathlib.Path(args.flaggems_source) if args.flaggems_source else None
+def _prepare_flaggems(args: argparse.Namespace,
+                      out: pathlib.Path) -> pathlib.Path:
+    source = pathlib.Path(
+        args.flaggems_source) if args.flaggems_source else None
     should_clone = args.clone_flaggems or source is None
     if args.no_clone_flaggems:
         should_clone = False
@@ -135,10 +155,15 @@ def _prepare_flaggems(args: argparse.Namespace, out: pathlib.Path) -> pathlib.Pa
             source = out / "FlagGems"
         if not source.exists():
             source.parent.mkdir(parents=True, exist_ok=True)
-            _run(["git", "clone", "--depth", "1", args.flaggems_repo, str(source)])
+            _run([
+                "git", "clone", "--depth", "1", args.flaggems_repo,
+                str(source)
+            ])
     if source is None:
-        raise RuntimeError("Pass --flaggems-source /path/to/FlagGems or allow auto-clone.")
-    if not (source / "benchmark").exists() or not (source / "src" / "flag_gems").exists():
+        raise RuntimeError(
+            "Pass --flaggems-source /path/to/FlagGems or allow auto-clone.")
+    if not (source / "benchmark").exists() or not (source / "src" /
+                                                   "flag_gems").exists():
         raise RuntimeError(f"FlagGems checkout is incomplete: {source}")
     return source
 
@@ -146,14 +171,12 @@ def _prepare_flaggems(args: argparse.Namespace, out: pathlib.Path) -> pathlib.Pa
 def _discover_cases(source: pathlib.Path) -> list[dict[str, str]]:
     cases = []
     for path in sorted((source / "benchmark").glob("test_*.py")):
-        cases.append(
-            {
-                "name": path.stem,
-                "path": str(path),
-                "relative_path": path.relative_to(source).as_posix(),
-                "stem": path.stem,
-            }
-        )
+        cases.append({
+            "name": path.stem,
+            "path": str(path),
+            "relative_path": path.relative_to(source).as_posix(),
+            "stem": path.stem,
+        })
     return cases
 
 
@@ -168,15 +191,15 @@ def _pytest_mark_name(decorator: ast.AST) -> str | None:
     if not isinstance(value.value, ast.Name) or value.value.id != "pytest":
         return None
     if mark_name in {
-        "parametrize",
-        "skip",
-        "skipif",
-        "xfail",
-        "usefixtures",
-        "filterwarnings",
-        "timeout",
-        "tryfirst",
-        "trylast",
+            "parametrize",
+            "skip",
+            "skipif",
+            "xfail",
+            "usefixtures",
+            "filterwarnings",
+            "timeout",
+            "tryfirst",
+            "trylast",
     }:
         return None
     return mark_name
@@ -204,60 +227,61 @@ def _discover_ops(source: pathlib.Path) -> list[dict[str, str]]:
                     continue
                 seen.add(key)
                 rel = path.relative_to(source).as_posix()
-                ops.append(
-                    {
-                        "name": f"{path.stem}::{node.name}::{marker}",
-                        "op": marker,
-                        "marker": marker,
-                        "test_function": node.name,
-                        "path": str(path),
-                        "relative_path": rel,
-                        "stem": path.stem,
-                    }
-                )
+                ops.append({
+                    "name": f"{path.stem}::{node.name}::{marker}",
+                    "op": marker,
+                    "marker": marker,
+                    "test_function": node.name,
+                    "path": str(path),
+                    "relative_path": rel,
+                    "stem": path.stem,
+                })
     return ops
 
 
-def _select_cases(cases: list[dict[str, str]], args: argparse.Namespace) -> list[dict[str, str]]:
+def _select_cases(cases: list[dict[str, str]],
+                  args: argparse.Namespace) -> list[dict[str, str]]:
     if args.all:
         selected = cases
     elif args.cases:
         requested = set(args.cases)
         selected = [
-            case
-            for case in cases
-            if case["name"] in requested
-            or case["stem"] in requested
-            or case["relative_path"] in requested
+            case for case in cases if case["name"] in requested
+            or case["stem"] in requested or case["relative_path"] in requested
             or pathlib.Path(case["relative_path"]).name in requested
         ]
         found = {case["name"] for case in selected}
         found |= {case["stem"] for case in selected}
         found |= {case["relative_path"] for case in selected}
-        found |= {pathlib.Path(case["relative_path"]).name for case in selected}
+        found |= {
+            pathlib.Path(case["relative_path"]).name
+            for case in selected
+        }
         unknown = sorted(requested - found)
         if unknown:
-            raise RuntimeError(f"Unknown FlagGems case(s): {', '.join(unknown)}")
+            raise RuntimeError(
+                f"Unknown FlagGems case(s): {', '.join(unknown)}")
     else:
         default = set(DEFAULT_CASES)
-        selected = [case for case in cases if pathlib.Path(case["relative_path"]).name in default]
+        selected = [
+            case for case in cases
+            if pathlib.Path(case["relative_path"]).name in default
+        ]
 
     if args.max_cases is not None:
-        selected = selected[: max(0, args.max_cases)]
+        selected = selected[:max(0, args.max_cases)]
     return selected
 
 
-def _select_ops(ops: list[dict[str, str]], args: argparse.Namespace) -> list[dict[str, str]]:
+def _select_ops(ops: list[dict[str, str]],
+                args: argparse.Namespace) -> list[dict[str, str]]:
     if args.ops:
         requested = set(args.ops)
         selected = [
-            op
-            for op in ops
-            if op["name"] in requested
-            or op["op"] in requested
-            or op["marker"] in requested
-            or f"{op['relative_path']}::{op['marker']}" in requested
-            or f"{op['stem']}::{op['marker']}" in requested
+            op for op in ops
+            if op["name"] in requested or op["op"] in requested or op["marker"]
+            in requested or f"{op['relative_path']}::{op['marker']}" in
+            requested or f"{op['stem']}::{op['marker']}" in requested
         ]
         found = {op["name"] for op in selected}
         found |= {op["op"] for op in selected}
@@ -271,12 +295,15 @@ def _select_ops(ops: list[dict[str, str]], args: argparse.Namespace) -> list[dic
         selected = ops
     else:
         default = set(DEFAULT_CASES)
-        selected = [op for op in ops if pathlib.Path(op["relative_path"]).name in default]
+        selected = [
+            op for op in ops
+            if pathlib.Path(op["relative_path"]).name in default
+        ]
 
     if args.max_ops is not None:
-        selected = selected[: max(0, args.max_ops)]
+        selected = selected[:max(0, args.max_ops)]
     elif args.max_cases is not None:
-        selected = selected[: max(0, args.max_cases)]
+        selected = selected[:max(0, args.max_cases)]
     return selected
 
 
@@ -315,7 +342,8 @@ def _prepend_python_path(path: pathlib.Path | None) -> None:
         sys.path.insert(0, path_str)
 
 
-def _prepare_worker_imports(case_path: pathlib.Path, device_index: int) -> None:
+def _prepare_worker_imports(case_path: pathlib.Path,
+                            device_index: int) -> None:
     _prepend_python_path(_flagtree_python_build_path())
     source = case_path.parents[1]
     sys.path.insert(0, str(source / "src"))
@@ -325,16 +353,19 @@ def _prepare_worker_imports(case_path: pathlib.Path, device_index: int) -> None:
     import torch_npu  # noqa: F401
 
     if not hasattr(torch, "npu") or not torch.npu.is_available():
-        raise RuntimeError("torch_npu is unavailable or torch.npu.is_available() is false.")
+        raise RuntimeError(
+            "torch_npu is unavailable or torch.npu.is_available() is false.")
     torch.npu.set_device(device_index)
     # Initialize before FlagGems benchmark imports set torch.backends.cuda flags.
-    torch.empty((1,), device=f"npu:{device_index}")
+    torch.empty((1, ), device=f"npu:{device_index}")
 
 
 def _run_pytest(args: argparse.Namespace) -> tuple[int, float]:
     import pytest
 
-    test_target = str(pathlib.Path(args.case_path).relative_to(pathlib.Path(args.case_path).parents[1]))
+    test_target = str(
+        pathlib.Path(args.case_path).relative_to(
+            pathlib.Path(args.case_path).parents[1]))
     if args.pytest_function:
         test_target = f"{test_target}::{args.pytest_function}"
     pytest_args = [
@@ -367,10 +398,10 @@ def _worker_main(args: argparse.Namespace) -> int:
     result = {
         "name": args.case_name,
         "phase": args.phase,
-            "case_path": args.case_path,
-            "pytest_marker": args.pytest_marker,
-            "pytest_function": args.pytest_function,
-            "status": "failed",
+        "case_path": args.case_path,
+        "pytest_marker": args.pytest_marker,
+        "pytest_function": args.pytest_function,
+        "status": "failed",
     }
     session_id = None
     try:
@@ -382,15 +413,13 @@ def _worker_main(args: argparse.Namespace) -> int:
             from flagtree.profiler.native import runtime_binding
             profiler_native = runtime_binding()
 
-            mode = (
-                "runtime_base:"
-                "vendor_metrics=aicore,bandwidth:"
-                f"aclprof_output_path={args.msprof_output}:"
-                "aclprof_runtime_enabled=true:"
-                "aclprof_auto_export=true:"
-                "mstx_enabled=true:"
-                "mstx_domain=flagtree_profiler"
-            )
+            mode = ("runtime_base:"
+                    "vendor_metrics=aicore,bandwidth:"
+                    f"aclprof_output_path={args.msprof_output}:"
+                    "aclprof_runtime_enabled=true:"
+                    "aclprof_auto_export=true:"
+                    "mstx_enabled=true:"
+                    "mstx_domain=flagtree_profiler")
             session_id = profiler.start(
                 name=args.profile_base,
                 context="shadow",
@@ -411,18 +440,17 @@ def _worker_main(args: argparse.Namespace) -> int:
         else:
             pytest_rc, elapsed_s = _run_pytest(args)
 
-        result.update(
-            {
-                "pytest_returncode": pytest_rc,
-                "elapsed_s": elapsed_s,
-                "status": "ok" if pytest_rc == 0 else "failed",
-                "pytest_json": args.pytest_json,
-                "iters": args.iters,
-                "warmup": args.warmup,
-            }
-        )
+        result.update({
+            "pytest_returncode": pytest_rc,
+            "elapsed_s": elapsed_s,
+            "status": "ok" if pytest_rc == 0 else "failed",
+            "pytest_json": args.pytest_json,
+            "iters": args.iters,
+            "warmup": args.warmup,
+        })
         if pathlib.Path(args.pytest_json).exists():
-            result["pytest_result"] = json.loads(pathlib.Path(args.pytest_json).read_text())
+            result["pytest_result"] = json.loads(
+                pathlib.Path(args.pytest_json).read_text())
     except Exception as exc:
         result["error"] = repr(exc)
     finally:
@@ -433,11 +461,13 @@ def _worker_main(args: argparse.Namespace) -> int:
                 result["finalize_error"] = repr(exc)
                 if result.get("status") == "ok":
                     result["status"] = "failed"
-        result_path.write_text(json.dumps(_jsonable(result), indent=2, sort_keys=True))
+        result_path.write_text(
+            json.dumps(_jsonable(result), indent=2, sort_keys=True))
     return 0 if result.get("status") == "ok" else 3
 
 
-def _run_worker(args: argparse.Namespace, case: dict[str, str], phase: str, out: pathlib.Path) -> dict:
+def _run_worker(args: argparse.Namespace, case: dict[str, str], phase: str,
+                out: pathlib.Path) -> dict:
     case_dir = out / "cases" / _safe_name(case["name"])
     case_dir.mkdir(parents=True, exist_ok=True)
     result_json = case_dir / f"{phase}.json"
@@ -450,10 +480,10 @@ def _run_worker(args: argparse.Namespace, case: dict[str, str], phase: str, out:
         "--worker",
         "--case-name",
         case["name"],
-            "--case-path",
-            case["path"],
-            "--phase",
-            phase,
+        "--case-path",
+        case["path"],
+        "--phase",
+        phase,
         "--result-json",
         str(result_json),
         "--pytest-json",
@@ -468,8 +498,8 @@ def _run_worker(args: argparse.Namespace, case: dict[str, str], phase: str, out:
         args.level,
         "--profile-base",
         str(profile_base),
-            "--msprof-output",
-            str(msprof_output),
+        "--msprof-output",
+        str(msprof_output),
     ]
     if case.get("marker"):
         cmd.extend(["--pytest-marker", case["marker"]])
@@ -482,11 +512,8 @@ def _run_worker(args: argparse.Namespace, case: dict[str, str], phase: str, out:
     build_path = _flagtree_python_build_path()
     if build_path is not None and build_path.exists():
         current_pythonpath = env.get("PYTHONPATH")
-        env["PYTHONPATH"] = (
-            str(build_path)
-            if not current_pythonpath
-            else str(build_path) + os.pathsep + current_pythonpath
-        )
+        env["PYTHONPATH"] = (str(build_path) if not current_pythonpath else
+                             str(build_path) + os.pathsep + current_pythonpath)
 
     try:
         completed = subprocess.run(
@@ -507,7 +534,8 @@ def _run_worker(args: argparse.Namespace, case: dict[str, str], phase: str, out:
             "stdout": exc.stdout,
             "stderr": exc.stderr,
         }
-        result_json.write_text(json.dumps(_jsonable(result), indent=2, sort_keys=True))
+        result_json.write_text(
+            json.dumps(_jsonable(result), indent=2, sort_keys=True))
         return result
 
     if result_json.exists():
@@ -524,7 +552,8 @@ def _run_worker(args: argparse.Namespace, case: dict[str, str], phase: str, out:
         result["stdout"] = completed.stdout[-4000:]
     if completed.stderr:
         result["stderr"] = completed.stderr[-4000:]
-    result_json.write_text(json.dumps(_jsonable(result), indent=2, sort_keys=True))
+    result_json.write_text(
+        json.dumps(_jsonable(result), indent=2, sort_keys=True))
     return result
 
 
@@ -536,36 +565,52 @@ def _timing_fields(baseline: dict, profiled: dict) -> dict:
     overhead_s = profiled_elapsed - baseline_elapsed
     overhead_ratio = overhead_s / baseline_elapsed if baseline_elapsed > 0 else None
     return {
-        "baseline_elapsed_s": baseline_elapsed,
-        "profiled_elapsed_s": profiled_elapsed,
-        "elapsed_s": profiled_elapsed,
-        "overhead_s": overhead_s,
-        "overhead_ratio": overhead_ratio,
-        "overhead_percent": overhead_ratio * 100.0 if overhead_ratio is not None else None,
+        "baseline_elapsed_s":
+        baseline_elapsed,
+        "profiled_elapsed_s":
+        profiled_elapsed,
+        "elapsed_s":
+        profiled_elapsed,
+        "overhead_s":
+        overhead_s,
+        "overhead_ratio":
+        overhead_ratio,
+        "overhead_percent":
+        overhead_ratio * 100.0 if overhead_ratio is not None else None,
     }
 
 
 def _summarize_timing(results: list[dict]) -> dict:
     timed = [
-        result
-        for result in results
-        if result.get("status") == "ok"
-        and result.get("baseline_elapsed_s") is not None
-        and result.get("profiled_elapsed_s") is not None
+        result for result in results
+        if result.get("status") == "ok" and result.get("baseline_elapsed_s")
+        is not None and result.get("profiled_elapsed_s") is not None
     ]
-    ratios = [result["overhead_ratio"] for result in timed if result.get("overhead_ratio") is not None]
+    ratios = [
+        result["overhead_ratio"] for result in timed
+        if result.get("overhead_ratio") is not None
+    ]
     baseline_total = sum(result["baseline_elapsed_s"] for result in timed)
     profiled_total = sum(result["profiled_elapsed_s"] for result in timed)
-    weighted_ratio = (profiled_total - baseline_total) / baseline_total if baseline_total > 0 else None
+    weighted_ratio = (profiled_total - baseline_total
+                      ) / baseline_total if baseline_total > 0 else None
     return {
-        "timed_case_count": len(timed),
-        "baseline_total_s": baseline_total,
-        "profiled_total_s": profiled_total,
-        "overhead_total_s": profiled_total - baseline_total,
-        "average_overhead_ratio": sum(ratios) / len(ratios) if ratios else None,
-        "average_overhead_percent": (sum(ratios) / len(ratios) * 100.0) if ratios else None,
-        "weighted_overhead_ratio": weighted_ratio,
-        "weighted_overhead_percent": weighted_ratio * 100.0 if weighted_ratio is not None else None,
+        "timed_case_count":
+        len(timed),
+        "baseline_total_s":
+        baseline_total,
+        "profiled_total_s":
+        profiled_total,
+        "overhead_total_s":
+        profiled_total - baseline_total,
+        "average_overhead_ratio":
+        sum(ratios) / len(ratios) if ratios else None,
+        "average_overhead_percent":
+        (sum(ratios) / len(ratios) * 100.0) if ratios else None,
+        "weighted_overhead_ratio":
+        weighted_ratio,
+        "weighted_overhead_percent":
+        weighted_ratio * 100.0 if weighted_ratio is not None else None,
     }
 
 
@@ -586,7 +631,8 @@ def _summarize_profile_artifacts(results: list[dict]) -> dict:
         meta_path = base.with_suffix(".meta.json")
         vendor_path = base.with_suffix(".vendor.json")
         timeline_path = base.with_suffix(".timeline.json")
-        if not meta_path.exists() or not vendor_path.exists() or not timeline_path.exists():
+        if not meta_path.exists() or not vendor_path.exists(
+        ) or not timeline_path.exists():
             continue
         try:
             meta = json.loads(meta_path.read_text())
@@ -634,13 +680,17 @@ def _driver_main(args: argparse.Namespace) -> int:
     os.chmod(out, 0o700)
 
     source = _prepare_flaggems(args, out)
-    all_cases = _discover_ops(source) if args.op_level or args.list_ops else _discover_cases(source)
-    selected = _select_ops(all_cases, args) if args.op_level or args.list_ops else _select_cases(all_cases, args)
+    all_cases = _discover_ops(
+        source) if args.op_level or args.list_ops else _discover_cases(source)
+    selected = _select_ops(
+        all_cases, args) if args.op_level or args.list_ops else _select_cases(
+            all_cases, args)
     if not selected:
         raise RuntimeError("No FlagGems benchmark cases selected.")
 
     if args.list_ops:
-        op_counts: Counter[str] = Counter(case.get("op", case["name"]) for case in all_cases)
+        op_counts: Counter[str] = Counter(
+            case.get("op", case["name"]) for case in all_cases)
         summary = {
             "backend": "cann",
             "suite": "FlagGems benchmark op-level",
@@ -650,11 +700,15 @@ def _driver_main(args: argparse.Namespace) -> int:
             "selected_count": len(selected),
             "ops": selected,
             "unique_ops": sorted(op_counts),
-            "duplicate_op_markers": {name: count for name, count in op_counts.items() if count > 1},
+            "duplicate_op_markers": {
+                name: count
+                for name, count in op_counts.items() if count > 1
+            },
             "summary_json": str(out / "summary.json"),
         }
         summary = _jsonable(summary)
-        (out / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
+        (out / "summary.json").write_text(
+            json.dumps(summary, indent=2, sort_keys=True))
         print(json.dumps(summary, indent=2, sort_keys=True))
         return 0
 
@@ -664,15 +718,32 @@ def _driver_main(args: argparse.Namespace) -> int:
         print(f"[{index}/{len(selected)}] {case['name']} baseline", flush=True)
         baseline = _run_worker(args, case, "baseline", out)
         if baseline.get("status") != "ok":
-            failures.append({"name": case["name"], "phase": "baseline", "error": baseline.get("error", "failed")})
-            results.append({**case, "status": "failed", "phase": "baseline", "baseline": baseline})
+            failures.append({
+                "name": case["name"],
+                "phase": "baseline",
+                "error": baseline.get("error", "failed")
+            })
+            results.append({
+                **case, "status": "failed",
+                "phase": "baseline",
+                "baseline": baseline
+            })
             continue
 
         print(f"[{index}/{len(selected)}] {case['name']} profiled", flush=True)
         profiled = _run_worker(args, case, "profiled", out)
         if profiled.get("status") != "ok":
-            failures.append({"name": case["name"], "phase": "profiled", "error": profiled.get("error", "failed")})
-            results.append({**case, "status": "failed", "phase": "profiled", "baseline": baseline, "profiled": profiled})
+            failures.append({
+                "name": case["name"],
+                "phase": "profiled",
+                "error": profiled.get("error", "failed")
+            })
+            results.append({
+                **case, "status": "failed",
+                "phase": "profiled",
+                "baseline": baseline,
+                "profiled": profiled
+            })
             continue
 
         result = {
@@ -688,12 +759,16 @@ def _driver_main(args: argparse.Namespace) -> int:
 
     summary = {
         "backend": "cann",
-        "suite": "FlagGems benchmark op-level" if args.op_level else "FlagGems benchmark",
+        "suite": "FlagGems benchmark op-level"
+        if args.op_level else "FlagGems benchmark",
         "flaggems_source": str(source),
         "case_count": len(selected),
         "op_level": bool(args.op_level),
-        "unique_op_count": len({case.get("op", case["name"]) for case in selected}),
-        "ok_count": sum(1 for result in results if result.get("status") == "ok"),
+        "unique_op_count":
+        len({case.get("op", case["name"])
+             for case in selected}),
+        "ok_count":
+        sum(1 for result in results if result.get("status") == "ok"),
         "failed_count": len(failures),
         "failures": failures,
         "results": results,
@@ -703,7 +778,8 @@ def _driver_main(args: argparse.Namespace) -> int:
     }
     summary.update(_summarize_profile_artifacts(results))
     summary = _jsonable(summary)
-    (out / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
+    (out / "summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True))
     print(json.dumps(summary, indent=2, sort_keys=True))
 
     if failures and args.require_all:

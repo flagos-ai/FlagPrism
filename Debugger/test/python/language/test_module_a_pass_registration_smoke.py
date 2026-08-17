@@ -9,7 +9,8 @@ import importlib.util
 from pathlib import Path
 
 _unit = Path(__file__).resolve().parents[1]
-_spec = importlib.util.spec_from_file_location("_module_a_doc", _unit / "_module_a_doc.py")
+_spec = importlib.util.spec_from_file_location("_module_a_doc",
+                                               _unit / "_module_a_doc.py")
 _mad = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 _spec.loader.exec_module(_mad)
@@ -19,10 +20,10 @@ import pytest
 
 from flagtree.debugger.native import compiler_binding
 
-
 fd = compiler_binding()
 if fd is None:
-    pytest.skip("flagtree-debugger native binding is unavailable", allow_module_level=True)
+    pytest.skip("flagtree-debugger native binding is unavailable",
+                allow_module_level=True)
 
 
 @pytest.mark.module_a

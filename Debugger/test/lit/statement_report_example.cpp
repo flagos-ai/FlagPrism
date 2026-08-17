@@ -27,8 +27,10 @@ TrackedOpEntry makeOp(uint32_t opId, std::string name) {
   entry.scopeId = 1;
   entry.resultIndex = 0;
   entry.statementId = 1;
-  entry.mlirOpName = opId == 1 ? "arith.addf" : "flagtree.debug.operand_capture";
-  entry.sourceLoc = "loc(\"third_party/FlagPrism/Debugger/test/lit/statement-operand-capture-example.mlir\":4:10)";
+  entry.mlirOpName =
+      opId == 1 ? "arith.addf" : "flagtree.debug.operand_capture";
+  entry.sourceLoc = "loc(\"third_party/FlagPrism/Debugger/test/lit/"
+                    "statement-operand-capture-example.mlir\":4:10)";
   entry.tritonStatement = "y = a + b";
   entry.statementResultName = std::move(name);
   entry.result = scalarF32();
@@ -41,8 +43,7 @@ TrackedOpEntry makeOp(uint32_t opId, std::string name) {
 }
 
 StatementValueInfo makeStatementValue(std::string role, std::string name,
-                                      uint32_t captureOpId,
-                                      std::string policy,
+                                      uint32_t captureOpId, std::string policy,
                                       uint32_t operandIndex = 0,
                                       bool hasOperandIndex = false) {
   StatementValueInfo value;
@@ -89,8 +90,8 @@ int main(int argc, char **argv) {
   metadata.scopeCount = 1;
 
   TrackedOpEntry anchor = makeOp(1, "y");
-  anchor.statementValues.push_back(makeStatementValue(
-      "result", "y", 1, "captured_current_op"));
+  anchor.statementValues.push_back(
+      makeStatementValue("result", "y", 1, "captured_current_op"));
   anchor.statementValues.push_back(makeStatementValue(
       "operand", "a", 2, "captured_at_current_statement", 0, true));
   anchor.statementValues.push_back(makeStatementValue(
