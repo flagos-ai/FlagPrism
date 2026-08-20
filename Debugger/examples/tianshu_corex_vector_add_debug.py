@@ -11,10 +11,11 @@ import triton.language as tl
 import flagtree.debugger as debugger
 import flagtree.language as ftl
 
-
 OUTPUT_DIR = Path("/tmp/flagtree_tianshu_debugger")
-DEBUG_RECORD_LEVEL_VALUE = int(os.environ.get("FLAGTREE_DEBUGGER_RECORD_LEVEL", "1"))
-DEBUG_ADDR_LEVEL_VALUE = int(os.environ.get("FLAGTREE_DEBUGGER_ADDR_LEVEL", "0"))
+DEBUG_RECORD_LEVEL_VALUE = int(
+    os.environ.get("FLAGTREE_DEBUGGER_RECORD_LEVEL", "1"))
+DEBUG_ADDR_LEVEL_VALUE = int(
+    os.environ.get("FLAGTREE_DEBUGGER_ADDR_LEVEL", "0"))
 DEBUG_RECORD_LEVEL = tl.constexpr(DEBUG_RECORD_LEVEL_VALUE)
 DEBUG_ADDR_LEVEL = tl.constexpr(DEBUG_ADDR_LEVEL_VALUE)
 debugger.configure(
@@ -53,30 +54,43 @@ def debug_vector_add_kernel(
 def vector_add(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """Python-level operator used by the debugger example."""
     out = torch.empty_like(x)
-    grid = (triton.cdiv(x.numel(), 256),)
-    debug_vector_add_kernel[grid](x, y, out, x.numel(), BLOCK_SIZE=256, num_warps=1)
+    grid = (triton.cdiv(x.numel(), 256), )
+    debug_vector_add_kernel[grid](x,
+                                  y,
+                                  out,
+                                  x.numel(),
+                                  BLOCK_SIZE=256,
+                                  num_warps=1)
     return out
 
 
 def run(n_elements: int = 4096) -> None:
     x = torch.arange(n_elements, dtype=torch.float32, device="cuda")
     y = torch.full_like(x, 2.0)
-    grid = (triton.cdiv(n_elements, 256),)
+    grid = (triton.cdiv(n_elements, 256), )
     out = vector_add(x, y)
     torch.cuda.synchronize()
 
     expected = x + y
     runs = debugger.take_exported_runs()
     result = {
-        "allclose": bool(torch.allclose(out, expected)),
-        "device": torch.cuda.get_device_name(0),
-        "device_index": torch.cuda.current_device(),
-        "grid": list(grid),
-        "max_abs_error": float((out - expected).abs().max().item()),
-        "exported_runs": len(runs),
+        "allclose":
+        bool(torch.allclose(out, expected)),
+        "device":
+        torch.cuda.get_device_name(0),
+        "device_index":
+        torch.cuda.current_device(),
+        "grid":
+        list(grid),
+        "max_abs_error":
+        float((out - expected).abs().max().item()),
+        "exported_runs":
+        len(runs),
         "reports": [run.get("report_path") for run in runs],
-        "decoded_headers": [run.get("decoded", {}).get("header", {}) for run in runs],
-        "n_elements": n_elements,
+        "decoded_headers":
+        [run.get("decoded", {}).get("header", {}) for run in runs],
+        "n_elements":
+        n_elements,
     }
     print(json.dumps(result, sort_keys=True))
 

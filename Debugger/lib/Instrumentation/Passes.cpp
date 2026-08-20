@@ -1842,8 +1842,8 @@ void emitSummaryBundleStores(OpBuilder &builder, Location loc,
       }
     }
   }
-  Value l2Norm = createFloatConstantLike(builder, loc, builder.getF32Type(),
-                                         0.0);
+  Value l2Norm =
+      createFloatConstantLike(builder, loc, builder.getF32Type(), 0.0);
   if (collectL2Norm) {
     Value square = builder.create<arith::MulFOp>(loc, finiteValue, finiteValue);
     l2Norm =
@@ -2133,7 +2133,8 @@ Value firstLaneIntegerValue(OpBuilder &builder, Location loc, Value value,
                  : Value();
   }
   if (auto bitcast = dyn_cast<arith::BitcastOp>(def)) {
-    Value input = firstLaneIntegerValue(builder, loc, bitcast.getIn(), depth + 1);
+    Value input =
+        firstLaneIntegerValue(builder, loc, bitcast.getIn(), depth + 1);
     return input ? builder.create<arith::BitcastOp>(loc, elementType, input)
                  : Value();
   }
@@ -2157,9 +2158,8 @@ Value combineFirstLaneOffsetsToI64(OpBuilder &builder, Location loc,
     Value firstLaneOffset = firstLaneIntegerValue(builder, loc, offset);
     if (!firstLaneOffset)
       return {};
-    Value offsetI64 =
-        castIntegerValueToI64Like(builder, loc, firstLaneOffset,
-                                  builder.getI64Type());
+    Value offsetI64 = castIntegerValueToI64Like(builder, loc, firstLaneOffset,
+                                                builder.getI64Type());
     if (!offsetI64)
       return {};
     combined = builder.create<arith::AddIOp>(loc, combined, offsetI64);
@@ -3479,9 +3479,8 @@ struct InsertInstrumentationPass
 
   void getDependentDialects(DialectRegistry &registry) const override {
     registry.insert<FlagTreeDebugDialect, arith::ArithDialect,
-                    math::MathDialect, memref::MemRefDialect,
-                    scf::SCFDialect, tensor::TensorDialect,
-                    triton::TritonDialect>();
+                    math::MathDialect, memref::MemRefDialect, scf::SCFDialect,
+                    tensor::TensorDialect, triton::TritonDialect>();
   }
 
   void runOnOperation() override {
@@ -3594,9 +3593,8 @@ struct InsertInstrumentationPass
       Value fullValue = observedFullDumpValue(op, valueSource);
       ArrayAttr summaryCollectors;
       if (!timelineOnly && canEmitDynamicSummary && fullValue)
-        summaryCollectors =
-            buildCollectorArrayForValue(builder, level, fullValue.getType(),
-                                        disableL2Norm);
+        summaryCollectors = buildCollectorArrayForValue(
+            builder, level, fullValue.getType(), disableL2Norm);
       const bool hasSummary =
           !timelineOnly && canEmitDynamicSummary && summaryCollectors &&
           !summaryCollectors.empty() &&

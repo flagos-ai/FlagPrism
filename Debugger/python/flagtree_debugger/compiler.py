@@ -11,8 +11,7 @@ from .native import compiler_binding
 _instrumentation_mode = ""
 _DISABLED_BUILD_MESSAGE = (
     "FlagPrism debugger compiler support is unavailable. Reinstall FlagTree "
-    "with `TRITON_BUILD_FLAGPRISM=ON`."
-)
+    "with `TRITON_BUILD_FLAGPRISM=ON`.")
 
 
 def set_instrumentation_mode(mode: str) -> None:
@@ -45,7 +44,9 @@ def apply_compile_options(options: dict) -> None:
     from . import __version__
     from .api import current_compile_config
 
-    config = json.dumps(current_compile_config(), sort_keys=True, separators=(",", ":"))
+    config = json.dumps(current_compile_config(),
+                        sort_keys=True,
+                        separators=(",", ":"))
     options["instrumentation_mode"] = (
         f"{_instrumentation_kind(mode)}|flagtree-debugger={__version__}|config={config}"
     )
@@ -57,7 +58,8 @@ def _get_debug_passes():
 
 def load_dialects(context) -> None:
     binding = _get_debug_passes()
-    callback = getattr(binding, "load_dialects", None) if binding is not None else None
+    callback = getattr(binding, "load_dialects",
+                       None) if binding is not None else None
     if not callable(callback):
         raise RuntimeError(_DISABLED_BUILD_MESSAGE)
     callback(context)
@@ -81,12 +83,12 @@ def _target_backend(metadata: dict) -> str:
 
 def _debug_launch_hidden_arg_enabled(metadata: dict) -> bool:
     if _target_backend(metadata) not in {
-        "ascend",
-        "cann",
-        "npu",
-        "tianshu",
-        "corex",
-        "iluvatar",
+            "ascend",
+            "cann",
+            "npu",
+            "tianshu",
+            "corex",
+            "iluvatar",
     }:
         return False
     # Keep the environment variable as a compatibility hook for subprocesses
@@ -105,7 +107,8 @@ def _kernel_internal_timeline_supported() -> bool:
     try:
         import triton
 
-        backend = str(triton.runtime.driver.active.get_current_target().backend).lower()
+        backend = str(
+            triton.runtime.driver.active.get_current_target().backend).lower()
     except Exception:
         return False
     # Tianshu/CoreX does not expose the Ascend SYS_CNT instruction used by the
@@ -113,7 +116,8 @@ def _kernel_internal_timeline_supported() -> bool:
     return backend in {"ascend", "npu", "cann"}
 
 
-def _finish_metadata_only_tensor_pointer_debug(fd, mod, metadata: dict) -> bool:
+def _finish_metadata_only_tensor_pointer_debug(fd, mod,
+                                               metadata: dict) -> bool:
     has_tensor_pointer = getattr(fd, "has_triton_tensor_pointer_types", None)
     if has_tensor_pointer is None or not has_tensor_pointer(mod):
         return False
@@ -121,11 +125,11 @@ def _finish_metadata_only_tensor_pointer_debug(fd, mod, metadata: dict) -> bool:
     if not fd.assign_debug_collect_scope_ids_without_erase(mod):
         raise RuntimeError("failed to resolve debug collect scopes")
     assign_metadata = getattr(
-        fd, "assign_debug_op_ids_and_metadata_without_pass_manager", None
-    )
+        fd, "assign_debug_op_ids_and_metadata_without_pass_manager", None)
     erase_markers = getattr(fd, "erase_debug_collect_markers", None)
     if assign_metadata is None or erase_markers is None:
-        raise RuntimeError("debug tensor-pointer metadata fallback is unavailable")
+        raise RuntimeError(
+            "debug tensor-pointer metadata fallback is unavailable")
     if not assign_metadata(mod):
         raise RuntimeError("failed to assign debug op ids")
     erase_markers(mod)
@@ -163,7 +167,8 @@ def run_ttir_debug_passes_if_needed(mod, metadata: dict) -> None:
             debug_config = {}
         level = int(debug_config.get("debug_record_level", 1))
         addr_level = int(debug_config.get("debug_addr_level", 0))
-        has_markers = bool(fd.insert_default_debug_collect_markers(mod, level, addr_level))
+        has_markers = bool(
+            fd.insert_default_debug_collect_markers(mod, level, addr_level))
 
     if not has_markers:
         metadata["debug_enabled"] = False
@@ -178,17 +183,23 @@ def run_ttir_debug_passes_if_needed(mod, metadata: dict) -> None:
 
     metadata["debug_enabled"] = True
     metadata["debug_protocol_version"] = 2
-    metadata["debug_record_level"] = int(debug_config.get("debug_record_level", 1))
+    metadata["debug_record_level"] = int(
+        debug_config.get("debug_record_level", 1))
     metadata["debug_addr_level"] = int(debug_config.get("debug_addr_level", 0))
-    metadata["debug_export_mode"] = debug_config.get("debug_export_mode", "POST_KERNEL_EXPORT")
+    metadata["debug_export_mode"] = debug_config.get("debug_export_mode",
+                                                     "POST_KERNEL_EXPORT")
     if "debug_record_capacity" in debug_config:
-        metadata["debug_record_capacity"] = int(debug_config["debug_record_capacity"])
-    metadata["debug_launch_hidden_arg"] = _debug_launch_hidden_arg_enabled(metadata)
+        metadata["debug_record_capacity"] = int(
+            debug_config["debug_record_capacity"])
+    metadata["debug_launch_hidden_arg"] = _debug_launch_hidden_arg_enabled(
+        metadata)
     fd.set_debug_kernel_id_seed(mod, str(metadata.get("hash") or ""))
-    fd.set_debug_hidden_arg_abi_enabled(mod, bool(metadata["debug_launch_hidden_arg"]))
+    fd.set_debug_hidden_arg_abi_enabled(
+        mod, bool(metadata["debug_launch_hidden_arg"]))
     fd.set_debug_addr_level(mod, int(metadata["debug_addr_level"]))
     timeline_supported = _kernel_internal_timeline_supported()
-    fd.set_debug_timeline_enabled(mod, bool(auto_collect and timeline_supported))
+    fd.set_debug_timeline_enabled(mod, bool(auto_collect
+                                            and timeline_supported))
     fd.set_debug_timeline_only(mod, bool(auto_collect and timeline_supported))
 
     if _finish_metadata_only_tensor_pointer_debug(fd, mod, metadata):
@@ -219,14 +230,16 @@ def run_ttir_debug_passes_if_needed(mod, metadata: dict) -> None:
     passes.common.add_cse(instrumentation_pm)
     passes.common.add_canonicalizer(instrumentation_pm)
     _run_pass_manager(instrumentation_pm, mod, "flagtree_debug_collect")
-    metadata["debug_records_per_instance"] = int(fd.get_debug_records_per_instance(mod))
+    metadata["debug_records_per_instance"] = int(
+        fd.get_debug_records_per_instance(mod))
     metadata["debug_record_size"] = int(fd.get_debug_record_size(mod))
     metadata["debug_record_layout"] = fd.get_debug_record_layout(mod)
-    metadata["debug_record_plan"] = json.loads(fd.get_debug_record_plan_json(mod))
+    metadata["debug_record_plan"] = json.loads(
+        fd.get_debug_record_plan_json(mod))
     metadata["debug_full_dump_payload_bytes_per_instance"] = int(
-        fd.get_debug_full_dump_payload_bytes_per_instance(mod)
-    )
-    metadata["debug_full_dump_plan"] = json.loads(fd.get_debug_full_dump_plan_json(mod))
+        fd.get_debug_full_dump_payload_bytes_per_instance(mod))
+    metadata["debug_full_dump_plan"] = json.loads(
+        fd.get_debug_full_dump_plan_json(mod))
     if metadata["debug_records_per_instance"] <= 0:
         # The user may request dynamic debugger collection, but the IR pass is
         # the source of truth for whether a hidden-arg ABI was actually added.
@@ -260,15 +273,14 @@ def run_compiler_event(event) -> None:
     if event.phase == "post_override" and event.ir_kind == "ttir":
         run_ttir_debug_passes_if_needed(event.module, metadata)
         update_compile_metadata(metadata)
-    elif (
-        event.phase == "pre_backend_serialize"
-        and event.ir_kind == "ttadapter"
-    ):
+    elif (event.phase == "pre_backend_serialize"
+          and event.ir_kind == "ttadapter"):
         run_ttadapter_debug_passes_if_needed(event.module, metadata)
 
 
 def update_compile_metadata(metadata: dict) -> None:
-    if not _instrumentation_kind(metadata.get("instrumentation_mode", "")).startswith("debugger"):
+    if not _instrumentation_kind(metadata.get("instrumentation_mode",
+                                              "")).startswith("debugger"):
         return
     from .api import current_compile_config
 

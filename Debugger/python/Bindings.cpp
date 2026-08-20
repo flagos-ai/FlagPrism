@@ -135,8 +135,7 @@ BackendKind parseBackendKind(std::string_view backendName) {
   if (lowered == "cann" || lowered == "ascend" || lowered == "npu") {
     return BackendKind::CANN;
   }
-  if (lowered == "tianshu" || lowered == "corex" ||
-      lowered == "iluvatar") {
+  if (lowered == "tianshu" || lowered == "corex" || lowered == "iluvatar") {
     return BackendKind::TIANSHU;
   }
   return BackendKind::UNKNOWN;

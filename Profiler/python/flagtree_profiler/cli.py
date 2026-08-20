@@ -9,21 +9,53 @@ from .tianshu import merge_ixkn_vendor_artifact, run_ixkn_profile
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="FlagTree Profiler command utility for scripts and pytest tests.", usage="""
+        description=
+        "FlagTree Profiler command utility for scripts and pytest tests.",
+        usage="""
     flagtree-profiler [options] script.py [script_args] [script_options]
     flagtree-profiler [options] pytest [pytest_args] [script_options]
     python -m flagtree.profiler.cli [options] script.py [script_args] [script_options]
-""", formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("-n", "--name", type=str, help="Name of the profiling session")
-    parser.add_argument("-b", "--backend", type=str, help="Profiling backend", default=None,
-                        choices=["cupti", "cupti_pcsampling", "roctracer", "instrumentation", "cann", "tianshu", "corex", "iluvatar"])
-    parser.add_argument("-c", "--context", type=str, help="Profiling context", default="shadow",
+""",
+        formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("-n",
+                        "--name",
+                        type=str,
+                        help="Name of the profiling session")
+    parser.add_argument("-b",
+                        "--backend",
+                        type=str,
+                        help="Profiling backend",
+                        default=None,
+                        choices=[
+                            "cupti", "cupti_pcsampling", "roctracer",
+                            "instrumentation", "cann", "tianshu", "corex",
+                            "iluvatar"
+                        ])
+    parser.add_argument("-c",
+                        "--context",
+                        type=str,
+                        help="Profiling context",
+                        default="shadow",
                         choices=["shadow", "python"])
-    parser.add_argument("-m", "--mode", type=str, help="Profiling mode", default=None)
-    parser.add_argument("-d", "--data", type=str, help="Profiling data", default="tree", choices=["tree", "trace"])
-    parser.add_argument("-k", "--hook", type=str, help="Profiling hook", default=None,
+    parser.add_argument("-m",
+                        "--mode",
+                        type=str,
+                        help="Profiling mode",
+                        default=None)
+    parser.add_argument("-d",
+                        "--data",
+                        type=str,
+                        help="Profiling data",
+                        default="tree",
+                        choices=["tree", "trace"])
+    parser.add_argument("-k",
+                        "--hook",
+                        type=str,
+                        help="Profiling hook",
+                        default=None,
                         choices=["triton", "instrumentation"])
-    parser.add_argument("--ixkn", action="store_true",
+    parser.add_argument("--ixkn",
+                        action="store_true",
                         help="Wrap the target process with Tianshu ixKN")
     parser.add_argument("--ixkn-cli", type=str, default=None)
     parser.add_argument("--ixkn-devices", type=str, default="0")
@@ -34,7 +66,9 @@ def parse_arguments():
     parser.add_argument("--ixkn-export-profile", type=str, default=None)
     parser.add_argument("--no-ixkn-csv", action="store_true")
     parser.add_argument("--ixkn-profile-child-processes", action="store_true")
-    parser.add_argument('target_args', nargs=argparse.REMAINDER, help='Subcommand and its arguments')
+    parser.add_argument('target_args',
+                        nargs=argparse.REMAINDER,
+                        help='Subcommand and its arguments')
     args = parser.parse_args()
     return args, args.target_args
 
@@ -90,7 +124,8 @@ def run_profiling(args, target_args):
         if backend not in {"tianshu", "corex", "iluvatar"}:
             raise ValueError("--ixkn is only valid with the tianshu backend")
         if not target_args:
-            raise ValueError("--ixkn requires a target script or pytest command")
+            raise ValueError(
+                "--ixkn requires a target script or pytest command")
 
         name = args.name or "flagtree_profiler"
         export_profile = args.ixkn_export_profile
@@ -120,10 +155,17 @@ def run_profiling(args, target_args):
         # ixKN resolves Python virtualenv symlinks before launching the target.
         # Preserve the active interpreter's site-packages explicitly so the
         # wrapped process keeps access to torch and the selected Triton build.
-        child_env = {**os.environ, "FLAGTREE_PROFILER_TIANSHU_IMPORT_PATH": export_profile}
-        inherited_pythonpath = [item for item in child_env.get("PYTHONPATH", "").split(os.pathsep) if item]
+        child_env = {
+            **os.environ, "FLAGTREE_PROFILER_TIANSHU_IMPORT_PATH":
+            export_profile
+        }
+        inherited_pythonpath = [
+            item for item in child_env.get("PYTHONPATH", "").split(os.pathsep)
+            if item
+        ]
         for item in sys.path:
-            if item and ("site-packages" in item or "dist-packages" in item) and item not in inherited_pythonpath:
+            if item and ("site-packages" in item or "dist-packages"
+                         in item) and item not in inherited_pythonpath:
                 inherited_pythonpath.append(item)
         if inherited_pythonpath:
             child_env["PYTHONPATH"] = os.pathsep.join(inherited_pythonpath)

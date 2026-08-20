@@ -22,9 +22,9 @@ public:
   TianshuProfiler() = default;
   ~TianshuProfiler() override = default;
 
-  static VendorProfileArtifact importIxknOutput(
-      const SessionProfileMetadata &metadata,
-      const VendorProfilePlan &plan);
+  static VendorProfileArtifact
+  importIxknOutput(const SessionProfileMetadata &metadata,
+                   const VendorProfilePlan &plan);
 
 private:
   void startOp(const Scope &scope) override;

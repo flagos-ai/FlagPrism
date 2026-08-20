@@ -3,9 +3,9 @@
 #include "Utility/String.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cerrno>
 #include <chrono>
-#include <cctype>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -216,7 +216,7 @@ void parseIxknCsv(const std::filesystem::path &file,
   std::ifstream input(file);
   if (!input.is_open()) {
     artifact.degradeReasons.push_back("Failed to open ixKN CSV: " +
-                                     file.string());
+                                      file.string());
     return;
   }
   std::string line;
@@ -228,19 +228,22 @@ void parseIxknCsv(const std::filesystem::path &file,
     return;
   }
 
-  const auto nameIndex = findColumn(headers, {"kernel_name", "kernelname",
-                                               "op_name", "opname", "name"});
-  const auto taskIndex = findColumn(headers, {"kernel_id", "task_id", "taskid"});
+  const auto nameIndex = findColumn(
+      headers, {"kernel_name", "kernelname", "op_name", "opname", "name"});
+  const auto taskIndex =
+      findColumn(headers, {"kernel_id", "task_id", "taskid"});
   const auto correlationIndex =
       findColumn(headers, {"correlation_id", "correlationid", "corrid"});
-  const auto deviceIndex = findColumn(headers, {"device_id", "deviceid", "device"});
-  const auto streamIndex = findColumn(headers, {"stream_id", "streamid", "stream"});
-  const auto startIndex = findColumn(headers, {"start_time_ns", "starttime_ns",
-                                               "start_time_us", "starttimeus",
-                                               "start_time", "start"});
-  const auto endIndex = findColumn(headers, {"end_time_ns", "endtime_ns",
-                                             "end_time_us", "endtimeus",
-                                             "end_time", "end"});
+  const auto deviceIndex =
+      findColumn(headers, {"device_id", "deviceid", "device"});
+  const auto streamIndex =
+      findColumn(headers, {"stream_id", "streamid", "stream"});
+  const auto startIndex =
+      findColumn(headers, {"start_time_ns", "starttime_ns", "start_time_us",
+                           "starttimeus", "start_time", "start"});
+  const auto endIndex =
+      findColumn(headers, {"end_time_ns", "endtime_ns", "end_time_us",
+                           "endtimeus", "end_time", "end"});
   const auto durationIndex = findColumn(
       headers, {"duration_ns", "duration_us", "duration_ms", "duration"});
   const auto sectionIndex = findColumn(headers, {"section"});
@@ -287,7 +290,7 @@ void parseIxknCsv(const std::filesystem::path &file,
     }
     if (!matched) {
       association.state = runtimeEvents.empty() ? VendorMetricState::Collected
-                                                 : VendorMetricState::Unmatched;
+                                                : VendorMetricState::Unmatched;
       association.note = runtimeEvents.empty()
                              ? "ixKN row has no FlagTree runtime event"
                              : "ixKN row could not be matched by kernel name";
@@ -310,8 +313,8 @@ void parseIxknCsv(const std::filesystem::path &file,
       const auto kernelId = cell(row, taskIndex);
       const auto context = cell(row, findColumn(headers, {"context"}));
       const auto stream = cell(row, streamIndex);
-      const auto key = kernelId + "\x1f" + kernelName + "\x1f" + context +
-                       "\x1f" + stream;
+      const auto key =
+          kernelId + "\x1f" + kernelName + "\x1f" + context + "\x1f" + stream;
       auto [groupIt, inserted] = groupIndices.emplace(key, grouped.size());
       if (inserted) {
         VendorMetricAssociation association;
@@ -319,8 +322,7 @@ void parseIxknCsv(const std::filesystem::path &file,
         association.runtimeEvent.opName = kernelName;
         association.runtimeEvent.deviceId =
             parseU64(cell(row, deviceIndex)).value_or(0);
-        association.runtimeEvent.streamId =
-            parseU64(stream).value_or(0);
+        association.runtimeEvent.streamId = parseU64(stream).value_or(0);
         association.runtimeEvent.taskId = parseU64(kernelId).value_or(0);
         association.metrics["ixkn_file"] = file.string();
         if (!plan.enabledVendorMetrics.empty()) {
@@ -368,8 +370,9 @@ void parseIxknCsv(const std::filesystem::path &file,
           parseU64(cell(row, taskIndex)).value_or(0);
       association.runtimeEvent.correlationId =
           parseU64(cell(row, correlationIndex)).value_or(0);
-      association.runtimeEvent.startTimeNs = parseTimeNs(
-          cell(row, startIndex), startIndex ? headers[*startIndex] : "start_us");
+      association.runtimeEvent.startTimeNs =
+          parseTimeNs(cell(row, startIndex),
+                      startIndex ? headers[*startIndex] : "start_us");
       association.runtimeEvent.endTimeNs = parseTimeNs(
           cell(row, endIndex), endIndex ? headers[*endIndex] : "end_us");
       if (association.runtimeEvent.endTimeNs == 0 && durationIndex) {
@@ -405,8 +408,8 @@ void parseIxknCsv(const std::filesystem::path &file,
     }
   }
   if (parsedRows == 0) {
-    artifact.degradeReasons.push_back("No data rows were parsed from ixKN CSV: " +
-                                     file.string());
+    artifact.degradeReasons.push_back(
+        "No data rows were parsed from ixKN CSV: " + file.string());
   }
 }
 
@@ -477,8 +480,9 @@ std::vector<RuntimeTraceEventKey> TianshuProfiler::drainRuntimeEvents() {
   return events;
 }
 
-VendorProfileArtifact TianshuProfiler::importIxknOutput(
-    const SessionProfileMetadata &metadata, const VendorProfilePlan &plan) {
+VendorProfileArtifact
+TianshuProfiler::importIxknOutput(const SessionProfileMetadata &metadata,
+                                  const VendorProfilePlan &plan) {
   VendorProfileArtifact artifact;
   artifact.backend = metadata.backend;
   artifact.requestedMetrics = plan.requested.vendorMetrics;

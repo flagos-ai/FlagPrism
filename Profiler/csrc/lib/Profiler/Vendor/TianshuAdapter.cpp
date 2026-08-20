@@ -29,9 +29,9 @@ bool contains(const std::vector<std::string> &items, const std::string &value) {
 
 std::string TianshuMetricsImporter::getName() const { return "ixkn_importer"; }
 
-VendorProfileArtifact TianshuMetricsImporter::import(
-    const SessionProfileMetadata &metadata,
-    const VendorProfilePlan &plan) const {
+VendorProfileArtifact
+TianshuMetricsImporter::import(const SessionProfileMetadata &metadata,
+                               const VendorProfilePlan &plan) const {
   auto artifact = TianshuProfiler::importIxknOutput(metadata, plan);
   artifact.backend = metadata.backend;
   artifact.importer = getName();
@@ -54,9 +54,7 @@ const TianshuAdapter &TianshuAdapter::instance() {
 
 std::string TianshuAdapter::getName() const { return "tianshu"; }
 
-DeviceType TianshuAdapter::getDeviceType() const {
-  return DeviceType::TIANSHU;
-}
+DeviceType TianshuAdapter::getDeviceType() const { return DeviceType::TIANSHU; }
 
 std::vector<std::string> TianshuAdapter::getSupportedVendorMetrics() const {
   // These names correspond to the ixKN sections documented by Tianshu.
@@ -99,9 +97,8 @@ TianshuAdapter::makePlan(const VendorProfileOptions &options) const {
     }
   }
   if (!plan.disabledVendorMetrics.empty()) {
-    plan.degradeReasons.push_back(
-        "Unsupported Tianshu ixKN metrics: " +
-        join(plan.disabledVendorMetrics));
+    plan.degradeReasons.push_back("Unsupported Tianshu ixKN metrics: " +
+                                  join(plan.disabledVendorMetrics));
   }
 
   if (requested.adapterOptions.count("ixkn_import_path") == 0 &&
@@ -118,8 +115,7 @@ Profiler *TianshuAdapter::getRuntimeProfiler() const {
   return &TianshuProfiler::instance();
 }
 
-std::unique_ptr<VendorMetricsImporter>
-TianshuAdapter::createImporter() const {
+std::unique_ptr<VendorMetricsImporter> TianshuAdapter::createImporter() const {
   return std::make_unique<TianshuMetricsImporter>();
 }
 

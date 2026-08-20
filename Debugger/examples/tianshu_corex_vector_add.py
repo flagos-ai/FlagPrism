@@ -32,7 +32,7 @@ def run(n_elements: int = 4096):
     y = torch.full_like(x, 2.0)
     out = torch.empty_like(x)
 
-    grid = (triton.cdiv(n_elements, 256),)
+    grid = (triton.cdiv(n_elements, 256), )
     vector_add_kernel[grid](x, y, out, n_elements, BLOCK_SIZE=256, num_warps=1)
     torch.cuda.synchronize()
 
