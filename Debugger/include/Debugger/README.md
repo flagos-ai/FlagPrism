@@ -127,7 +127,7 @@ python3 -m pip install . --no-build-isolation
 - summary record 的 device lowering 主要依赖通用 TTIR arithmetic/reduce/store。
 - memory address event 依赖 debugger 专用
   `flagtree_debug.capture_memory_address` lowering；只有 `addr_level > 0` 才会插入
-  该动态地址采集。当前 CANN9 路径在 `addr_level=1` 时会对可反向切片的
+  该动态地址采集。当前 CANN9 与 Tianshu/CoreX 4.4 LLVM 22 路径在 `addr_level=1` 时会对可反向切片的
   `tt.addptr(tt.splat(base), offsets)` 指针链生成地址摘要：
   `first_addr / last_addr / min_addr / max_addr / active_lane_count /
   address_span_bytes`。该路径要求 offset 可证明为连续 lane offset，mask 为空、
@@ -135,7 +135,7 @@ python3 -m pip install . --no-build-isolation
   退回到单条 base/last aligned address 事件，保证 debugger 不破坏正常编译。
   新增后端时需要验证或重写
   `flagtree_debug.capture_memory_address` lowering。`level=2, addr_level=2` 会在
-  CANN9 支持的 pointer/mask pattern 上额外导出完整 lane address `.npy`；不支持的
+  CANN9 与 Tianshu/CoreX 4.4 LLVM 22 支持的 pointer/mask pattern 上额外导出完整 lane address `.npy`；不支持的
   pattern 在编译期报错，不生成不完整 artifact。
 
 导出文件：

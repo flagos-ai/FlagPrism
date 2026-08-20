@@ -23,6 +23,16 @@ TEST(TransferDriverSelectionTest, ResolvesBackendKindsToDriverKinds) {
             TransferDriverKind::HOST);
   EXPECT_EQ(resolveTransferDriverKind(BackendKind::MUSA),
             TransferDriverKind::HOST);
+  EXPECT_EQ(resolveTransferDriverKind(BackendKind::TIANSHU),
+            TransferDriverKind::COREX);
+}
+
+TEST(TransferDriverSelectionTest, BuildsCoreXOptionsFromTianshuBackend) {
+  TransferEngineOptions options =
+      makeTransferEngineOptions(BackendKind::TIANSHU, 0x5678);
+
+  EXPECT_EQ(options.driverKind, TransferDriverKind::COREX);
+  EXPECT_EQ(options.streamHandle, 0x5678u);
 }
 
 TEST(TransferDriverSelectionTest, BuildsTransferEngineOptionsFromBackendKind) {

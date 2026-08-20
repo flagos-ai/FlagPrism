@@ -35,3 +35,8 @@ MLIR dialect、C++ namespace 和既有 target 名；这些名称不是公开 Pyt
 
 Ascend 上默认的 `backend="cann", hook="triton"` IR 采集复用 Debugger 的插桩 runtime，
 因此 Debugger 与 Profiler 始终作为一个工具套件构建和发布。
+
+Tianshu/CoreX 支持 `backend="tianshu"`。Debugger 复用同一套协议和插桩，运行时通过
+CUDA-compatible driver API 动态加载 CoreX 的内存、拷贝和 stream 接口。由于当前公开
+文档中的 ixKN 是进程外工具，vendor profiler 通过 `ixkn-cli --csv` 采集并在 finalize
+阶段导入；Tianshu device-cycle timeline 在确认设备时钟指令前默认关闭。

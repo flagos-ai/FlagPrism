@@ -23,6 +23,15 @@ core-only wheel; Debugger and Profiler cannot be enabled independently. On
 Ascend, the default CANN `hook="triton"` IR path reuses the bundled Debugger
 runtime, so the two tools are built as one suite.
 
+To build a Tianshu-only variant, select the vendor backend explicitly. This
+excludes the Ascend/CANN profiler sources and uses the Tianshu/CoreX runtime
+path:
+
+```bash
+FLAGPRISM_BACKEND=tianshu TRITON_BUILD_FLAGPRISM=ON \
+python -m pip install . --no-build-isolation
+```
+
 ## Usage
 
 ### Basic usage
@@ -90,13 +99,21 @@ with profiler.scope("test2", {"bytes": 3000}):
 
 ### Backend and mode
 
-FlagTree Profiler supports three profiling backends: `cupti`, `roctracer`, and `instrumentation`.
+FlagTree Profiler supports `cupti`, `roctracer`, `instrumentation`, `cann`, and
+`tianshu` backends.
 
 - **`cupti`**: Used for NVIDIA GPUs. It supports both the default profiling mode and `pcsampling` (instruction sampling).
 - **`roctracer`**: Used for AMD GPUs. It supports only the default profiling mode.
 - **`instrumentation`**: Available on both NVIDIA and AMD GPUs, this backend enables collection of custom metrics and advanced instrumentation.
+- **`cann`**: Uses the Ascend vendor adapter and CANN runtime/import path.
+- **`tianshu`**: Reuses Debugger instrumentation through the CoreX-compatible
+  driver and imports ixKN CSV output. Use the `flagtree-profiler --ixkn` CLI
+  wrapper because ixKN profiles the target process from startup.
 
-By default, FlagTree Profiler automatically selects either `cupti` or `roctracer` as the backend based on your GPU driver. The `instrumentation` backend offers a wide range of mode options for fine-grained profiling, as detailed in the `mode.py` file.
+By default, FlagTree Profiler automatically selects `cupti`, `roctracer`,
+`cann`, or `tianshu` based on the active target backend. The `instrumentation`
+backend offers a wide range of mode options for fine-grained profiling, as
+detailed in the `mode.py` file.
 
 #### Instruction Sampling
 

@@ -17,6 +17,7 @@ public:
   virtual TransferDriverKind driverKind() const = 0;
   virtual const char *name() const = 0;
   virtual bool isAvailable() const = 0;
+  virtual void setDevice(uint32_t deviceId) { (void)deviceId; }
 
   virtual void *allocateDevice(size_t bytes) = 0;
   virtual void freeDevice(void *ptr) = 0;

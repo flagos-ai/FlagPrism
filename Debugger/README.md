@@ -4,7 +4,8 @@ FlagPrism Debugger 用于观察 Triton kernel 内部的数值、内存访问和 
 执行状态。它将编译期静态 metadata 与 device 运行期记录关联，导出 Triton
 语句级报告、IR op 级报告和 level 2 NumPy artifact，用于定位数值异常、异常
 访存和 kernel 内部数据流问题。当前动态采集和 hidden-argument launch 路径已在
-Ascend/CANN9 后端验证；其他后端的接入边界见 [Backend Support](#backend-support)。
+Ascend/CANN9 与 Tianshu/CoreX 4.4 LLVM 22 后端验证；其他后端的接入边界见
+[Backend Support](#backend-support)。
 
 ## Public API
 
@@ -58,6 +59,14 @@ native runtime，并写入同一个 FlagTree wheel。使用
 `TRITON_BUILD_FLAGPRISM=OFF` 时构建 core-only FlagTree，该 wheel 不包含两个工具
 package。当前只支持“FlagPrism 联合构建”和“core-only”两种发布模式，不提供
 Debugger-only、Profiler-only 或独立工具 wheel。
+
+构建纯天数版本时设置 `FLAGPRISM_BACKEND=tianshu`。该模式只编译 Tianshu/CoreX
+适配，不会探测或链接昇腾 CANN：
+
+```bash
+FLAGPRISM_BACKEND=tianshu TRITON_BUILD_FLAGPRISM=ON \
+python3 -m pip install . --no-build-isolation
+```
 
 ## Quick Start
 
@@ -384,11 +393,12 @@ export TRITON_ASCEND_ARCH=Ascend910B4
 | Host/component integration | Host API 2.x 与 capability 协商，不按 FlagTree 3.5/3.6 版本号硬编码 |
 | Statement annotation and static metadata | 通过通用 compiler/frontend callback 接入 |
 | Summary/full-value instrumentation | 依赖目标后端可 lowering 的 TTIR operation |
-| Hidden control pointer and post-kernel export | 当前接入并验证 Ascend/CANN9 |
+| Hidden control pointer and post-kernel export | 当前接入并验证 Ascend/CANN9 与 Tianshu/CoreX 4.4 LLVM 22 |
 | CUDA/HIP/MUSA runtime collection | 协议枚举和 adapter 接口已预留，尚未接通 launcher、同步和 transfer 实现 |
+| Tianshu/CoreX runtime collection | 复用协议和 hidden pointer；通过 CUDA-compatible driver API 动态加载 CoreX transfer，实现 summary/memory/full dump；device-cycle timeline 暂未启用 |
 
 Debugger 激活时，只有 metadata 明确设置 `debug_launch_hidden_arg=True` 的 Ascend/CANN
-kernel 才会附加 hidden control pointer。未接入的后端不会因为全局 Debugger 状态而
+或 Tianshu/CoreX kernel 才会附加 hidden control pointer。未接入的后端不会因为全局 Debugger 状态而
 改变 kernel launch ABI。
 
 ## Current Limitations
@@ -396,11 +406,13 @@ kernel 才会附加 hidden control pointer。未接入的后端不会因为全�
 - summary 插桩主要依赖通用 TTIR arithmetic/reduce/store。
 - memory address 采集使用 Debugger 专用
   `flagtree_debug.capture_memory_address` operation，需要后端提供 lowering。
-- 当前 CANN9 `addr_level=1` 支持对可证明的
+- 当前 CANN9 与 Tianshu/CoreX 4.4 LLVM 22 路径支持对可证明的
   `tt.addptr(tt.splat(base), offsets)` 指针链和 prefix mask 生成 lane-aware
-  address summary。无法完整分析时只报告可证明的地址信息。
+  address summary。Tianshu/CoreX 对连续地址摘要使用标量 i64 地址计算；这是因为
+  当前 CoreX TTIR 到 TTGIR 转换无法 legalize encoded `tensor<i64>` 上的
+  `tensor.extract`，并非硬件地址宽度受限。无法完整分析时只报告可证明的地址信息。
 - `addr_level=2` 只能用于后端支持完整 lane address lowering 的
-  pointer/mask pattern；当前 CANN9 支持的 pattern 会生成
+  pointer/mask pattern；当前 CANN9 与 Tianshu/CoreX 4.4 LLVM 22 支持的 pattern 会生成
   `*_memory_address.npy`。
 - Debug hidden-argument ABI 尚未穿透任意 Triton call graph。含不可安全
   改写 call signature 的 helper/callee 会保持 metadata-only，避免 Debugger 改变
@@ -422,6 +434,8 @@ FlagTree 主仓库仅保留必要的集成点：
   编译/运行时生命周期边界。
 - `flagtree.language.debug_collect_start/end`：FlagTree language 的采集 marker。
 - Ascend compiler/launcher hook：传递 Debugger metadata 和 hidden control pointer。
+- Tianshu/CoreX compiler/launcher hook：使用同一 metadata/hidden pointer 契约；runtime transfer
+  通过 `libcuda.so.1` 兼容层动态解析。
 
 Debugger 的主要实现位于当前目录：
 

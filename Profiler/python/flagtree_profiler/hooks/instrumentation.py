@@ -3,8 +3,14 @@ from typing import Dict, Optional, Union, Any
 
 import triton
 from triton._C.libtriton import ir as triton_ir
-from triton._C.libtriton import amd as triton_amd
-from triton._C.libtriton import nvidia as triton_nvidia
+try:
+    from triton._C.libtriton import amd as triton_amd
+except ImportError:
+    triton_amd = None
+try:
+    from triton._C.libtriton import nvidia as triton_nvidia
+except ImportError:
+    triton_nvidia = None
 from triton._C.libtriton import passes as triton_passes
 from triton.compiler import LazyDict
 from triton.runtime.jit import JITFunction
@@ -269,9 +275,11 @@ class InstrumentationHook(Hook):
             triton_ir.load_dialects(context)
             backend_name = _get_backend_name()
             if backend_name == "nvidia":
-                triton_nvidia.load_dialects(context)
+                if triton_nvidia is not None:
+                    triton_nvidia.load_dialects(context)
             elif backend_name == "amd":
-                triton_amd.load_dialects(context)
+                if triton_amd is not None:
+                    triton_amd.load_dialects(context)
             triton_proton.load_dialects(context)
             module = triton_ir.parse_mlir_module(ir_path, context)
             module.context = context

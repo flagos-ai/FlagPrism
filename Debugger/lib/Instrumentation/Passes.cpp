@@ -12,7 +12,6 @@
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Math/IR/Math.h"
 #include "mlir/Dialect/MemRef/IR/MemRef.h"
-#include "mlir/Dialect/Ptr/IR/PtrDialect.h"
 #include "mlir/Dialect/SCF/IR/SCF.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Attributes.h"
@@ -632,9 +631,12 @@ bool isLowerableSummaryCollector(CollectorKind kind, Type valueType) {
 }
 
 ArrayAttr buildCollectorArrayForValue(Builder &builder, RecordLevel level,
-                                      Type valueType) {
+                                      Type valueType,
+                                      bool disableL2Norm = false) {
   SmallVector<Attribute> collectors;
   for (CollectorKind kind : getEnabledCollectors(level)) {
+    if (disableL2Norm && kind == CollectorKind::L2_NORM)
+      continue;
     if (!isLowerableSummaryCollector(kind, valueType))
       continue;
     std::string_view name = getCollectorName(kind);
@@ -1830,9 +1832,23 @@ void emitSummaryBundleStores(OpBuilder &builder, Location loc,
       loc, hasFinite, reduceMaxF32(builder, loc, maxInput),
       createFloatConstantLike(builder, loc, builder.getF32Type(), 0.0));
 
-  Value square = builder.create<arith::MulFOp>(loc, finiteValue, finiteValue);
+  bool collectL2Norm = false;
+  if (auto collectors = recordOp->getAttrOfType<ArrayAttr>("collectors")) {
+    for (Attribute attr : collectors) {
+      auto name = dyn_cast<StringAttr>(attr);
+      if (name && name.getValue() == "l2_norm") {
+        collectL2Norm = true;
+        break;
+      }
+    }
+  }
   Value l2Norm =
-      builder.create<math::SqrtOp>(loc, reduceAddF32(builder, loc, square));
+      createFloatConstantLike(builder, loc, builder.getF32Type(), 0.0);
+  if (collectL2Norm) {
+    Value square = builder.create<arith::MulFOp>(loc, finiteValue, finiteValue);
+    l2Norm =
+        builder.create<math::SqrtOp>(loc, reduceAddF32(builder, loc, square));
+  }
 
   Value meanBits =
       builder.create<arith::BitcastOp>(loc, builder.getI32Type(), mean);
@@ -2049,23 +2065,101 @@ Value fallbackPointerAddressForMemoryEvent(OpBuilder &builder, Location loc,
                                             slice->base);
 }
 
-Value extractLaneValue(OpBuilder &builder, Location loc, Value value,
-                       int64_t lane) {
-  Value flat = flattenTensorForSummary(builder, loc, value);
-  if (!flat)
+Value firstLaneIntegerValue(OpBuilder &builder, Location loc, Value value,
+                            int32_t depth = 0) {
+  if (!value || depth >= kMaxPointerTraceDepth ||
+      !isIntegerValueType(value.getType()))
     return {};
-  if (!isa<RankedTensorType>(flat.getType()))
-    return flat;
-  Value index = builder.create<arith::ConstantIndexOp>(loc, lane);
-  return builder.create<tensor::ExtractOp>(loc, flat, ValueRange{index});
+  if (!isa<RankedTensorType>(value.getType()))
+    return value;
+
+  Operation *def = value.getDefiningOp();
+  if (!def)
+    return {};
+  Type elementType = getElementType(value.getType());
+
+  if (auto range = dyn_cast<triton::MakeRangeOp>(def)) {
+    return createIntegerConstantLike(builder, loc, elementType,
+                                     static_cast<uint64_t>(range.getStart()));
+  }
+
+  if (auto constant = dyn_cast<arith::ConstantOp>(def)) {
+    if (auto dense = dyn_cast<DenseIntElementsAttr>(constant.getValue())) {
+      auto first = dense.value_begin<llvm::APInt>();
+      if (first != dense.value_end<llvm::APInt>())
+        return builder.create<arith::ConstantOp>(
+            loc, elementType, IntegerAttr::get(elementType, *first));
+    }
+    return {};
+  }
+
+  if (auto splat = dyn_cast<triton::SplatOp>(def))
+    return firstLaneIntegerValue(builder, loc, splat.getSrc(), depth + 1);
+
+  auto rebuildBinary = [&](Value lhs, Value rhs, StringRef opName) -> Value {
+    Value firstLhs = firstLaneIntegerValue(builder, loc, lhs, depth + 1);
+    Value firstRhs = firstLaneIntegerValue(builder, loc, rhs, depth + 1);
+    if (!firstLhs || !firstRhs)
+      return {};
+    OperationState state(loc, opName);
+    state.addOperands({firstLhs, firstRhs});
+    state.addTypes(elementType);
+    return builder.create(state)->getResult(0);
+  };
+
+  if (auto add = dyn_cast<arith::AddIOp>(def))
+    return rebuildBinary(add.getLhs(), add.getRhs(),
+                         arith::AddIOp::getOperationName());
+  if (auto sub = dyn_cast<arith::SubIOp>(def))
+    return rebuildBinary(sub.getLhs(), sub.getRhs(),
+                         arith::SubIOp::getOperationName());
+  if (auto mul = dyn_cast<arith::MulIOp>(def))
+    return rebuildBinary(mul.getLhs(), mul.getRhs(),
+                         arith::MulIOp::getOperationName());
+
+  if (auto ext = dyn_cast<arith::ExtSIOp>(def)) {
+    Value input = firstLaneIntegerValue(builder, loc, ext.getIn(), depth + 1);
+    return input ? builder.create<arith::ExtSIOp>(loc, elementType, input)
+                 : Value();
+  }
+  if (auto ext = dyn_cast<arith::ExtUIOp>(def)) {
+    Value input = firstLaneIntegerValue(builder, loc, ext.getIn(), depth + 1);
+    return input ? builder.create<arith::ExtUIOp>(loc, elementType, input)
+                 : Value();
+  }
+  if (auto trunc = dyn_cast<arith::TruncIOp>(def)) {
+    Value input = firstLaneIntegerValue(builder, loc, trunc.getIn(), depth + 1);
+    return input ? builder.create<arith::TruncIOp>(loc, elementType, input)
+                 : Value();
+  }
+  if (auto bitcast = dyn_cast<arith::BitcastOp>(def)) {
+    Value input =
+        firstLaneIntegerValue(builder, loc, bitcast.getIn(), depth + 1);
+    return input ? builder.create<arith::BitcastOp>(loc, elementType, input)
+                 : Value();
+  }
+
+  StringRef name = def->getName().getStringRef();
+  if ((name == "tt.reshape" || name == "tt.broadcast" ||
+       name == "tt.expand_dims") &&
+      def->getNumOperands() == 1)
+    return firstLaneIntegerValue(builder, loc, def->getOperand(0), depth + 1);
+
+  return {};
 }
 
-Value combineOffsetsToI64(OpBuilder &builder, Location loc, Type targetType,
-                          ArrayRef<Value> offsets) {
-  Value combined = createIntegerConstantLike(builder, loc, targetType, 0);
+Value combineFirstLaneOffsetsToI64(OpBuilder &builder, Location loc,
+                                   ArrayRef<Value> offsets) {
+  // CoreX cannot legalize tensor.extract across the encoded tensor<i64>
+  // materialization in TTIR-to-TTGIR conversion. A contiguous address summary
+  // only needs the first offset, so compute that offset directly as scalar i64.
+  Value combined = createI64Constant(builder, loc, 0);
   for (Value offset : offsets) {
-    Value offsetI64 =
-        castIntegerValueToI64Like(builder, loc, offset, targetType);
+    Value firstLaneOffset = firstLaneIntegerValue(builder, loc, offset);
+    if (!firstLaneOffset)
+      return {};
+    Value offsetI64 = castIntegerValueToI64Like(builder, loc, firstLaneOffset,
+                                                builder.getI64Type());
     if (!offsetI64)
       return {};
     combined = builder.create<arith::AddIOp>(loc, combined, offsetI64);
@@ -2122,20 +2216,14 @@ buildFastAddressSummaryValues(OpBuilder &builder, Location loc,
     bytes = static_cast<uint32_t>(std::max<int64_t>(1, attr.getInt()));
 
   int64_t laneCount = 1;
-  Type offsetType = builder.getI64Type();
   if (auto ranked = dyn_cast<RankedTensorType>(observed.getType())) {
     laneCount = static_cast<int64_t>(getStaticElementCount(ranked));
     if (laneCount <= 0)
       return std::nullopt;
-    offsetType = RankedTensorType::get({laneCount}, builder.getI64Type(),
-                                       ranked.getEncoding());
   }
 
-  Value combinedOffset =
-      combineOffsetsToI64(builder, loc, offsetType, slice->offsets);
-  if (!combinedOffset)
-    return std::nullopt;
-  Value firstOffset = extractLaneValue(builder, loc, combinedOffset, 0);
+  Value firstOffset =
+      combineFirstLaneOffsetsToI64(builder, loc, slice->offsets);
   if (!firstOffset)
     return std::nullopt;
 
@@ -2384,8 +2472,11 @@ Value bitcastPayloadValueToI64(OpBuilder &builder, Location loc, Value value) {
   if (value.getType() == i64Like)
     return value;
   auto floatType = dyn_cast<FloatType>(getElementType(value.getType()));
-  if (floatType && floatType.getWidth() == 64)
+  if (floatType && floatType.getWidth() == 64) {
+    if (isa<ShapedType>(value.getType()))
+      return builder.create<triton::BitcastOp>(loc, i64Like, value);
     return builder.create<arith::BitcastOp>(loc, i64Like, value);
+  }
   return {};
 }
 
@@ -2444,7 +2535,10 @@ void emitFullDumpPayloadStores(OpBuilder &builder, Location loc,
     Value wordValue = value;
     if (isa<FloatType>(getElementType(value.getType()))) {
       Type i32Like = withElementType(value.getType(), builder.getI32Type());
-      wordValue = builder.create<arith::BitcastOp>(loc, i32Like, value);
+      if (isa<ShapedType>(value.getType()))
+        wordValue = builder.create<triton::BitcastOp>(loc, i32Like, value);
+      else
+        wordValue = builder.create<arith::BitcastOp>(loc, i32Like, value);
     }
     Value offsets =
         payloadLaneOffsets(builder, loc, value.getType(), payloadWordOffset, 1);
@@ -3384,10 +3478,9 @@ struct InsertInstrumentationPass
   MLIR_DEFINE_EXPLICIT_INTERNAL_INLINE_TYPE_ID(InsertInstrumentationPass);
 
   void getDependentDialects(DialectRegistry &registry) const override {
-    registry
-        .insert<FlagTreeDebugDialect, arith::ArithDialect, math::MathDialect,
-                memref::MemRefDialect, ptr::PtrDialect, scf::SCFDialect,
-                tensor::TensorDialect, triton::TritonDialect>();
+    registry.insert<FlagTreeDebugDialect, arith::ArithDialect,
+                    math::MathDialect, memref::MemRefDialect, scf::SCFDialect,
+                    tensor::TensorDialect, triton::TritonDialect>();
   }
 
   void runOnOperation() override {
@@ -3413,6 +3506,10 @@ struct InsertInstrumentationPass
         timelineEnabledAttr && timelineEnabledAttr.getValue();
     auto timelineOnlyAttr = module->getAttrOfType<BoolAttr>(kAttrTimelineOnly);
     const bool timelineOnly = timelineOnlyAttr && timelineOnlyAttr.getValue();
+    auto disableL2NormAttr =
+        module->getAttrOfType<BoolAttr>("flagtree.debug.disable_l2_norm");
+    const bool disableL2Norm =
+        disableL2NormAttr && disableL2NormAttr.getValue();
     llvm::DenseSet<Operation *> functionsWithCalls;
     llvm::StringSet<> calledFunctions;
     if (enableHiddenArgAbi) {
@@ -3469,7 +3566,7 @@ struct InsertInstrumentationPass
         if (timelineOnly || !observedValue || targetOpId == 0)
           return false;
         ArrayAttr collectors = buildCollectorArrayForValue(
-            builder, level, observedValue.getType());
+            builder, level, observedValue.getType(), disableL2Norm);
         const bool valueHasSummary =
             canEmitDynamicSummary && collectors && !collectors.empty() &&
             (shouldEmitDynamicSummary(op, observedValue.getType(), level) ||
@@ -3496,8 +3593,8 @@ struct InsertInstrumentationPass
       Value fullValue = observedFullDumpValue(op, valueSource);
       ArrayAttr summaryCollectors;
       if (!timelineOnly && canEmitDynamicSummary && fullValue)
-        summaryCollectors =
-            buildCollectorArrayForValue(builder, level, fullValue.getType());
+        summaryCollectors = buildCollectorArrayForValue(
+            builder, level, fullValue.getType(), disableL2Norm);
       const bool hasSummary =
           !timelineOnly && canEmitDynamicSummary && summaryCollectors &&
           !summaryCollectors.empty() &&

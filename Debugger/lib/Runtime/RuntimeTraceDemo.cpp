@@ -43,6 +43,8 @@ std::string toString(BackendKind backend) {
     return "MUSA";
   case BackendKind::CANN:
     return "CANN";
+  case BackendKind::TIANSHU:
+    return "TIANSHU";
   }
   return "UNKNOWN_BACKEND";
 }

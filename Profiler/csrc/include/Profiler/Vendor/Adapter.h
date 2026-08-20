@@ -23,7 +23,7 @@ public:
                                        const VendorProfilePlan &plan) const = 0;
 };
 
-// Adapter contract for vendor runtime backends such as CANN.
+// Adapter contract for vendor runtime backends such as CANN and Tianshu.
 class VendorAdapter {
 public:
   virtual ~VendorAdapter() = default;

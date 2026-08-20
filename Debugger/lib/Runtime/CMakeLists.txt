@@ -2,7 +2,23 @@ cmake_minimum_required(VERSION 3.20)
 
 project(FlagTreeDebuggerRuntimeStandalone LANGUAGES CXX)
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/CANN.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/CoreX.cmake)
+if(NOT FLAGPRISM_BACKEND STREQUAL "tianshu")
+  include(${CMAKE_CURRENT_SOURCE_DIR}/CANN.cmake)
+endif()
+
+if(NOT COMMAND flagprism_enable_debugger_runtime)
+  function(flagprism_enable_debugger_runtime target)
+    if(FLAGPRISM_BACKEND STREQUAL "tianshu")
+      flagtree_debugger_enable_corex(${target})
+    elseif(FLAGPRISM_BACKEND STREQUAL "ascend")
+      flagtree_debugger_enable_cann(${target})
+    else()
+      flagtree_debugger_enable_cann(${target})
+      flagtree_debugger_enable_corex(${target})
+    endif()
+  endfunction()
+endif()
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -22,7 +38,7 @@ add_library(FlagTreeDebuggerRuntimeStandalone STATIC
   BufferLayout.cpp
   TransferEngine.cpp
 )
-flagtree_debugger_enable_cann(FlagTreeDebuggerRuntimeStandalone)
+flagprism_enable_debugger_runtime(FlagTreeDebuggerRuntimeStandalone)
 
 target_include_directories(FlagTreeDebuggerRuntimeStandalone
   PUBLIC
@@ -39,7 +55,7 @@ if(FLAGTREE_DEBUGGER_RUNTIME_BUILD_SMOKE_TEST)
     PRIVATE
       FlagTreeDebuggerRuntimeStandalone
   )
-  flagtree_debugger_enable_cann(FlagTreeDebuggerRuntimeStandaloneSmokeTest)
+  flagprism_enable_debugger_runtime(FlagTreeDebuggerRuntimeStandaloneSmokeTest)
 
   add_test(
     NAME FlagTreeDebuggerRuntimeStandaloneSmokeTest
@@ -55,7 +71,7 @@ if(FLAGTREE_DEBUGGER_RUNTIME_BUILD_TRACE_DEMO)
     PRIVATE
       FlagTreeDebuggerRuntimeStandalone
   )
-  flagtree_debugger_enable_cann(FlagTreeDebuggerRuntimeTraceDemo)
+  flagprism_enable_debugger_runtime(FlagTreeDebuggerRuntimeTraceDemo)
 endif()
 
 if(FLAGTREE_DEBUGGER_RUNTIME_BUILD_ASYNC_LOOP_TEST)
@@ -66,5 +82,5 @@ if(FLAGTREE_DEBUGGER_RUNTIME_BUILD_ASYNC_LOOP_TEST)
     PRIVATE
       FlagTreeDebuggerRuntimeStandalone
   )
-  flagtree_debugger_enable_cann(FlagTreeDebuggerRuntimeAsyncLoopTest)
+  flagprism_enable_debugger_runtime(FlagTreeDebuggerRuntimeAsyncLoopTest)
 endif()

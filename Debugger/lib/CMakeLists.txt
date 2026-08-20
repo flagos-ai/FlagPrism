@@ -1,10 +1,14 @@
-include(${CMAKE_CURRENT_SOURCE_DIR}/Runtime/CANN.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/Runtime/CoreX.cmake)
+if(NOT FLAGPRISM_BACKEND STREQUAL "tianshu")
+  include(${CMAKE_CURRENT_SOURCE_DIR}/Runtime/CANN.cmake)
+endif()
 
 add_triton_library(FlagTreeDebuggerRuntime
   Runtime/BufferLayout.cpp
   Runtime/TransferEngine.cpp
 )
-flagtree_debugger_enable_cann(FlagTreeDebuggerRuntime)
+flagprism_enable_debugger_runtime(FlagTreeDebuggerRuntime)
+flagprism_apply_backend_compile_definitions(FlagTreeDebuggerRuntime)
 
 add_triton_library(FlagTreeDebuggerFrontend
   Frontend/Bridge.cpp
@@ -14,7 +18,8 @@ add_triton_library(FlagTreeDebuggerFrontend
   FlagTreeDebuggerRuntime
   LLVMSupport
 )
-flagtree_debugger_enable_cann(FlagTreeDebuggerFrontend)
+flagprism_enable_debugger_runtime(FlagTreeDebuggerFrontend)
+flagprism_apply_backend_compile_definitions(FlagTreeDebuggerFrontend)
 
 add_triton_library(FlagTreeDebugger
   IR/Dialect.cpp
@@ -41,4 +46,5 @@ add_triton_library(FlagTreeDebugger
   MLIRTensorDialect
   TritonIR
 )
-flagtree_debugger_enable_cann(FlagTreeDebugger)
+flagprism_enable_debugger_runtime(FlagTreeDebugger)
+flagprism_apply_backend_compile_definitions(FlagTreeDebugger)

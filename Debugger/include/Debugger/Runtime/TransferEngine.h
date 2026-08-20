@@ -75,6 +75,7 @@ struct DebugRuntimeMetadata {
 enum class TransferDriverKind : uint16_t {
   HOST = 1,
   CANN = 2,
+  COREX = 3,
 };
 
 TransferDriverKind resolveTransferDriverKind(BackendKind backendKind);
