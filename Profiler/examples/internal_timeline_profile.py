@@ -71,7 +71,8 @@ import flagtree.profiler as profiler
 
 
 @triton.jit
-def _vector_add_kernel(x_ptr, y_ptr, z_ptr, n: tl.constexpr, BLOCK_SIZE: tl.constexpr):
+def _vector_add_kernel(x_ptr, y_ptr, z_ptr, n: tl.constexpr,
+                       BLOCK_SIZE: tl.constexpr):
     pid = tl.program_id(axis=0)
     offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n
@@ -105,13 +106,15 @@ def main() -> int:
 
     n = 4096
     block_size = 1024
-    x = torch.randn((n,), device=device, dtype=torch.float32)
-    y = torch.randn((n,), device=device, dtype=torch.float32)
+    x = torch.randn((n, ), device=device, dtype=torch.float32)
+    y = torch.randn((n, ), device=device, dtype=torch.float32)
     z = torch.empty_like(x)
 
-    _vector_add_kernel[(triton.cdiv(n, block_size),)](
-        x, y, z, n, BLOCK_SIZE=block_size
-    )
+    _vector_add_kernel[(triton.cdiv(n, block_size), )](x,
+                                                       y,
+                                                       z,
+                                                       n,
+                                                       BLOCK_SIZE=block_size)
     torch.npu.synchronize()
 
     sid = profiler.start(
@@ -120,18 +123,19 @@ def main() -> int:
         data="tree",
         backend="cann",
         hook="instrumentation",
-        mode=(
-            "runtime_base:"
-            f"device_id={device_id}:"
-            "vendor_metrics=aicore,bandwidth:"
-            "mstx_enabled=true:"
-            "mstx_domain=flagtree_profiler"
-        ),
+        mode=("runtime_base:"
+              f"device_id={device_id}:"
+              "vendor_metrics=aicore,bandwidth:"
+              "mstx_enabled=true:"
+              "mstx_domain=flagtree_profiler"),
     )
     try:
-        _vector_add_kernel[(triton.cdiv(n, block_size),)](
-            x, y, z, n, BLOCK_SIZE=block_size
-        )
+        _vector_add_kernel[(triton.cdiv(n,
+                                        block_size), )](x,
+                                                        y,
+                                                        z,
+                                                        n,
+                                                        BLOCK_SIZE=block_size)
         torch.npu.synchronize()
     finally:
         profiler.finalize(sid)

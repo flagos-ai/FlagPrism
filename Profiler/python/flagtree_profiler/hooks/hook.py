@@ -9,7 +9,8 @@ class Hook:
     priority: int = 0
 
     @abstractmethod
-    def init_handle(self, module: Any, function: Any, name: str, metadata_group: Dict[str, str],
+    def init_handle(self, module: Any, function: Any, name: str,
+                    metadata_group: Dict[str, str],
                     hash: str) -> None:  # noqa: D401
         raise NotImplementedError
 
@@ -34,10 +35,13 @@ class HookManager:
     # active hooks
     active_hooks: list[Hook] = []
     # session_id -> (hook_type -> active)
-    session_hooks: Dict[int, Dict[Hook, bool]] = defaultdict(lambda: defaultdict(bool))
+    session_hooks: Dict[int,
+                        Dict[Hook,
+                             bool]] = defaultdict(lambda: defaultdict(bool))
 
     @staticmethod
-    def init_handle(module: Any, function: Any, name: str, metadata_group: Dict[str, str], hash: str) -> None:
+    def init_handle(module: Any, function: Any, name: str,
+                    metadata_group: Dict[str, str], hash: str) -> None:
         for hook in HookManager.active_hooks:
             hook.init_handle(module, function, name, metadata_group, hash)
 
@@ -84,7 +88,9 @@ class HookManager:
 
         # Check if any other sessions rely on this hook
         for hook in deactivated_hooks:
-            if not any(session_hooks[hook] for session_hooks in HookManager.session_hooks.values()):
+            if not any(
+                    session_hooks[hook]
+                    for session_hooks in HookManager.session_hooks.values()):
                 hook.deactivate()
                 HookManager.active_hooks.remove(hook)
 
@@ -118,7 +124,8 @@ class HookManager:
             for hook, active in popped_hooks.items():
                 if not active:
                     continue
-                if not any(session_hooks[hook] for session_hooks in HookManager.session_hooks.values()):
+                if not any(session_hooks[hook] for session_hooks in
+                           HookManager.session_hooks.values()):
                     hook.deactivate()
                     HookManager.active_hooks.remove(hook)
         # Unregister the heads

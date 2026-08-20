@@ -563,10 +563,12 @@ private:
     freeHost_ = loadSymbol<HostFree>({"cuMemFreeHost"});
     memset_ = loadSymbol<Memset>({"cuMemsetD8"});
     memsetAsync_ = loadSymbol<MemsetAsync>({"cuMemsetD8Async"});
-    copyHostToDevice_ = loadSymbol<CopyH2D>({"cuMemcpyHtoD_v2", "cuMemcpyHtoD"});
+    copyHostToDevice_ =
+        loadSymbol<CopyH2D>({"cuMemcpyHtoD_v2", "cuMemcpyHtoD"});
     copyHostToDeviceAsync_ =
         loadSymbol<CopyH2DAsync>({"cuMemcpyHtoDAsync_v2", "cuMemcpyHtoDAsync"});
-    copyDeviceToHost_ = loadSymbol<CopyD2H>({"cuMemcpyDtoH_v2", "cuMemcpyDtoH"});
+    copyDeviceToHost_ =
+        loadSymbol<CopyD2H>({"cuMemcpyDtoH_v2", "cuMemcpyDtoH"});
     copyDeviceToHostAsync_ =
         loadSymbol<CopyD2HAsync>({"cuMemcpyDtoHAsync_v2", "cuMemcpyDtoHAsync"});
     synchronize_ = loadSymbol<Synchronize>({"cuStreamSynchronize"});
@@ -643,14 +645,13 @@ void synthesizeExportHeader(const DebugLaunchContext &ctx,
   }
 
   auto *header = reinterpret_cast<RingBufferHeader *>(allocation.hostBuffer);
-  uint64_t totalSlots = saturatingMul(ctx.runtimeMetadata.gridX,
-                                      ctx.runtimeMetadata.gridY);
+  uint64_t totalSlots =
+      saturatingMul(ctx.runtimeMetadata.gridX, ctx.runtimeMetadata.gridY);
   totalSlots = saturatingMul(totalSlots, ctx.runtimeMetadata.gridZ);
   totalSlots =
       saturatingMul(totalSlots, ctx.runtimeMetadata.recordsPerInstance);
   const uint64_t capacity = header->capacity;
-  const uint64_t overflow =
-      totalSlots > capacity ? totalSlots - capacity : 0;
+  const uint64_t overflow = totalSlots > capacity ? totalSlots - capacity : 0;
 
   header->writeIdx = saturatingU32(totalSlots);
   header->overflowCount = saturatingU32(overflow);
@@ -761,8 +762,7 @@ public:
     }
     const uint64_t streamHandle = resolveStreamHandle(ctx, options_);
     allocation->asyncCopySubmitted = false;
-    if (options_.driverKind != TransferDriverKind::HOST &&
-        streamHandle != 0) {
+    if (options_.driverKind != TransferDriverKind::HOST && streamHandle != 0) {
       adapter_->copyDeviceToHost(allocation->hostBuffer,
                                  allocation->deviceBuffer, allocation->bytes,
                                  streamHandle);

@@ -30,6 +30,7 @@ from typing import Callable
 
 import flagtree.profiler as profiler
 from flagtree.profiler.native import runtime_binding
+
 profiler_native = runtime_binding()
 
 
@@ -43,20 +44,24 @@ class LigerCase:
 
 def _make_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--out", default="/tmp/flagtree_profiler_cann_liger_full")
+    parser.add_argument("--out",
+                        default="/tmp/flagtree_profiler_cann_liger_full")
     parser.add_argument(
         "--liger-source",
-        help="Path to a Liger-Kernel checkout. The script adds <path>/src to PYTHONPATH.",
+        help=
+        "Path to a Liger-Kernel checkout. The script adds <path>/src to PYTHONPATH.",
     )
     parser.add_argument(
         "--clone-liger",
         action="store_true",
-        help="Clone Liger-Kernel into --liger-source, or <out>/Liger-Kernel when omitted. This is the default when --liger-source is not set.",
+        help=
+        "Clone Liger-Kernel into --liger-source, or <out>/Liger-Kernel when omitted. This is the default when --liger-source is not set.",
     )
     parser.add_argument(
         "--no-clone-liger",
         action="store_true",
-        help="Do not auto-clone Liger-Kernel when --liger-source is omitted; use an installed liger_kernel package instead.",
+        help=
+        "Do not auto-clone Liger-Kernel when --liger-source is omitted; use an installed liger_kernel package instead.",
     )
     parser.add_argument(
         "--liger-repo",
@@ -76,7 +81,8 @@ def _make_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--allow-case-failures",
         action="store_true",
-        help="Finalize and return success even if one or more Liger cases fail.",
+        help=
+        "Finalize and return success even if one or more Liger cases fail.",
     )
     return parser
 
@@ -86,8 +92,10 @@ def _run(cmd: list[str], cwd: pathlib.Path | None = None) -> None:
     subprocess.run(cmd, cwd=cwd, check=True)
 
 
-def _prepare_liger_import(args: argparse.Namespace, out: pathlib.Path) -> pathlib.Path | None:
-    liger_source = pathlib.Path(args.liger_source) if args.liger_source else None
+def _prepare_liger_import(args: argparse.Namespace,
+                          out: pathlib.Path) -> pathlib.Path | None:
+    liger_source = pathlib.Path(
+        args.liger_source) if args.liger_source else None
     should_clone = args.clone_liger or liger_source is None
     if args.no_clone_liger:
         should_clone = False
@@ -96,7 +104,10 @@ def _prepare_liger_import(args: argparse.Namespace, out: pathlib.Path) -> pathli
             liger_source = out / "Liger-Kernel"
         if not liger_source.exists():
             liger_source.parent.mkdir(parents=True, exist_ok=True)
-            _run(["git", "clone", "--depth", "1", args.liger_repo, str(liger_source)])
+            _run([
+                "git", "clone", "--depth", "1", args.liger_repo,
+                str(liger_source)
+            ])
 
     if liger_source is None:
         return None
@@ -104,7 +115,8 @@ def _prepare_liger_import(args: argparse.Namespace, out: pathlib.Path) -> pathli
     src_dir = liger_source / "src"
     import_dir = src_dir if src_dir.exists() else liger_source
     if not import_dir.exists():
-        raise RuntimeError(f"Liger source import path does not exist: {import_dir}")
+        raise RuntimeError(
+            f"Liger source import path does not exist: {import_dir}")
     sys.path.insert(0, str(import_dir))
     return liger_source
 
@@ -113,17 +125,21 @@ def _load_torch_npu():
     try:
         import torch
     except ModuleNotFoundError as exc:
-        raise RuntimeError("PyTorch is required for the Liger profile suite.") from exc
+        raise RuntimeError(
+            "PyTorch is required for the Liger profile suite.") from exc
 
     try:
         import torch_npu  # noqa: F401
     except ModuleNotFoundError as exc:
-        raise RuntimeError("torch_npu is required for NPU tensor allocation.") from exc
+        raise RuntimeError(
+            "torch_npu is required for NPU tensor allocation.") from exc
 
     if not hasattr(torch, "npu"):
-        raise RuntimeError("torch.npu is unavailable after importing torch_npu.")
+        raise RuntimeError(
+            "torch.npu is unavailable after importing torch_npu.")
     if not torch.npu.is_available():
-        raise RuntimeError("torch_npu is installed, but torch.npu.is_available() is false.")
+        raise RuntimeError(
+            "torch_npu is installed, but torch.npu.is_available() is false.")
     return torch
 
 
@@ -137,26 +153,32 @@ def _load_liger(torch):
     except ModuleNotFoundError as exc:
         raise RuntimeError(
             "liger_kernel is not importable. Install liger-kernel or pass "
-            "--liger-source /path/to/Liger-Kernel."
-        ) from exc
+            "--liger-source /path/to/Liger-Kernel.") from exc
 
-    liger_utils.is_npu_available = lambda: hasattr(torch, "npu") and torch.npu.is_available()
+    liger_utils.is_npu_available = lambda: hasattr(
+        torch, "npu") and torch.npu.is_available()
 
-    cross_entropy = importlib.import_module("liger_kernel.transformers.cross_entropy")
+    cross_entropy = importlib.import_module(
+        "liger_kernel.transformers.cross_entropy")
     dyt = importlib.import_module("liger_kernel.transformers.dyt")
-    fused_add_rms_norm = importlib.import_module("liger_kernel.transformers.fused_add_rms_norm")
+    fused_add_rms_norm = importlib.import_module(
+        "liger_kernel.transformers.fused_add_rms_norm")
     fused_linear_cross_entropy = importlib.import_module(
-        "liger_kernel.transformers.fused_linear_cross_entropy"
-    )
-    fused_linear_jsd = importlib.import_module("liger_kernel.transformers.fused_linear_jsd")
+        "liger_kernel.transformers.fused_linear_cross_entropy")
+    fused_linear_jsd = importlib.import_module(
+        "liger_kernel.transformers.fused_linear_jsd")
     geglu = importlib.import_module("liger_kernel.transformers.geglu")
-    group_norm = importlib.import_module("liger_kernel.transformers.group_norm")
+    group_norm = importlib.import_module(
+        "liger_kernel.transformers.group_norm")
     jsd = importlib.import_module("liger_kernel.transformers.jsd")
     kl_div = importlib.import_module("liger_kernel.transformers.kl_div")
-    layer_norm = importlib.import_module("liger_kernel.transformers.layer_norm")
-    modulated_rms_norm = importlib.import_module("liger_kernel.transformers.modulated_rms_norm")
+    layer_norm = importlib.import_module(
+        "liger_kernel.transformers.layer_norm")
+    modulated_rms_norm = importlib.import_module(
+        "liger_kernel.transformers.modulated_rms_norm")
     poly_norm = importlib.import_module("liger_kernel.transformers.poly_norm")
-    relu_squared = importlib.import_module("liger_kernel.transformers.relu_squared")
+    relu_squared = importlib.import_module(
+        "liger_kernel.transformers.relu_squared")
     rms_norm = importlib.import_module("liger_kernel.transformers.rms_norm")
     rope = importlib.import_module("liger_kernel.transformers.rope")
     softmax = importlib.import_module("liger_kernel.transformers.softmax")
@@ -168,7 +190,8 @@ def _load_liger(torch):
         LigerCrossEntropyLoss=cross_entropy.LigerCrossEntropyLoss,
         LigerDyT=dyt.LigerDyT,
         LigerFusedAddRMSNorm=fused_add_rms_norm.LigerFusedAddRMSNorm,
-        LigerFusedLinearCrossEntropyLoss=fused_linear_cross_entropy.LigerFusedLinearCrossEntropyLoss,
+        LigerFusedLinearCrossEntropyLoss=fused_linear_cross_entropy.
+        LigerFusedLinearCrossEntropyLoss,
         LigerFusedLinearJSD=fused_linear_jsd.LigerFusedLinearJSD,
         LigerGEGLUMLP=geglu.LigerGEGLUMLP,
         LigerGroupNorm=group_norm.LigerGroupNorm,
@@ -206,7 +229,8 @@ def _measure_op(torch, op: Callable, iters: int) -> tuple[float, object]:
     return time.perf_counter() - start, out
 
 
-def _timing_fields(baseline_elapsed_s: float, profiled_elapsed_s: float, iters: int) -> dict:
+def _timing_fields(baseline_elapsed_s: float, profiled_elapsed_s: float,
+                   iters: int) -> dict:
     overhead_s = profiled_elapsed_s - baseline_elapsed_s
     overhead_ratio = None
     overhead_percent = None
@@ -228,15 +252,12 @@ def _timing_fields(baseline_elapsed_s: float, profiled_elapsed_s: float, iters: 
 
 def _summarize_timing(results: list[dict]) -> dict:
     timed = [
-        result
-        for result in results
-        if result.get("status") == "ok"
-        and result.get("baseline_elapsed_s") is not None
-        and result.get("profiled_elapsed_s") is not None
+        result for result in results
+        if result.get("status") == "ok" and result.get("baseline_elapsed_s")
+        is not None and result.get("profiled_elapsed_s") is not None
     ]
     ratios = [
-        result["overhead_ratio"]
-        for result in timed
+        result["overhead_ratio"] for result in timed
         if result.get("overhead_ratio") is not None
     ]
     baseline_total = sum(result["baseline_elapsed_s"] for result in timed)
@@ -245,14 +266,22 @@ def _summarize_timing(results: list[dict]) -> dict:
     if baseline_total > 0:
         weighted_ratio = (profiled_total - baseline_total) / baseline_total
     return {
-        "timed_case_count": len(timed),
-        "baseline_total_s": baseline_total,
-        "profiled_total_s": profiled_total,
-        "overhead_total_s": profiled_total - baseline_total,
-        "average_overhead_ratio": sum(ratios) / len(ratios) if ratios else None,
-        "average_overhead_percent": (sum(ratios) / len(ratios) * 100.0) if ratios else None,
-        "weighted_overhead_ratio": weighted_ratio,
-        "weighted_overhead_percent": weighted_ratio * 100.0 if weighted_ratio is not None else None,
+        "timed_case_count":
+        len(timed),
+        "baseline_total_s":
+        baseline_total,
+        "profiled_total_s":
+        profiled_total,
+        "overhead_total_s":
+        profiled_total - baseline_total,
+        "average_overhead_ratio":
+        sum(ratios) / len(ratios) if ratios else None,
+        "average_overhead_percent":
+        (sum(ratios) / len(ratios) * 100.0) if ratios else None,
+        "weighted_overhead_ratio":
+        weighted_ratio,
+        "weighted_overhead_percent":
+        weighted_ratio * 100.0 if weighted_ratio is not None else None,
     }
 
 
@@ -261,14 +290,18 @@ def _cases(torch, device, liger) -> list[LigerCase]:
     inter = 256
     vocab = 512
     tokens = 32
-    cfg_silu = SimpleNamespace(hidden_size=hidden, intermediate_size=inter, hidden_act="silu")
-    cfg_gelu = SimpleNamespace(hidden_size=hidden, intermediate_size=inter, hidden_act="gelu_pytorch_tanh")
+    cfg_silu = SimpleNamespace(hidden_size=hidden,
+                               intermediate_size=inter,
+                               hidden_act="silu")
+    cfg_gelu = SimpleNamespace(hidden_size=hidden,
+                               intermediate_size=inter,
+                               hidden_act="gelu_pytorch_tanh")
 
     def rand(shape, dtype=torch.float32):
         return torch.randn(shape, device=device, dtype=dtype)
 
     def labels(n: int, v: int):
-        return torch.randint(0, v, (n,), device=device, dtype=torch.long)
+        return torch.randint(0, v, (n, ), device=device, dtype=torch.long)
 
     def prob(shape):
         return torch.softmax(rand(shape), dim=-1)
@@ -391,22 +424,31 @@ def _cases(torch, device, liger) -> list[LigerCase]:
         teacher_input = rand((tokens, hidden))
         teacher_weight = rand((vocab, hidden))
         target = labels(tokens, vocab)
-        return lambda: module(student_input, student_weight, teacher_input, teacher_weight, target)
+        return lambda: module(student_input, student_weight, teacher_input,
+                              teacher_weight, target)
 
     return [
         LigerCase("liger_rms_norm", "normalization", "LigerRMSNorm", rms_norm),
-        LigerCase("liger_layer_norm", "normalization", "LigerLayerNorm", layer_norm),
-        LigerCase("liger_fused_add_rms_norm", "normalization", "LigerFusedAddRMSNorm", fused_add_rms_norm),
-        LigerCase("liger_modulated_rms_norm", "normalization", "LigerModulatedRMSNorm", modulated_rms_norm),
-        LigerCase("liger_poly_norm", "normalization", "LigerPolyNorm", poly_norm),
+        LigerCase("liger_layer_norm", "normalization", "LigerLayerNorm",
+                  layer_norm),
+        LigerCase("liger_fused_add_rms_norm", "normalization",
+                  "LigerFusedAddRMSNorm", fused_add_rms_norm),
+        LigerCase("liger_modulated_rms_norm", "normalization",
+                  "LigerModulatedRMSNorm", modulated_rms_norm),
+        LigerCase("liger_poly_norm", "normalization", "LigerPolyNorm",
+                  poly_norm),
         LigerCase("liger_dyt", "activation", "LigerDyT", dyt),
-        LigerCase("liger_relu_squared", "activation", "LigerReLUSquared", relu_squared),
+        LigerCase("liger_relu_squared", "activation", "LigerReLUSquared",
+                  relu_squared),
         LigerCase("liger_swiglu_mlp", "mlp", "LigerSwiGLUMLP", swiglu_mlp),
         LigerCase("liger_geglu_mlp", "mlp", "LigerGEGLUMLP", geglu_mlp),
         LigerCase("liger_softmax", "probability", "LigerSoftmax", softmax),
-        LigerCase("liger_sparsemax", "probability", "LigerSparsemax", sparsemax),
-        LigerCase("liger_rope", "position_embedding", "liger_rotary_pos_emb", rope),
-        LigerCase("liger_cross_entropy", "loss", "LigerCrossEntropyLoss", cross_entropy),
+        LigerCase("liger_sparsemax", "probability", "LigerSparsemax",
+                  sparsemax),
+        LigerCase("liger_rope", "position_embedding", "liger_rotary_pos_emb",
+                  rope),
+        LigerCase("liger_cross_entropy", "loss", "LigerCrossEntropyLoss",
+                  cross_entropy),
         LigerCase(
             "liger_fused_linear_cross_entropy",
             "loss",
@@ -416,12 +458,15 @@ def _cases(torch, device, liger) -> list[LigerCase]:
         LigerCase("liger_kl_div", "loss", "LigerKLDIVLoss", kl_div),
         LigerCase("liger_jsd", "loss", "LigerJSD", jsd),
         LigerCase("liger_tvd", "loss", "LigerTVDLoss", tvd),
-        LigerCase("liger_group_norm", "normalization", "LigerGroupNorm", group_norm),
-        LigerCase("liger_fused_linear_jsd", "loss", "LigerFusedLinearJSD", fused_linear_jsd),
+        LigerCase("liger_group_norm", "normalization", "LigerGroupNorm",
+                  group_norm),
+        LigerCase("liger_fused_linear_jsd", "loss", "LigerFusedLinearJSD",
+                  fused_linear_jsd),
     ]
 
 
-def _summarize_artifacts(base: pathlib.Path, out: pathlib.Path, results: list[dict], failures: list[dict]) -> dict:
+def _summarize_artifacts(base: pathlib.Path, out: pathlib.Path,
+                         results: list[dict], failures: list[dict]) -> dict:
     meta_path = base.with_suffix(".meta.json")
     vendor_path = base.with_suffix(".vendor.json")
     timeline_path = base.with_suffix(".timeline.json")
@@ -431,24 +476,19 @@ def _summarize_artifacts(base: pathlib.Path, out: pathlib.Path, results: list[di
     timeline = json.loads(timeline_path.read_text().splitlines()[0])
 
     source_counts = Counter(
-        assoc.get("source", "") for assoc in vendor.get("associations", [])
-    )
+        assoc.get("source", "") for assoc in vendor.get("associations", []))
     op_types = Counter(
         assoc.get("metrics", {}).get("op_type")
         for assoc in vendor.get("associations", [])
-        if assoc.get("metrics", {}).get("op_type")
-    )
-    bandwidth_count = sum(
-        1 for assoc in vendor.get("associations", []) if "bandwidth_gb_s" in assoc.get("metrics", {})
-    )
-    mstx_messages = sorted(
-        {
-            assoc.get("metrics", {}).get("message")
-            for assoc in vendor.get("associations", [])
-            if assoc.get("source") == "msprof_mstx"
-            and assoc.get("metrics", {}).get("message")
-        }
-    )
+        if assoc.get("metrics", {}).get("op_type"))
+    bandwidth_count = sum(1 for assoc in vendor.get("associations", [])
+                          if "bandwidth_gb_s" in assoc.get("metrics", {}))
+    mstx_messages = sorted({
+        assoc.get("metrics", {}).get("message")
+        for assoc in vendor.get("associations", [])
+        if assoc.get("source") == "msprof_mstx"
+        and assoc.get("metrics", {}).get("message")
+    })
 
     return {
         "profile_base": str(base),
@@ -521,32 +561,32 @@ def main() -> int:
             baseline_elapsed_s, _ = _measure_op(torch, op, args.iters)
             prepared.append((case, op, baseline_elapsed_s))
         except Exception as exc:
-            failure = {"name": case.name, "phase": "baseline", "error": repr(exc)}
+            failure = {
+                "name": case.name,
+                "phase": "baseline",
+                "error": repr(exc)
+            }
             failures.append(failure)
-            results.append(
-                {
-                    "name": case.name,
-                    "category": case.category,
-                    "description": case.description,
-                    "status": "failed",
-                    "phase": "baseline",
-                    "error": repr(exc),
-                }
-            )
+            results.append({
+                "name": case.name,
+                "category": case.category,
+                "description": case.description,
+                "status": "failed",
+                "phase": "baseline",
+                "error": repr(exc),
+            })
             if not args.allow_case_failures:
                 break
 
     base = out / "liger_full_profile"
-    mode = (
-        "runtime_base:"
-        "vendor_metrics=aicore,bandwidth:"
-        f"aclprof_output_path={msprof_out}:"
-        "runtime_host_timing_fallback=true:"
-        "aclprof_runtime_enabled=true:"
-        "aclprof_auto_export=true:"
-        "mstx_enabled=true:"
-        "mstx_domain=flagtree_profiler"
-    )
+    mode = ("runtime_base:"
+            "vendor_metrics=aicore,bandwidth:"
+            f"aclprof_output_path={msprof_out}:"
+            "runtime_host_timing_fallback=true:"
+            "aclprof_runtime_enabled=true:"
+            "aclprof_auto_export=true:"
+            "mstx_enabled=true:"
+            "mstx_domain=flagtree_profiler")
     session_id = profiler.start(
         name=str(base),
         context="shadow",
@@ -564,7 +604,8 @@ def main() -> int:
                 out_value = None
                 profiler_native.enter_op(scope_id, scope_name)
                 try:
-                    profiled_elapsed_s, out_value = _measure_op(torch, op, args.iters)
+                    profiled_elapsed_s, out_value = _measure_op(
+                        torch, op, args.iters)
                 finally:
                     profiler_native.exit_op(scope_id, scope_name)
 
@@ -577,31 +618,38 @@ def main() -> int:
                     "checksum": _checksum(torch, out_value),
                     "status": "ok",
                 }
-                result.update(_timing_fields(baseline_elapsed_s, profiled_elapsed_s, args.iters))
+                result.update(
+                    _timing_fields(baseline_elapsed_s, profiled_elapsed_s,
+                                   args.iters))
                 results.append(result)
             except Exception as exc:
-                failure = {"name": case.name, "phase": "profiled", "error": repr(exc)}
+                failure = {
+                    "name": case.name,
+                    "phase": "profiled",
+                    "error": repr(exc)
+                }
                 failures.append(failure)
-                results.append(
-                    {
-                        "name": case.name,
-                        "category": case.category,
-                        "description": case.description,
-                        "status": "failed",
-                        "phase": "profiled",
-                        "error": repr(exc),
-                    }
-                )
+                results.append({
+                    "name": case.name,
+                    "category": case.category,
+                    "description": case.description,
+                    "status": "failed",
+                    "phase": "profiled",
+                    "error": repr(exc),
+                })
                 if not args.allow_case_failures:
                     break
     finally:
         profiler.finalize(session_id)
 
     summary = _summarize_artifacts(base, out, results, failures)
-    summary["liger_source"] = str(liger_source) if liger_source else "installed-package"
+    summary["liger_source"] = str(
+        liger_source) if liger_source else "installed-package"
     summary["timing"] = _summarize_timing(results)
-    summary["overhead_method"] = "same_process_pre_session_no_profiler_baseline"
-    (out / "summary.json").write_text(json.dumps(summary, indent=2, sort_keys=True))
+    summary[
+        "overhead_method"] = "same_process_pre_session_no_profiler_baseline"
+    (out / "summary.json").write_text(
+        json.dumps(summary, indent=2, sort_keys=True))
     print(json.dumps(summary, indent=2, sort_keys=True))
 
     if failures and not args.allow_case_failures:

@@ -7,7 +7,8 @@ import pathlib
 
 def test_help():
     # Only check if the viewer can be invoked
-    subprocess.check_call(["flagtree-profiler", "-h"], stdout=subprocess.DEVNULL)
+    subprocess.check_call(["flagtree-profiler", "-h"],
+                          stdout=subprocess.DEVNULL)
 
 
 def is_hip():
@@ -21,12 +22,20 @@ def test_exec(mode, tmp_path: pathlib.Path):
     temp_file = tmp_path / "test_exec.hatchet"
     name = str(temp_file.with_suffix(""))
     if mode == "script":
-        subprocess.check_call(["flagtree-profiler", "-n", name, helper_file, "test"], stdout=subprocess.DEVNULL)
+        subprocess.check_call(
+            ["flagtree-profiler", "-n", name, helper_file, "test"],
+            stdout=subprocess.DEVNULL)
     elif mode == "python":
-        subprocess.check_call(["python3", "-m", "flagtree.profiler.cli", "-n", name, helper_file, "test"],
+        subprocess.check_call([
+            "python3", "-m", "flagtree.profiler.cli", "-n", name, helper_file,
+            "test"
+        ],
                               stdout=subprocess.DEVNULL)
     elif mode == "pytest":
-        subprocess.check_call(["flagtree-profiler", "-n", name, "pytest", "-k", "test_main", helper_file],
+        subprocess.check_call([
+            "flagtree-profiler", "-n", name, "pytest", "-k", "test_main",
+            helper_file
+        ],
                               stdout=subprocess.DEVNULL)
     with temp_file.open() as f:
         data = json.load(f, )

@@ -5,6 +5,7 @@
 #include "mlir/IR/BuiltinOps.h"
 #include "mlir/IR/Dialect.h"
 #include "mlir/IR/PatternMatch.h"
+
 #include "Profiler/Dialect/include/Dialect/Proton/IR/Dialect.h.inc"
 #include "Profiler/Dialect/include/Dialect/Proton/IR/OpsEnums.h.inc"
 

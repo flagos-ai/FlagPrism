@@ -6,7 +6,9 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
-def test_debug_collect_runtime_uses_flagtree_backend_for_backend_name(monkeypatch):
+
+def test_debug_collect_runtime_uses_flagtree_backend_for_backend_name(
+        monkeypatch):
     from flagtree.debugger.runtime import DebugCollectRuntime
 
     monkeypatch.setenv("FLAGTREE_BACKEND", "ascend")
@@ -19,7 +21,8 @@ def test_debug_collect_runtime_uses_flagtree_backend_for_backend_name(monkeypatc
     assert normalized["debug_target_name"] == "Ascend910B4"
 
 
-def test_debug_collect_runtime_does_not_infer_backend_from_npu_target(monkeypatch):
+def test_debug_collect_runtime_does_not_infer_backend_from_npu_target(
+        monkeypatch):
     from flagtree.debugger.runtime import DebugCollectRuntime
 
     monkeypatch.delenv("FLAGTREE_BACKEND", raising=False)
@@ -86,7 +89,10 @@ def test_debugger_binding_decodes_and_reports_summary_record():
             "export_mode": 1,
             "backend_kind": 1,
         },
-        "runtime_metadata": {"buffers": [], "tensors": []},
+        "runtime_metadata": {
+            "buffers": [],
+            "tensors": []
+        },
         "raw_buffer": header + summary,
     }
     metadata_json = json.dumps({
@@ -126,7 +132,8 @@ def test_debugger_binding_decodes_deterministic_compact_bundle_records():
     record_size = 64
     capacity = 4
     payload_offset = 32 + capacity * record_size
-    header = struct.pack("<IIIIIIII", 4, capacity, 0, 0, record_size, payload_offset, 0, 0)
+    header = struct.pack("<IIIIIIII", 4, capacity, 0, 0, record_size,
+                         payload_offset, 0, 0)
     records = [bytearray(record_size) for _ in range(capacity)]
     struct.pack_into("<QQQQ", records[0], 16, 0, 0, 1, 16)
     struct.pack_into("<ffff", records[1], 16, 4.0, 0.0, 8.0, 18.5)
@@ -145,8 +152,10 @@ def test_debugger_binding_decodes_deterministic_compact_bundle_records():
         "runtime_metadata": {
             "buffers": [],
             "tensors": [],
-            "records_per_instance": 2,
-            "record_layout": "deterministic_compact_v1",
+            "records_per_instance":
+            2,
+            "record_layout":
+            "deterministic_compact_v1",
             "record_plan": [
                 {
                     "record_index": 0,
@@ -179,7 +188,8 @@ def test_debugger_binding_decodes_deterministic_compact_bundle_records():
         "SUMMARY_VALUE_BUNDLE_F32",
     ]
     assert [record["op_id"] for record in decoded["records"]] == [7, 7, 7, 7]
-    assert [record["logical_instance_id"] for record in decoded["records"]] == [0, 0, 1, 1]
+    assert [record["logical_instance_id"]
+            for record in decoded["records"]] == [0, 0, 1, 1]
     assert decoded["records"][0]["nan_count"] == 0
     assert decoded["records"][0]["zero_count"] == 1
     assert decoded["records"][2]["nan_count"] == 1
@@ -194,7 +204,8 @@ def test_debugger_binding_decodes_deterministic_compact_timeline_record():
     record_size = 64
     capacity = 1
     payload_offset = 32 + capacity * record_size
-    header = struct.pack("<IIIIIIII", 1, capacity, 0, 0, record_size, payload_offset, 0, 0)
+    header = struct.pack("<IIIIIIII", 1, capacity, 0, 0, record_size,
+                         payload_offset, 0, 0)
     record = bytearray(record_size)
     struct.pack_into("<QQQ", record, 16, 100, 145, 45)
     exported = {
@@ -210,8 +221,10 @@ def test_debugger_binding_decodes_deterministic_compact_timeline_record():
         "runtime_metadata": {
             "buffers": [],
             "tensors": [],
-            "records_per_instance": 1,
-            "record_layout": "deterministic_compact_v1",
+            "records_per_instance":
+            1,
+            "record_layout":
+            "deterministic_compact_v1",
             "record_plan": [
                 {
                     "record_index": 0,
@@ -228,28 +241,22 @@ def test_debugger_binding_decodes_deterministic_compact_timeline_record():
     }
 
     decoded = dbg.decode_exported_run(exported)
-    assert decoded["records"] == [
-        {
-            "record_kind": "TIMELINE",
-            "op_id": 7,
-            "logical_instance_id": 0,
-            "start_cycle": 100,
-            "end_cycle": 145,
-            "duration_cycle": 45,
-        }
-    ]
+    assert decoded["records"] == [{
+        "record_kind": "TIMELINE",
+        "op_id": 7,
+        "logical_instance_id": 0,
+        "start_cycle": 100,
+        "end_cycle": 145,
+        "duration_cycle": 45,
+    }]
 
 
-def test_ascend_spec_compiled_kernel_keeps_core_launch_metadata_contract(monkeypatch):
+def test_ascend_spec_compiled_kernel_keeps_core_launch_metadata_contract(
+        monkeypatch):
     import triton
 
-    compiler_path = (
-        Path(triton.__file__).parent
-        / "spec"
-        / "ascend"
-        / "compiler"
-        / "compiler.py"
-    )
+    compiler_path = (Path(triton.__file__).parent / "spec" / "ascend" /
+                     "compiler" / "compiler.py")
     spec = importlib.util.spec_from_file_location(
         "triton.compiler._ascend_spec_compiler_under_test",
         compiler_path,
@@ -267,27 +274,23 @@ def test_ascend_spec_compiled_kernel_keeps_core_launch_metadata_contract(monkeyp
         _init_handles=lambda: None,
     )
 
-    launch_metadata = ascend_compiler.CompiledKernel.launch_metadata(kernel, (7,), 99)
+    launch_metadata = ascend_compiler.CompiledKernel.launch_metadata(
+        kernel, (7, ), 99)
 
     if launch_metadata is not None:
         assert "grid" not in launch_metadata.get()
 
 
 def test_ascend_spec_jit_applies_instrumentation_mode_to_compile_options(
-    monkeypatch,
-):
+    monkeypatch, ):
     import triton
     import triton.backends.ascend as ascend_backend
 
-    jit_path = Path(triton.__file__).parent / "spec" / "ascend" / "runtime" / "jit.py"
+    jit_path = Path(
+        triton.__file__).parent / "spec" / "ascend" / "runtime" / "jit.py"
     if not jit_path.exists():
-        jit_path = (
-            Path(ascend_backend.__file__).parent
-            / "spec"
-            / "triton"
-            / "runtime"
-            / "jit.py"
-        )
+        jit_path = (Path(ascend_backend.__file__).parent / "spec" / "triton" /
+                    "runtime" / "jit.py")
     spec = importlib.util.spec_from_file_location(
         "triton.runtime._ascend_spec_jit_instrumentation_under_test",
         jit_path,

@@ -38,7 +38,8 @@ def test_torch(context, tmp_path: pathlib.Path):
     if context == "shadow":
         assert len(data[0]["children"]) == 1
         assert data[0]["children"][0]["frame"]["name"] == "test"
-        assert data[0]["children"][0]["children"][0]["metrics"]["time (ns)"] > 0
+        assert data[0]["children"][0]["children"][0]["metrics"][
+            "time (ns)"] > 0
     elif context == "python":
         assert len(data[0]["children"]) == 1
         # bfs search until find the "elementwise_kernel" and then check its children
@@ -214,7 +215,8 @@ def test_hook_launch(tmp_path: pathlib.Path):
         data = json.load(f)
     assert len(data[0]["children"]) == 1
     assert data[0]["children"][0]["frame"]["name"] == "test0"
-    assert data[0]["children"][0]["children"][0]["frame"]["name"] == "foo_test_1ctas_1elems"
+    assert data[0]["children"][0]["children"][0]["frame"][
+        "name"] == "foo_test_1ctas_1elems"
     assert data[0]["children"][0]["children"][0]["metrics"]["flops32"] == 1.0
     assert data[0]["children"][0]["children"][0]["metrics"]["time (ns)"] > 0
 
@@ -235,7 +237,9 @@ def test_hook_launch_context(tmp_path: pathlib.Path, context: str):
     x = torch.tensor([2], device="cuda", dtype=torch.float32)
     y = torch.zeros_like(x)
     temp_file = tmp_path / "test_hook.hatchet"
-    profiler.start(str(temp_file.with_suffix("")), hook="triton", context=context)
+    profiler.start(str(temp_file.with_suffix("")),
+                   hook="triton",
+                   context=context)
     with profiler.scope("test0"):
         foo[(1, )](x, 1, y, num_warps=4)
     profiler.finalize()
@@ -247,7 +251,8 @@ def test_hook_launch_context(tmp_path: pathlib.Path, context: str):
         parent_frame = queue.pop(0)
         for child in parent_frame["children"]:
             if "reduce" in child["frame"]["name"]:
-                assert parent_frame["frame"]["name"] == COMPUTE_METADATA_SCOPE_NAME
+                assert parent_frame["frame"][
+                    "name"] == COMPUTE_METADATA_SCOPE_NAME
                 return
             queue.append(child)
 
@@ -361,7 +366,10 @@ def test_pcsampling(tmp_path: pathlib.Path):
             tl.store(y + offs, tl.load(x + offs))
 
     temp_file = tmp_path / "test_pcsampling.hatchet"
-    profiler.start(str(temp_file.with_suffix("")), hook="triton", backend="cupti", mode="pcsampling")
+    profiler.start(str(temp_file.with_suffix("")),
+                   hook="triton",
+                   backend="cupti",
+                   mode="pcsampling")
     with profiler.scope("init"):
         x = torch.ones((1024, ), device="cuda", dtype=torch.float32)
         y = torch.zeros_like(x)
@@ -374,7 +382,8 @@ def test_pcsampling(tmp_path: pathlib.Path):
     test_frame = data[0]["children"][1]
     # With line mapping
     assert "foo" in test_frame["children"][0]["frame"]["name"]
-    assert test_frame["children"][0]["children"][0]["metrics"]["num_samples"] > 0
+    assert test_frame["children"][0]["children"][0]["metrics"][
+        "num_samples"] > 0
     assert "@" in test_frame["children"][0]["children"][0]["frame"]["name"]
     # Without line mapping
     assert "elementwise" in init_frame["children"][0]["frame"]["name"]
@@ -418,8 +427,10 @@ def test_multiple_sessions(tmp_path: pathlib.Path):
     assert int(data[0]["children"][0]["children"][0]["metrics"]["count"]) == 2
     with temp_file1.open() as f:
         data = json.load(f)
-    scope0_count = int(data[0]["children"][0]["children"][0]["metrics"]["count"])
-    scope1_count = int(data[0]["children"][1]["children"][0]["metrics"]["count"])
+    scope0_count = int(
+        data[0]["children"][0]["children"][0]["metrics"]["count"])
+    scope1_count = int(
+        data[0]["children"][1]["children"][0]["metrics"]["count"])
     assert scope0_count + scope1_count == 3
 
 
@@ -446,7 +457,9 @@ def test_trace(tmp_path: pathlib.Path):
         trace_events = data["traceEvents"]
         assert len(trace_events) == 3
         assert trace_events[-1]["name"] == "foo"
-        assert trace_events[-1]["args"]["call_stack"] == ["ROOT", "test", "foo"]
+        assert trace_events[-1]["args"]["call_stack"] == [
+            "ROOT", "test", "foo"
+        ]
 
 
 def test_scope_multiple_threads(tmp_path: pathlib.Path):
@@ -463,7 +476,10 @@ def test_scope_multiple_threads(tmp_path: pathlib.Path):
             torch.ones((1, ), device="cuda")
             profiler.exit_scope()
 
-    threads = [threading.Thread(target=worker, args=(tname, )) for tname in thread_names]
+    threads = [
+        threading.Thread(target=worker, args=(tname, ))
+        for tname in thread_names
+    ]
     for t in threads:
         t.start()
     for t in threads:

@@ -23,9 +23,10 @@ from types import SimpleNamespace
 
 import numpy as np
 
-
 ROOT = Path(__file__).resolve().parents[5]
-OUT = Path(os.environ.get("FLAGTREE_DEBUGGER_COMPLEX_OUT", "/tmp/flagtree_debugger_complex_e2e"))
+OUT = Path(
+    os.environ.get("FLAGTREE_DEBUGGER_COMPLEX_OUT",
+                   "/tmp/flagtree_debugger_complex_e2e"))
 BLOCK_SIZE = 16
 COLLECTOR_NAMES = {
     1: "nan_count",
@@ -45,7 +46,9 @@ def ensure_import_paths() -> None:
         build_lib,
         ROOT / "python",
         Path("/usr/local/Ascend/ascend-toolkit/latest/python/site-packages"),
-        Path("/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe"),
+        Path(
+            "/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe"
+        ),
     ]
     for path in reversed(paths):
         if path.exists():
@@ -60,7 +63,8 @@ import triton.language as tl
 
 
 @triton.jit
-def _complex_debug_kernel(x_ptr, y_ptr, a_ptr, b_ptr, c_ptr, n, BLOCK_SIZE: tl.constexpr):
+def _complex_debug_kernel(x_ptr, y_ptr, a_ptr, b_ptr, c_ptr, n,
+                          BLOCK_SIZE: tl.constexpr):
     pid = tl.program_id(0)
     offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n
@@ -88,24 +92,36 @@ def register_acl_backend_strategy() -> None:
 
     registry = backend_strategy_registry._get_instance()
     registry.strategies.setdefault("acl", {})
-    registry.strategies["acl"].update(
-        {
-            "version_hash": lambda: ["acl-complex-probe"],
-            "cxx_abi": lambda: 1,
-            "get_cc_cmd": lambda build_pch: [],
-            "get_current_device": lambda: 0,
-            "set_current_device": lambda device_id: 0,
-            "get_current_stream": lambda device=None: 0,
-            "header_file": lambda enable_taskqueue: "",
-            "pre_launch": lambda: "",
-            "async_launch": lambda func: f"{func}();",
-            "allocate_memory": lambda size, stream: "nullptr",
-            "allocate_sync_block_lock": lambda size, stream: "nullptr",
-            "get_empty_tensor": lambda size: None,
-            "get_tensor_params_shape": lambda *args: [],
-            "get_device_interface": lambda: None,
-        }
-    )
+    registry.strategies["acl"].update({
+        "version_hash":
+        lambda: ["acl-complex-probe"],
+        "cxx_abi":
+        lambda: 1,
+        "get_cc_cmd":
+        lambda build_pch: [],
+        "get_current_device":
+        lambda: 0,
+        "set_current_device":
+        lambda device_id: 0,
+        "get_current_stream":
+        lambda device=None: 0,
+        "header_file":
+        lambda enable_taskqueue: "",
+        "pre_launch":
+        lambda: "",
+        "async_launch":
+        lambda func: f"{func}();",
+        "allocate_memory":
+        lambda size, stream: "nullptr",
+        "allocate_sync_block_lock":
+        lambda size, stream: "nullptr",
+        "get_empty_tensor":
+        lambda size: None,
+        "get_tensor_params_shape":
+        lambda *args: [],
+        "get_device_interface":
+        lambda: None,
+    })
     ascend_utils.backend_policy = "acl"
 
 
@@ -121,9 +137,10 @@ def patch_launcher_build():
         src_path = build_dir / "launcher_no_pch.cxx"
         header_path.write_text(header_src, encoding="utf-8")
         src_path.write_text(wrapper_src, encoding="utf-8")
-        return ascend_utils._build_npu_ext(
-            "launcher_no_pch", str(header_path), str(src_path), precompile=False
-        )
+        return ascend_utils._build_npu_ext("launcher_no_pch",
+                                           str(header_path),
+                                           str(src_path),
+                                           precompile=False)
 
     ascend_driver.make_npu_launcher_stub = make_launcher_no_pch
     return make_launcher_no_pch
@@ -144,7 +161,9 @@ def ast_source():
             "n": "i32",
         },
     }
-    kwargs["constants" if "constants" in params else "constexprs"] = {"BLOCK_SIZE": BLOCK_SIZE}
+    kwargs["constants" if "constants" in params else "constexprs"] = {
+        "BLOCK_SIZE": BLOCK_SIZE
+    }
     return ASTSource(**kwargs)
 
 
@@ -187,8 +206,13 @@ def compile_kernel(log_lines: list[str]):
         ascend_ir.load_dialects(context)
     backend.load_dialects(context)
 
-    mod = make_ir(source, target, options, get_codegen(backend, options), backend.get_module_map(), context)
-    metadata = {"hash": "complex-ascend-debugger-evaluation", "target": target, **options.__dict__}
+    mod = make_ir(source, target, options, get_codegen(backend, options),
+                  backend.get_module_map(), context)
+    metadata = {
+        "hash": "complex-ascend-debugger-evaluation",
+        "target": target,
+        **options.__dict__
+    }
     stages = {}
     if "language" in inspect.signature(backend.add_stages).parameters:
         backend.add_stages(stages, options, source.language)
@@ -197,15 +221,21 @@ def compile_kernel(log_lines: list[str]):
     ttir_mod = stages["ttir"](mod, metadata)
     ttir_text = str(ttir_mod)
     ttadapter_text = stages["ttadapter"](ttir_mod, metadata)
-    parsed_ttadapter, metadata = _parse_linalg_metadata(ttadapter_text, metadata)
-    compile_ttadapter = parsed_ttadapter.replace(', hacc.target = #hacc.target<"Ascend910B">', "")
-    compile_ttadapter = compile_ttadapter.replace(', hacc.target = #hacc.target<"Ascend910B4-1">', "")
+    parsed_ttadapter, metadata = _parse_linalg_metadata(
+        ttadapter_text, metadata)
+    compile_ttadapter = parsed_ttadapter.replace(
+        ', hacc.target = #hacc.target<"Ascend910B">', "")
+    compile_ttadapter = compile_ttadapter.replace(
+        ', hacc.target = #hacc.target<"Ascend910B4-1">', "")
 
     work = OUT / "manual_compile"
     work.mkdir(parents=True, exist_ok=True)
-    (work / "kernel.ttadapter.mlir").write_text(compile_ttadapter, encoding="utf-8")
+    (work / "kernel.ttadapter.mlir").write_text(compile_ttadapter,
+                                                encoding="utf-8")
 
-    compiler = shutil.which("bishengir-compile") or "/usr/local/Ascend/ascend-toolkit/latest/bin/bishengir-compile"
+    compiler = shutil.which(
+        "bishengir-compile"
+    ) or "/usr/local/Ascend/ascend-toolkit/latest/bin/bishengir-compile"
     cmd = [
         compiler,
         str(work / "kernel.ttadapter.mlir"),
@@ -216,7 +246,11 @@ def compile_kernel(log_lines: list[str]):
         "-o",
         str(work / "kernel"),
     ]
-    result = subprocess.run(cmd, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    result = subprocess.run(cmd,
+                            text=True,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            check=False)
     (work / "compile.stdout").write_text(result.stdout, encoding="utf-8")
     (work / "compile.stderr").write_text(result.stderr, encoding="utf-8")
     log_lines.append("compile_command: " + " ".join(cmd))
@@ -229,7 +263,10 @@ def compile_kernel(log_lines: list[str]):
         raise RuntimeError(f"expected binary missing: {npubin_path}")
 
     metadata_json = metadata["debug_metadata_json"]
-    (OUT / "metadata.json").write_text(json.dumps(metadata, default=vars, indent=2), encoding="utf-8")
+    (OUT / "metadata.json").write_text(json.dumps(metadata,
+                                                  default=vars,
+                                                  indent=2),
+                                       encoding="utf-8")
     (OUT / "instrumented.ttir.mlir").write_text(ttir_text, encoding="utf-8")
     (OUT / "ttadapter.mlir").write_text(parsed_ttadapter, encoding="utf-8")
     (OUT / "kernel.npubin").write_bytes(npubin_path.read_bytes())
@@ -241,11 +278,17 @@ def compile_kernel(log_lines: list[str]):
 def input_arrays():
     x = np.arange(BLOCK_SIZE, dtype=np.float32)
     a = np.array(
-        [0.0, 1.0, -1.0, 2.0, -2.0, 3.0, -3.0, 4.0, np.inf, 5.0, -5.0, 6.0, -6.0, 7.0, -7.0, 8.0],
+        [
+            0.0, 1.0, -1.0, 2.0, -2.0, 3.0, -3.0, 4.0, np.inf, 5.0, -5.0, 6.0,
+            -6.0, 7.0, -7.0, 8.0
+        ],
         dtype=np.float32,
     )
     b = np.array(
-        [2.0, 0.0, 3.0, -1.0, 2.0, -2.0, 1.0, 0.5, 2.0, -1.0, -1.0, 0.0, 2.0, 1.0, -0.5, 0.25],
+        [
+            2.0, 0.0, 3.0, -1.0, 2.0, -2.0, 1.0, 0.5, 2.0, -1.0, -1.0, 0.0,
+            2.0, 1.0, -0.5, 0.25
+        ],
         dtype=np.float32,
     )
     p = a * b
@@ -280,23 +323,35 @@ def summary_stats(values: np.ndarray) -> dict[str, float | int]:
         stats["mean"] = float(finite_values.mean())
         stats["min"] = float(finite_values.min())
         stats["max"] = float(finite_values.max())
-        stats["l2_norm"] = float(math.sqrt(float(np.square(finite_values).sum())))
+        stats["l2_norm"] = float(
+            math.sqrt(float(np.square(finite_values).sum())))
     return stats
 
 
-def check_close(name: str, actual: float, expected: float, *, atol: float = 2e-3) -> None:
-    if not math.isclose(float(actual), float(expected), rel_tol=1e-4, abs_tol=atol):
+def check_close(name: str,
+                actual: float,
+                expected: float,
+                *,
+                atol: float = 2e-3) -> None:
+    if not math.isclose(
+            float(actual), float(expected), rel_tol=1e-4, abs_tol=atol):
         raise AssertionError(f"{name}: actual={actual} expected={expected}")
 
 
-def validate_records(decoded: dict, metadata: dict, expected_values: list[np.ndarray], log_lines: list[str]) -> None:
+def validate_records(decoded: dict, metadata: dict,
+                     expected_values: list[np.ndarray],
+                     log_lines: list[str]) -> None:
     records = decoded["records"]
     tracked = metadata["debug_tracked_table"]
     if len(tracked) != len(expected_values):
-        raise AssertionError(f"tracked op count mismatch: {len(tracked)} vs {len(expected_values)}")
+        raise AssertionError(
+            f"tracked op count mismatch: {len(tracked)} vs {len(expected_values)}"
+        )
     expected_record_count = len(tracked) * 8
     if len(records) != expected_record_count:
-        raise AssertionError(f"record count mismatch: {len(records)} vs {expected_record_count}")
+        raise AssertionError(
+            f"record count mismatch: {len(records)} vs {expected_record_count}"
+        )
 
     grouped: dict[int, dict[str, float | int]] = {}
     for record in records:
@@ -311,11 +366,16 @@ def validate_records(decoded: dict, metadata: dict, expected_values: list[np.nda
         op_id = int(row["opId"])
         expected = summary_stats(expected_values[index])
         actual = grouped.get(op_id, {})
-        for metric in ("nan_count", "inf_count", "zero_count", "element_count"):
+        for metric in ("nan_count", "inf_count", "zero_count",
+                       "element_count"):
             if int(actual.get(metric, -1)) != int(expected[metric]):
-                raise AssertionError(f"op {op_id} {metric}: actual={actual.get(metric)} expected={expected[metric]}")
+                raise AssertionError(
+                    f"op {op_id} {metric}: actual={actual.get(metric)} expected={expected[metric]}"
+                )
         for metric in ("mean", "min", "max", "l2_norm"):
-            check_close(f"op {op_id} {metric}", float(actual.get(metric, float('nan'))), float(expected[metric]))
+            check_close(f"op {op_id} {metric}",
+                        float(actual.get(metric, float('nan'))),
+                        float(expected[metric]))
         log_lines.append(
             "validated_op: "
             f"op_id={op_id} mlir_op={row['mlirOpName']} "
@@ -336,7 +396,8 @@ def run_probe() -> dict:
     from triton.backends.compiler import GPUTarget
     from triton.runtime import driver
 
-    active_launcher_module = sys.modules.get(driver.active.launcher_cls.__module__)
+    active_launcher_module = sys.modules.get(
+        driver.active.launcher_cls.__module__)
     if active_launcher_module is not None:
         active_launcher_module.make_npu_launcher_stub = make_launcher_no_pch
 
@@ -346,7 +407,8 @@ def run_probe() -> dict:
         if path.is_file():
             path.unlink()
 
-    source, backend, metadata, npubin, metadata_json = compile_kernel(log_lines)
+    source, backend, metadata, npubin, metadata_json = compile_kernel(
+        log_lines)
 
     ret = acl.init()
     if ret not in (0, None, 100002):
@@ -361,12 +423,17 @@ def run_probe() -> dict:
     kernel_metadata = dict(metadata)
     target = kernel_metadata["target"]
     if isinstance(target, dict):
-        kernel_metadata["target"] = GPUTarget(target["backend"], target["arch"], target["warp_size"])
+        kernel_metadata["target"] = GPUTarget(target["backend"],
+                                              target["arch"],
+                                              target["warp_size"])
     kernel_tuple = namedtuple("KernelMetadata", sorted(kernel_metadata.keys()))
-    metadata_obj = kernel_tuple(**{k: kernel_metadata[k] for k in sorted(kernel_metadata.keys())})
+    metadata_obj = kernel_tuple(
+        **{k: kernel_metadata[k]
+           for k in sorted(kernel_metadata.keys())})
     packed_metadata = backend.pack_metadata(metadata_obj)
     launcher = driver.active.launcher_cls(source, metadata_obj)
-    loaded = driver.active.utils.load_binary(metadata_obj.name, npubin, metadata_obj.shared, 0)
+    loaded = driver.active.utils.load_binary(metadata_obj.name, npubin,
+                                             metadata_obj.shared, 0)
     function = int(loaded[1])
 
     handle = dbg.prepare_launch(
@@ -382,7 +449,10 @@ def run_probe() -> dict:
             "debug_metadata_json": metadata_json,
         },
         int(stream),
-        {"buffers": [], "tensors": []},
+        {
+            "buffers": [],
+            "tensors": []
+        },
     )
     debug_ctrl_ptr = int(handle.hidden_arg_value)
     # This probe owns the runtime handle directly, so bypass the launch context
@@ -399,7 +469,8 @@ def run_probe() -> dict:
 
     def h2d(dst: int, array: np.ndarray) -> None:
         data = np.ascontiguousarray(array).tobytes()
-        rc = acl.rt.memcpy(dst, len(data), acl.util.bytes_to_ptr(data), len(data), 1)
+        rc = acl.rt.memcpy(dst, len(data), acl.util.bytes_to_ptr(data),
+                           len(data), 1)
         if rc not in (0, None):
             raise RuntimeError(f"H2D memcpy failed: {rc}")
 
@@ -416,7 +487,8 @@ def run_probe() -> dict:
             acl.rt.free_host(host)
 
     def d2h(src: int, count: int) -> np.ndarray:
-        return np.frombuffer(copy_from_device(src, count * 4), dtype=np.float32).copy()
+        return np.frombuffer(copy_from_device(src, count * 4),
+                             dtype=np.float32).copy()
 
     x, a, b, c = input_arrays()
     expected = expected_tensors(x, a, b, c)
@@ -430,12 +502,14 @@ def run_probe() -> dict:
         b_dev = dev_malloc(size)
         c_dev = dev_malloc(size)
         ptrs.extend([x_dev, y_dev, a_dev, b_dev, c_dev])
-        for ptr, array in ((x_dev, x), (y_dev, y_init), (a_dev, a), (b_dev, b), (c_dev, c)):
+        for ptr, array in ((x_dev, x), (y_dev, y_init), (a_dev, a), (b_dev, b),
+                           (c_dev, c)):
             h2d(ptr, array)
 
         before = copy_from_device(debug_ctrl_ptr, 64)
         (OUT / "device_header_before_launch.bin").write_bytes(before)
-        log_lines.append("header_before_words: " + repr(list(struct.unpack("<16I", before))))
+        log_lines.append("header_before_words: " +
+                         repr(list(struct.unpack("<16I", before))))
 
         launcher(
             1,
@@ -461,7 +535,8 @@ def run_probe() -> dict:
 
         after = copy_from_device(debug_ctrl_ptr, 160)
         (OUT / "device_header_after_launch.bin").write_bytes(after)
-        log_lines.append("header_after_words: " + repr(list(struct.unpack("<40I", after))))
+        log_lines.append("header_after_words: " +
+                         repr(list(struct.unpack("<40I", after))))
         y_out = d2h(y_dev, BLOCK_SIZE)
     finally:
         for ptr in ptrs:
@@ -475,13 +550,18 @@ def run_probe() -> dict:
 
     output_matches = bool(np.allclose(y_out, expected[-1], equal_nan=True))
     if not output_matches:
-        raise AssertionError(f"output mismatch: y_out={y_out.tolist()} expected={expected[-1].tolist()}")
+        raise AssertionError(
+            f"output mismatch: y_out={y_out.tolist()} expected={expected[-1].tolist()}"
+        )
     log_lines.append("output_matches: true")
     log_lines.append(f"record_count: {len(decoded['records'])}")
     log_lines.append(f"decoded_header: {decoded['header']}")
 
     (OUT / "raw_buffer.bin").write_bytes(raw)
-    (OUT / "decoded.json").write_text(json.dumps(decoded, indent=2, sort_keys=True), encoding="utf-8")
+    (OUT / "decoded.json").write_text(json.dumps(decoded,
+                                                 indent=2,
+                                                 sort_keys=True),
+                                      encoding="utf-8")
     (OUT / "debugger_report.txt").write_text(report, encoding="utf-8")
 
     summary = {
@@ -497,8 +577,10 @@ def run_probe() -> dict:
         "y_out": y_out.tolist(),
         "report_path": str(OUT / "debugger_report.txt"),
     }
-    (OUT / "probe_summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
-    (OUT / "evaluation.log").write_text("\n".join(log_lines) + "\n", encoding="utf-8")
+    (OUT / "probe_summary.json").write_text(json.dumps(summary, indent=2),
+                                            encoding="utf-8")
+    (OUT / "evaluation.log").write_text("\n".join(log_lines) + "\n",
+                                        encoding="utf-8")
 
     try:
         acl.rt.destroy_stream(stream)
@@ -509,4 +591,11 @@ def run_probe() -> dict:
 
 if __name__ == "__main__":
     result = run_probe()
-    print(json.dumps({"output_matches": result["output_matches"], "record_count": result["record_count"], "header": result["header"]}, indent=2))
+    print(
+        json.dumps(
+            {
+                "output_matches": result["output_matches"],
+                "record_count": result["record_count"],
+                "header": result["header"]
+            },
+            indent=2))

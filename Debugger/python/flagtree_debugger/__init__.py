@@ -1,29 +1,27 @@
 from __future__ import annotations
 
-from triton import __version__
 from flagtree._flagprism import register_component
+from triton import __version__
 
-from . import compiler as _compiler_module
-from . import native as _native_module
-from . import runtime as _runtime_module
+from . import compiler as compiler
+from . import native as native
+from . import runtime as runtime
 from .api import *  # noqa: F403
-from .api import __all__
+from .api import __all__ as __all__
 
 
 class _DebuggerComponent:
     name = "debugger"
     api_version = (2, 0)
     version = __version__
-    required_capabilities = frozenset(
-        {
-            "compiler.dialects.v1",
-            "compiler.events.v1",
-            "compiler.options.v1",
-            "frontend.statement_events.v1",
-            "language.debug_collect.v1",
-            "runtime.launch_context.v1",
-        }
-    )
+    required_capabilities = frozenset({
+        "compiler.dialects.v1",
+        "compiler.events.v1",
+        "compiler.options.v1",
+        "frontend.statement_events.v1",
+        "language.debug_collect.v1",
+        "runtime.launch_context.v1",
+    })
 
     @staticmethod
     def load_dialects(context) -> None:

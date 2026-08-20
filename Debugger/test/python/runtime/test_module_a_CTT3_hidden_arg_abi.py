@@ -10,7 +10,8 @@ from types import SimpleNamespace
 import pytest
 
 _unit = Path(__file__).resolve().parents[1]
-_spec = importlib.util.spec_from_file_location("_module_a_doc", _unit / "_module_a_doc.py")
+_spec = importlib.util.spec_from_file_location("_module_a_doc",
+                                               _unit / "_module_a_doc.py")
 _mad = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 _spec.loader.exec_module(_mad)
@@ -28,7 +29,8 @@ def _launcher():
         debug_enabled=True,
         debug_launch_hidden_arg=True,
     )
-    launcher.launch = lambda *args, **kwargs: setattr(launcher, "seen", args) or 0
+    launcher.launch = lambda *args, **kwargs: setattr(launcher, "seen", args
+                                                      ) or 0
     return launcher
 
 
@@ -40,7 +42,7 @@ def test_module_a_CTT3_hidden_arg_is_last_launch_tuple_element(monkeypatch):
     @contextmanager
     def launch_context(*args, **kwargs):
         del args, kwargs
-        yield (0x11223344,)
+        yield (0x11223344, )
 
     monkeypatch.setattr(api, "launch_context", launch_context)
     launcher = _launcher()
@@ -63,6 +65,7 @@ def test_module_a_CTT3_rejects_hidden_arg_count_mismatch(monkeypatch):
         debug_enabled=True,
         debug_launch_hidden_arg=True,
     )
-    with pytest.raises(RuntimeError, match="requires 1 debugger hidden argument"):
+    with pytest.raises(RuntimeError,
+                       match="requires 1 debugger hidden argument"):
         with api.ascend_launch_context(metadata, (1, 1, 1), 0):
             pass

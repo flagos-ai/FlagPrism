@@ -11,7 +11,8 @@ from pathlib import Path
 import pytest
 
 _unit = Path(__file__).resolve().parents[1]
-_spec = importlib.util.spec_from_file_location("_module_a_doc", _unit / "_module_a_doc.py")
+_spec = importlib.util.spec_from_file_location("_module_a_doc",
+                                               _unit / "_module_a_doc.py")
 _mad = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 _spec.loader.exec_module(_mad)
@@ -36,16 +37,19 @@ def test_module_a_phase1_collect_kernel_compiles_and_runs(fresh_triton_cache):
 
     def hook(metadata, stream, launch_metadata, kernel_args):
         del metadata, stream, launch_metadata, kernel_args
-        return debugger.PreparedKernelLaunch(kernel_args=(0,), finalize=lambda error: None)
+        return debugger.PreparedKernelLaunch(kernel_args=(0, ),
+                                             finalize=lambda error: None)
 
     debugger.clear_launch_prepare_hook()
     debugger.register_launch_prepare_hook(hook)
 
     try:
+
         @triton.jit
         def kernel(out_ptr, n: tl.constexpr):
             ftl.debug_collect_start(level=1)
-            tl.store(out_ptr + tl.arange(0, n), tl.full([n], 1.0, dtype=tl.float32))
+            tl.store(out_ptr + tl.arange(0, n),
+                     tl.full([n], 1.0, dtype=tl.float32))
             ftl.debug_collect_end()
 
         n = 16

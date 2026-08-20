@@ -22,9 +22,9 @@ public:
   CannProfiler();
   virtual ~CannProfiler();
 
-  static VendorProfileArtifact importMsprofOutput(
-      const SessionProfileMetadata &metadata,
-      const VendorProfilePlan &plan);
+  static VendorProfileArtifact
+  importMsprofOutput(const SessionProfileMetadata &metadata,
+                     const VendorProfilePlan &plan);
 
 private:
   struct MsProfTxRange {

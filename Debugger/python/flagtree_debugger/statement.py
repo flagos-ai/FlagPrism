@@ -21,11 +21,8 @@ def _annotate_value(
         if type(builder).__name__ == "InterpreterBuilder":
             return
         binding = compiler_binding()
-        annotate_operation = (
-            getattr(binding, "annotate_statement_operation", None)
-            if binding is not None
-            else None
-        )
+        annotate_operation = (getattr(binding, "annotate_statement_operation",
+                                      None) if binding is not None else None)
         if callable(annotate_operation):
             annotate_operation(
                 builder,

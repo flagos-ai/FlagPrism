@@ -101,12 +101,12 @@ TEST(FlagTreeDebuggerInstrumentationTest,
   const auto thirdRecord =
       buildSummaryU64Record(3, 12, CollectorKind::ELEMENT_COUNT, 3);
 
-  const auto first = appendSummaryRecord(rawBuffer.data(), rawBuffer.size(),
-                                         firstRecord);
-  const auto second = appendSummaryRecord(rawBuffer.data(), rawBuffer.size(),
-                                          secondRecord);
-  const auto third = appendSummaryRecord(rawBuffer.data(), rawBuffer.size(),
-                                         thirdRecord);
+  const auto first =
+      appendSummaryRecord(rawBuffer.data(), rawBuffer.size(), firstRecord);
+  const auto second =
+      appendSummaryRecord(rawBuffer.data(), rawBuffer.size(), secondRecord);
+  const auto third =
+      appendSummaryRecord(rawBuffer.data(), rawBuffer.size(), thirdRecord);
 
   EXPECT_EQ(first.status, RecordWriteStatus::WRITTEN);
   EXPECT_EQ(first.slot, 0u);
@@ -140,8 +140,8 @@ TEST(FlagTreeDebuggerInstrumentationTest, RejectsMismatchedRecordSize) {
 
   const auto record =
       buildMemoryEventRecord(1, 1, 0x1000, MemoryEventKind::LAST_ALIGNED_ADDR);
-  const auto result = appendRecordToRingBuffer(rawBuffer.data(), rawBuffer.size(),
-                                               &record, sizeof(record) - 8);
+  const auto result = appendRecordToRingBuffer(
+      rawBuffer.data(), rawBuffer.size(), &record, sizeof(record) - 8);
   EXPECT_EQ(result.status, RecordWriteStatus::INVALID_ARGUMENT);
 }
 
@@ -157,7 +157,7 @@ TEST(FlagTreeDebuggerInstrumentationTest, ComputeSummaryStatsF32_Mixed) {
   EXPECT_EQ(stats.nanCount, 1u);
   EXPECT_EQ(stats.infCount, 1u);
   EXPECT_EQ(stats.zeroCount, 0u);
-  EXPECT_DOUBLE_EQ(stats.mean, 2.0);  // (1+3)/2
+  EXPECT_DOUBLE_EQ(stats.mean, 2.0); // (1+3)/2
   EXPECT_DOUBLE_EQ(stats.min, 1.0);
   EXPECT_DOUBLE_EQ(stats.max, 3.0);
   EXPECT_DOUBLE_EQ(stats.l2Norm, std::sqrt(10.0));
@@ -210,12 +210,12 @@ TEST(FlagTreeDebuggerInstrumentationTest, LinearAppendSink_WritesAndOverflows) {
   std::vector<uint8_t> buf(2 * kDefaultRecordSize, 0);
   auto sink = createLinearAppendSink(buf.data(), buf.size());
 
-  const auto r1 =
-      sink->writeSummary(buildSummaryU64Record(1, 10, CollectorKind::NAN_COUNT, 5));
-  const auto r2 =
-      sink->writeSummary(buildSummaryU64Record(2, 20, CollectorKind::INF_COUNT, 3));
-  const auto r3 =
-      sink->writeSummary(buildSummaryU64Record(3, 30, CollectorKind::ELEMENT_COUNT, 0));
+  const auto r1 = sink->writeSummary(
+      buildSummaryU64Record(1, 10, CollectorKind::NAN_COUNT, 5));
+  const auto r2 = sink->writeSummary(
+      buildSummaryU64Record(2, 20, CollectorKind::INF_COUNT, 3));
+  const auto r3 = sink->writeSummary(
+      buildSummaryU64Record(3, 30, CollectorKind::ELEMENT_COUNT, 0));
 
   EXPECT_EQ(r1.status, RecordWriteStatus::WRITTEN);
   EXPECT_EQ(r1.slot, 0u);
@@ -229,7 +229,8 @@ TEST(FlagTreeDebuggerInstrumentationTest, LinearAppendSink_WritesAndOverflows) {
   // Verify raw bytes contain the correct records.
   SummaryRecord stored0{}, stored1{};
   std::memcpy(&stored0, buf.data(), sizeof(SummaryRecord));
-  std::memcpy(&stored1, buf.data() + sizeof(SummaryRecord), sizeof(SummaryRecord));
+  std::memcpy(&stored1, buf.data() + sizeof(SummaryRecord),
+              sizeof(SummaryRecord));
   EXPECT_EQ(stored0.header.opId, 1u);
   EXPECT_EQ(stored0.resultData.u64Val, 5u);
   EXPECT_EQ(stored1.header.opId, 2u);
@@ -241,8 +242,8 @@ TEST(FlagTreeDebuggerInstrumentationTest, LinearAppendSink_MixedRecordTypes) {
   auto sink = createLinearAppendSink(buf.data(), buf.size());
 
   sink->writeSummary(buildSummaryU64Record(1, 0, CollectorKind::NAN_COUNT, 0));
-  sink->writeMemoryEvent(buildMemoryEventRecord(2, 0, 0xABCD,
-                                                MemoryEventKind::LAST_ALIGNED_ADDR));
+  sink->writeMemoryEvent(
+      buildMemoryEventRecord(2, 0, 0xABCD, MemoryEventKind::LAST_ALIGNED_ADDR));
   sink->writeFullValueRef(buildFullValueRefRecord(3, 0, 64, 128));
 
   EXPECT_EQ(sink->recordCount(), 3u);
@@ -254,7 +255,8 @@ TEST(FlagTreeDebuggerInstrumentationTest, LinearAppendSink_MixedRecordTypes) {
   EXPECT_EQ(hdr.opId, 2u);
 }
 
-// ─── RingBufferSink (integration path via RecordSink interface) ───────────────
+// ─── RingBufferSink (integration path via RecordSink interface)
+// ───────────────
 
 TEST(FlagTreeDebuggerInstrumentationTest, RingBufferSink_WritesAndOverflows) {
   const BufferLayout layout = computeBufferLayout(2, sizeof(SummaryRecord), 0);
@@ -266,8 +268,8 @@ TEST(FlagTreeDebuggerInstrumentationTest, RingBufferSink_WritesAndOverflows) {
 
   sink->writeSummary(buildSummaryU64Record(1, 0, CollectorKind::NAN_COUNT, 1));
   sink->writeSummary(buildSummaryU64Record(2, 0, CollectorKind::INF_COUNT, 2));
-  const auto overflow =
-      sink->writeSummary(buildSummaryU64Record(3, 0, CollectorKind::ELEMENT_COUNT, 3));
+  const auto overflow = sink->writeSummary(
+      buildSummaryU64Record(3, 0, CollectorKind::ELEMENT_COUNT, 3));
 
   EXPECT_EQ(overflow.status, RecordWriteStatus::OVERFLOW);
   EXPECT_EQ(sink->recordCount(), 2u);
@@ -279,7 +281,8 @@ TEST(FlagTreeDebuggerInstrumentationTest, RingBufferSink_WritesAndOverflows) {
 
 // ─── writeSummaryRecordsToSink end-to-end ────────────────────────────────────
 
-TEST(FlagTreeDebuggerInstrumentationTest, WriteSummaryRecordsToSink_Phase1Core) {
+TEST(FlagTreeDebuggerInstrumentationTest,
+     WriteSummaryRecordsToSink_Phase1Core) {
   const float data[] = {1.0f, 2.0f, std::numeric_limits<float>::quiet_NaN(),
                         std::numeric_limits<float>::infinity()};
   const SummaryStats stats = computeSummaryStatsF32(data, 4);

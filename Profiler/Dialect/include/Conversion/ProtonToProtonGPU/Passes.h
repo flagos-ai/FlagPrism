@@ -1,9 +1,9 @@
 #ifndef PROTON_TO_PROTONGPU_PASSES_H
 #define PROTON_TO_PROTONGPU_PASSES_H
 
-#include "mlir/Pass/Pass.h"
 #include "Profiler/Dialect/include/Dialect/Proton/IR/Dialect.h"
 #include "Profiler/Dialect/include/Dialect/ProtonGPU/IR/Dialect.h"
+#include "mlir/Pass/Pass.h"
 
 namespace mlir::triton::proton {
 

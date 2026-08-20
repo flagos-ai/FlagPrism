@@ -23,10 +23,10 @@ from triton.compiler import ASTSource
 from triton.compiler.compiler import make_backend
 from flagtree._flagprism import emit_compiler_event
 
-
 fd = compiler_binding()
 if fd is None:
-    pytest.skip("flagtree-debugger native binding is unavailable", allow_module_level=True)
+    pytest.skip("flagtree-debugger native binding is unavailable",
+                allow_module_level=True)
 
 
 def _ast_source(fn, signature, constexprs):
@@ -46,7 +46,8 @@ def _codegen_implementation(backend, options):
 def _make_ir(source, target, options, codegen_fns, module_map, context):
     params = inspect.signature(source.make_ir).parameters
     if "target" in params:
-        return source.make_ir(target, options, codegen_fns, module_map, context)
+        return source.make_ir(target, options, codegen_fns, module_map,
+                              context)
     return source.make_ir(options, codegen_fns, module_map, context)
 
 
@@ -75,7 +76,8 @@ def _find_tracked_op(rows, access_type):
 
 
 @triton.jit
-def _design_debug_kernel(x_ptr, y_ptr, a_ptr, b_ptr, n, BLOCK_SIZE: tl.constexpr):
+def _design_debug_kernel(x_ptr, y_ptr, a_ptr, b_ptr, n,
+                         BLOCK_SIZE: tl.constexpr):
     pid = tl.program_id(0)
     offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n
@@ -126,8 +128,9 @@ def test_module_a_design_example_debug_flag_reaches_ascend_ir():
     ir.load_dialects(context)
     backend.load_dialects(context)
 
-    mod = _make_ir(source, target, options, _codegen_implementation(backend, options), backend.get_module_map(),
-                   context)
+    mod = _make_ir(source, target, options,
+                   _codegen_implementation(backend, options),
+                   backend.get_module_map(), context)
     pre_debug_ttir = str(mod)
 
     assert fd.has_debug_collect_markers(mod) is True
@@ -204,8 +207,9 @@ def test_module_a_hidden_arg_abi_flag_adds_tt_func_argument(monkeypatch):
     ir.load_dialects(context)
     backend.load_dialects(context)
 
-    mod = _make_ir(source, target, options, _codegen_implementation(backend, options), backend.get_module_map(),
-                   context)
+    mod = _make_ir(source, target, options,
+                   _codegen_implementation(backend, options),
+                   backend.get_module_map(), context)
     metadata = {
         "hash": "module-a-hidden-arg-abi",
         "target": target,
@@ -235,7 +239,8 @@ def test_module_a_hidden_arg_abi_flag_adds_tt_func_argument(monkeypatch):
 
 @pytest.mark.module_a
 @pytest.mark.module_a_a3
-def test_module_c_d_hidden_arg_instrumentation_lowers_through_ascend_ttadapter(monkeypatch):
+def test_module_c_d_hidden_arg_instrumentation_lowers_through_ascend_ttadapter(
+        monkeypatch):
     monkeypatch.setenv("TRITON_FLAGTREE_DEBUG_LAUNCH_PTR", "1")
     importlib.import_module("triton.backends.ascend.compiler")
 
@@ -257,8 +262,9 @@ def test_module_c_d_hidden_arg_instrumentation_lowers_through_ascend_ttadapter(m
     ir.load_dialects(context)
     backend.load_dialects(context)
 
-    current = _make_ir(source, target, options, _codegen_implementation(backend, options), backend.get_module_map(),
-                       context)
+    current = _make_ir(source, target, options,
+                       _codegen_implementation(backend, options),
+                       backend.get_module_map(), context)
     metadata = {
         "hash": "module-cd-hidden-arg-ttadapter",
         "target": target,
@@ -305,8 +311,9 @@ def test_module_a_to_b_memory_metadata_from_frontend_markers():
     ir.load_dialects(context)
     backend.load_dialects(context)
 
-    mod = _make_ir(source, target, options, _codegen_implementation(backend, options), backend.get_module_map(),
-                   context)
+    mod = _make_ir(source, target, options,
+                   _codegen_implementation(backend, options),
+                   backend.get_module_map(), context)
     pre_debug_ttir = str(mod)
 
     assert fd.has_debug_collect_markers(mod) is True
@@ -368,9 +375,13 @@ def test_module_a_to_b_memory_metadata_from_frontend_markers():
         assert row["result"]["elementDtype"] == "f32"
         assert row["result"]["elementBits"] == 32
         assert "test_module_a_design_example_ir_flag.py" in row["sourceLoc"]
-        assert any(operand["operandRole"] == "ptr" and operand["value"]["addrSpace"] == "global"
+        assert any(operand["operandRole"] == "ptr"
+                   and operand["value"]["addrSpace"] == "global"
                    for operand in row["operands"])
 
-    store_value = [operand for operand in store["operands"] if operand["operandRole"] == "value"]
+    store_value = [
+        operand for operand in store["operands"]
+        if operand["operandRole"] == "value"
+    ]
     assert len(store_value) == 1
     assert store_value[0]["producerOpId"] == load["opId"]

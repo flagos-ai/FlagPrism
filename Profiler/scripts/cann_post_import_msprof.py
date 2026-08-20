@@ -13,7 +13,9 @@ import flagtree.profiler as profiler
 
 def _make_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--base", required=True, help="Base path for output artifacts.")
+    parser.add_argument("--base",
+                        required=True,
+                        help="Base path for output artifacts.")
     parser.add_argument(
         "--msprof-output",
         required=True,
@@ -34,16 +36,14 @@ def main() -> int:
     msprof_output = pathlib.Path(args.msprof_output)
     base.parent.mkdir(parents=True, exist_ok=True)
 
-    mode = (
-        "runtime_base:"
-        f"vendor_metrics={args.metrics}:"
-        f"msprof_import_path={msprof_output}:"
-        "runtime_host_timing_fallback=false:"
-        "aclprof_runtime_enabled=false:"
-        "aclprof_auto_export=false:"
-        "mstx_enabled=false:"
-        "aclprof_msproftx_enabled=false"
-    )
+    mode = ("runtime_base:"
+            f"vendor_metrics={args.metrics}:"
+            f"msprof_import_path={msprof_output}:"
+            "runtime_host_timing_fallback=false:"
+            "aclprof_runtime_enabled=false:"
+            "aclprof_auto_export=false:"
+            "mstx_enabled=false:"
+            "aclprof_msproftx_enabled=false")
     session_id = profiler.start(
         name=str(base),
         context="shadow",
@@ -59,8 +59,7 @@ def main() -> int:
     vendor = json.loads(vendor_path.read_text())
     meta = json.loads(meta_path.read_text())
     source_counts = Counter(
-        assoc.get("source", "") for assoc in vendor.get("associations", [])
-    )
+        assoc.get("source", "") for assoc in vendor.get("associations", []))
 
     print("post_import_vendor_json", vendor_path)
     print("post_import_meta_json", meta_path)

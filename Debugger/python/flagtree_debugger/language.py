@@ -12,10 +12,8 @@ def _constexpr_value(value: Any) -> Any:
 
 
 def _is_interpreter_builder(builder: Any) -> bool:
-    return (
-        type(builder).__name__ == "InterpreterBuilder"
-        and type(builder).__module__.endswith(".runtime.interpreter")
-    )
+    return (type(builder).__name__ == "InterpreterBuilder"
+            and type(builder).__module__.endswith(".runtime.interpreter"))
 
 
 def debug_collect_start(semantic: Any, level: Any, addr_level: Any):
@@ -24,11 +22,16 @@ def debug_collect_start(semantic: Any, level: Any, addr_level: Any):
     level_value = _constexpr_value(level)
     addr_level_value = _constexpr_value(addr_level)
     if not isinstance(level_value, int):
-        raise TypeError("flagtree.language.debug_collect_start: level must be an integer")
+        raise TypeError(
+            "flagtree.language.debug_collect_start: level must be an integer")
     if addr_level_value is not None and not isinstance(addr_level_value, int):
-        raise TypeError("flagtree.language.debug_collect_start: addr_level must be an integer")
+        raise TypeError(
+            "flagtree.language.debug_collect_start: addr_level must be an integer"
+        )
     if addr_level_value is not None and not 0 <= addr_level_value <= 2:
-        raise ValueError("flagtree.language.debug_collect_start: addr_level must be 0, 1, or 2")
+        raise ValueError(
+            "flagtree.language.debug_collect_start: addr_level must be 0, 1, or 2"
+        )
     if _is_interpreter_builder(semantic.builder):
         return semantic.tensor(None, void)
     handle = compiler_binding().create_debug_collect_begin(

@@ -29,8 +29,7 @@ BackendKind resolveBackendKindName(std::string_view backendName) {
   if (lowered == "cann" || lowered == "ascend") {
     return BackendKind::CANN;
   }
-  if (lowered == "tianshu" || lowered == "corex" ||
-      lowered == "iluvatar") {
+  if (lowered == "tianshu" || lowered == "corex" || lowered == "iluvatar") {
     return BackendKind::TIANSHU;
   }
   return BackendKind::UNKNOWN;
@@ -122,9 +121,8 @@ public:
       request.hiddenArgValue = 0;
       return request;
     }
-    request.launchContext =
-        transferEngine.prepare(normalizedMeta, artifacts.bufferPlan,
-                               runtimeMetadata);
+    request.launchContext = transferEngine.prepare(
+        normalizedMeta, artifacts.bufferPlan, runtimeMetadata);
     transferEngine.initHeader(request.launchContext);
     request.hiddenArgValue = transferEngine.hiddenArg(request.launchContext);
     return request;

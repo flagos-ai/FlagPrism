@@ -143,13 +143,11 @@ public:
   void setState(std::optional<Context> context);
 
 private:
-  std::unique_ptr<Session> makeSession(size_t id, const std::string &path,
-                                       const std::string &profilerName,
-                                       const std::string &profilerPath,
-                                       const std::string &contextSourceName,
-                                       const std::string &dataName,
-                                       const std::string &mode,
-                                       const std::string &hookName);
+  std::unique_ptr<Session>
+  makeSession(size_t id, const std::string &path,
+              const std::string &profilerName, const std::string &profilerPath,
+              const std::string &contextSourceName, const std::string &dataName,
+              const std::string &mode, const std::string &hookName);
 
   void activateSessionImpl(size_t sesssionId);
 

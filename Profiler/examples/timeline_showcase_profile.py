@@ -97,7 +97,9 @@ def _linear_kernel(
     bias = tl.load(bias_ptr + offs_n, mask=offs_n < N, other=0.0)
     acc += bias[None, :]
     mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
-    tl.store(c_ptr + offs_m[:, None] * N + offs_n[None, :], acc.to(tl.float16), mask=mask)
+    tl.store(c_ptr + offs_m[:, None] * N + offs_n[None, :],
+             acc.to(tl.float16),
+             mask=mask)
 
 
 @triton.jit
@@ -112,7 +114,8 @@ def _relu_square_kernel(x_ptr, y_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
 
 
 @triton.jit
-def _residual_add_kernel(x_ptr, residual_ptr, out_ptr, n_elements, BLOCK_SIZE: tl.constexpr):
+def _residual_add_kernel(x_ptr, residual_ptr, out_ptr, n_elements,
+                         BLOCK_SIZE: tl.constexpr):
     pid = tl.program_id(axis=0)
     offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
     mask = offsets < n_elements
@@ -134,7 +137,8 @@ def _layer_norm_kernel(
     row = tl.program_id(axis=0)
     offsets = tl.arange(0, BLOCK_SIZE)
     mask = offsets < COLS
-    x = tl.load(x_ptr + row * COLS + offsets, mask=mask, other=0.0).to(tl.float32)
+    x = tl.load(x_ptr + row * COLS + offsets, mask=mask,
+                other=0.0).to(tl.float32)
     mean = tl.sum(x, axis=0) / COLS
     centered = tl.where(mask, x - mean, 0.0)
     variance = tl.sum(centered * centered, axis=0) / COLS
@@ -159,7 +163,7 @@ def _linear(x, weight, bias, out, m, n, k):
     block_m = 32
     block_n = 32
     block_k = 32
-    grid = (triton.cdiv(m, block_m) * triton.cdiv(n, block_n),)
+    grid = (triton.cdiv(m, block_m) * triton.cdiv(n, block_n), )
     _linear_kernel[grid](
         x,
         weight,
@@ -176,22 +180,29 @@ def _linear(x, weight, bias, out, m, n, k):
 
 def _elementwise(kernel, x, y, n):
     block = 1024
-    grid = (triton.cdiv(n, block),)
+    grid = (triton.cdiv(n, block), )
     kernel[grid](x, y, n, BLOCK_SIZE=block)
 
 
 def _residual_add(x, residual, out, n):
     block = 1024
-    grid = (triton.cdiv(n, block),)
+    grid = (triton.cdiv(n, block), )
     _residual_add_kernel[grid](x, residual, out, n, BLOCK_SIZE=block)
 
 
 def _layer_norm(x, scale, bias, out, rows, cols):
     block = triton.next_power_of_2(cols)
-    _layer_norm_kernel[(rows,)](x, scale, bias, out, rows, cols, BLOCK_SIZE=block)
+    _layer_norm_kernel[(rows, )](x,
+                                 scale,
+                                 bias,
+                                 out,
+                                 rows,
+                                 cols,
+                                 BLOCK_SIZE=block)
 
 
-def _run_block(x, weights, buffers, block_index, *, batch, hidden_dim, intermediate_dim):
+def _run_block(x, weights, buffers, block_index, *, batch, hidden_dim,
+               intermediate_dim):
     block_name = f"block_{block_index:02d}"
     with profiler.scope(block_name):
         with profiler.scope("1_linear_up"):
@@ -206,7 +217,8 @@ def _run_block(x, weights, buffers, block_index, *, batch, hidden_dim, intermedi
             )
 
         with profiler.scope("2_relu_square"):
-            _elementwise(_relu_square_kernel, buffers["up"], buffers["act"], batch * intermediate_dim)
+            _elementwise(_relu_square_kernel, buffers["up"], buffers["act"],
+                         batch * intermediate_dim)
 
         with profiler.scope("3_linear_down"):
             _linear(
@@ -220,7 +232,8 @@ def _run_block(x, weights, buffers, block_index, *, batch, hidden_dim, intermedi
             )
 
         with profiler.scope("4_residual_add"):
-            _residual_add(buffers["down"], x, buffers["residual"], batch * hidden_dim)
+            _residual_add(buffers["down"], x, buffers["residual"],
+                          batch * hidden_dim)
 
         with profiler.scope("5_layer_norm"):
             _layer_norm(
@@ -235,7 +248,8 @@ def _run_block(x, weights, buffers, block_index, *, batch, hidden_dim, intermedi
     return buffers["norm"]
 
 
-def _run_model(x, weights, buffers, *, blocks, batch, hidden_dim, intermediate_dim):
+def _run_model(x, weights, buffers, *, blocks, batch, hidden_dim,
+               intermediate_dim):
     with profiler.scope("timeline_showcase"):
         for block_index in range(blocks):
             x = _run_block(
@@ -271,18 +285,32 @@ def main() -> int:
     torch.manual_seed(2026)
     x = torch.randn((batch, hidden_dim), device=device, dtype=dtype)
     weights = {
-        "up_w": torch.randn((hidden_dim, intermediate_dim), device=device, dtype=dtype),
-        "up_b": torch.randn((intermediate_dim,), device=device, dtype=dtype),
-        "down_w": torch.randn((intermediate_dim, hidden_dim), device=device, dtype=dtype),
-        "down_b": torch.randn((hidden_dim,), device=device, dtype=dtype),
-        "ln_w": torch.ones((hidden_dim,), device=device, dtype=dtype),
-        "ln_b": torch.zeros((hidden_dim,), device=device, dtype=dtype),
+        "up_w":
+        torch.randn((hidden_dim, intermediate_dim), device=device,
+                    dtype=dtype),
+        "up_b":
+        torch.randn((intermediate_dim, ), device=device, dtype=dtype),
+        "down_w":
+        torch.randn((intermediate_dim, hidden_dim), device=device,
+                    dtype=dtype),
+        "down_b":
+        torch.randn((hidden_dim, ), device=device, dtype=dtype),
+        "ln_w":
+        torch.ones((hidden_dim, ), device=device, dtype=dtype),
+        "ln_b":
+        torch.zeros((hidden_dim, ), device=device, dtype=dtype),
     }
     buffers = {
-        "up": torch.empty((batch, intermediate_dim), device=device, dtype=dtype),
-        "act": torch.empty((batch, intermediate_dim), device=device, dtype=dtype),
+        "up": torch.empty((batch, intermediate_dim),
+                          device=device,
+                          dtype=dtype),
+        "act": torch.empty((batch, intermediate_dim),
+                           device=device,
+                           dtype=dtype),
         "down": torch.empty((batch, hidden_dim), device=device, dtype=dtype),
-        "residual": torch.empty((batch, hidden_dim), device=device, dtype=dtype),
+        "residual": torch.empty((batch, hidden_dim),
+                                device=device,
+                                dtype=dtype),
         "norm": torch.empty((batch, hidden_dim), device=device, dtype=dtype),
     }
 
@@ -303,13 +331,11 @@ def main() -> int:
         data="tree",
         backend="cann",
         hook="triton",
-        mode=(
-            "runtime_base:"
-            f"device_id={device_id}:"
-            "vendor_metrics=aicore,bandwidth:"
-            "mstx_enabled=true:"
-            "mstx_domain=flagtree_profiler"
-        ),
+        mode=("runtime_base:"
+              f"device_id={device_id}:"
+              "vendor_metrics=aicore,bandwidth:"
+              "mstx_enabled=true:"
+              "mstx_domain=flagtree_profiler"),
     )
     try:
         _run_model(

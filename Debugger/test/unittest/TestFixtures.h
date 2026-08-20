@@ -117,7 +117,8 @@ makeTestLaunchContext(const TestRunOptions &options = {}) {
   return ctx;
 }
 
-inline DebugExportedRun makeTestExportedRun(const TestRunOptions &options = {}) {
+inline DebugExportedRun
+makeTestExportedRun(const TestRunOptions &options = {}) {
   DebugLaunchContext ctx = makeTestLaunchContext(options);
   DebugExportedRun run;
   run.meta = ctx.meta;
@@ -163,9 +164,10 @@ inline TrackedOpEntry makeTestTrackedOpEntry(uint32_t opId,
   return entry;
 }
 
-inline KernelDebugMetadata makeTestKernelDebugMetadata(
-    uint32_t scopeCount = 1, uint32_t trackedOpCount = 4,
-    bool includeMemoryOp = true) {
+inline KernelDebugMetadata
+makeTestKernelDebugMetadata(uint32_t scopeCount = 1,
+                            uint32_t trackedOpCount = 4,
+                            bool includeMemoryOp = true) {
   KernelDebugMetadata metadata;
   metadata.debugKernelId = 1;
   metadata.kernelName = "test_kernel";

@@ -189,10 +189,10 @@ void InstrumentationProfiler::exitInstrumentedOp(uint64_t streamId,
   }
 
   if (size > MAX_HOST_BUFFER_SIZE) {
-    throw std::runtime_error(
-        "Buffer size " + std::to_string(size) + " exceeds the limit " +
-        std::to_string(MAX_HOST_BUFFER_SIZE) +
-        ", not supported yet in FlagTree Profiler");
+    throw std::runtime_error("Buffer size " + std::to_string(size) +
+                             " exceeds the limit " +
+                             std::to_string(MAX_HOST_BUFFER_SIZE) +
+                             ", not supported yet in FlagTree Profiler");
   } else if (size > DEFAULT_HOST_BUFFER_SIZE) {
     runtime->freeHostBuffer(hostBuffer);
     auto newSize = nextPowerOfTwo(size);

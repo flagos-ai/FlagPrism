@@ -117,7 +117,8 @@ import flagtree.profiler as profiler
 
 
 @triton.jit
-def _softmax_kernel(x_ptr, out_ptr, n_cols: tl.constexpr, BLOCK_SIZE: tl.constexpr):
+def _softmax_kernel(x_ptr, out_ptr, n_cols: tl.constexpr,
+                    BLOCK_SIZE: tl.constexpr):
     row = tl.program_id(axis=0)
     cols = tl.arange(0, BLOCK_SIZE)
     mask = cols < n_cols
@@ -157,7 +158,7 @@ def main() -> int:
     iters = 10
     x = torch.randn((rows, cols), device=device, dtype=torch.float32)
     result = torch.empty_like(x)
-    grid = (rows,)
+    grid = (rows, )
 
     for _ in range(warmup):
         _softmax_kernel[grid](x, result, cols, BLOCK_SIZE=block)
@@ -169,13 +170,11 @@ def main() -> int:
         data="tree",
         backend="cann",
         hook="triton",
-        mode=(
-            "runtime_base:"
-            "device_id=1:"
-            "vendor_metrics=aicore,bandwidth:"
-            "mstx_enabled=true:"
-            "mstx_domain=flagtree_profiler"
-        ),
+        mode=("runtime_base:"
+              "device_id=1:"
+              "vendor_metrics=aicore,bandwidth:"
+              "mstx_enabled=true:"
+              "mstx_domain=flagtree_profiler"),
     )
     try:
         for _ in range(iters):

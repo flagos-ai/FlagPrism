@@ -91,7 +91,9 @@ def _linear_kernel(
     bias = tl.load(bias_ptr + offs_n, mask=offs_n < N, other=0.0)
     acc += bias[None, :]
     mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
-    tl.store(c_ptr + offs_m[:, None] * N + offs_n[None, :], acc.to(tl.float16), mask=mask)
+    tl.store(c_ptr + offs_m[:, None] * N + offs_n[None, :],
+             acc.to(tl.float16),
+             mask=mask)
 
 
 @triton.jit
@@ -117,7 +119,7 @@ def _linear(x, weight, bias, out, m, n, k):
     block_m = 32
     block_n = 32
     block_k = 32
-    grid = (triton.cdiv(m, block_m) * triton.cdiv(n, block_n),)
+    grid = (triton.cdiv(m, block_m) * triton.cdiv(n, block_n), )
     _linear_kernel[grid](
         x,
         weight,
@@ -134,15 +136,17 @@ def _linear(x, weight, bias, out, m, n, k):
 
 def _relu(x, out, n):
     block = 1024
-    grid = (triton.cdiv(n, block),)
+    grid = (triton.cdiv(n, block), )
     _relu_kernel[grid](x, out, n, BLOCK_SIZE=block)
 
 
-def _tiny_mlp(x, weights, hidden, output, *, batch, input_dim, hidden_dim, output_dim):
+def _tiny_mlp(x, weights, hidden, output, *, batch, input_dim, hidden_dim,
+              output_dim):
     with profiler.scope("tiny_mlp"):
         with profiler.scope("1_layer1"):
             with profiler.scope("linear"):
-                _linear(x, weights["w1"], weights["b1"], hidden, batch, hidden_dim, input_dim)
+                _linear(x, weights["w1"], weights["b1"], hidden, batch,
+                        hidden_dim, input_dim)
 
         with profiler.scope("2_activation"):
             with profiler.scope("relu"):
@@ -150,7 +154,8 @@ def _tiny_mlp(x, weights, hidden, output, *, batch, input_dim, hidden_dim, outpu
 
         with profiler.scope("3_layer2"):
             with profiler.scope("linear"):
-                _linear(hidden, weights["w2"], weights["b2"], output, batch, output_dim, hidden_dim)
+                _linear(hidden, weights["w2"], weights["b2"], output, batch,
+                        output_dim, hidden_dim)
 
 
 def main() -> int:
@@ -170,16 +175,35 @@ def main() -> int:
     hidden_dim = 2048
     output_dim = 1024
     x = torch.randn((batch, input_dim), device=device, dtype=torch.float16)
-    hidden = torch.empty((batch, hidden_dim), device=device, dtype=torch.float16)
-    output = torch.empty((batch, output_dim), device=device, dtype=torch.float16)
+    hidden = torch.empty((batch, hidden_dim),
+                         device=device,
+                         dtype=torch.float16)
+    output = torch.empty((batch, output_dim),
+                         device=device,
+                         dtype=torch.float16)
     weights = {
-        "w1": torch.randn((input_dim, hidden_dim), device=device, dtype=torch.float16),
-        "b1": torch.randn((hidden_dim,), device=device, dtype=torch.float16),
-        "w2": torch.randn((hidden_dim, output_dim), device=device, dtype=torch.float16),
-        "b2": torch.randn((output_dim,), device=device, dtype=torch.float16),
+        "w1":
+        torch.randn((input_dim, hidden_dim),
+                    device=device,
+                    dtype=torch.float16),
+        "b1":
+        torch.randn((hidden_dim, ), device=device, dtype=torch.float16),
+        "w2":
+        torch.randn((hidden_dim, output_dim),
+                    device=device,
+                    dtype=torch.float16),
+        "b2":
+        torch.randn((output_dim, ), device=device, dtype=torch.float16),
     }
 
-    _tiny_mlp(x, weights, hidden, output, batch=batch, input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim)
+    _tiny_mlp(x,
+              weights,
+              hidden,
+              output,
+              batch=batch,
+              input_dim=input_dim,
+              hidden_dim=hidden_dim,
+              output_dim=output_dim)
     torch.npu.synchronize()
 
     sid = profiler.start(
@@ -188,16 +212,21 @@ def main() -> int:
         data="tree",
         backend="cann",
         hook="triton",
-        mode=(
-            "runtime_base:"
-            f"device_id={device_id}:"
-            "vendor_metrics=aicore,bandwidth:"
-            "mstx_enabled=true:"
-            "mstx_domain=flagtree_profiler"
-        ),
+        mode=("runtime_base:"
+              f"device_id={device_id}:"
+              "vendor_metrics=aicore,bandwidth:"
+              "mstx_enabled=true:"
+              "mstx_domain=flagtree_profiler"),
     )
     try:
-        _tiny_mlp(x, weights, hidden, output, batch=batch, input_dim=input_dim, hidden_dim=hidden_dim, output_dim=output_dim)
+        _tiny_mlp(x,
+                  weights,
+                  hidden,
+                  output,
+                  batch=batch,
+                  input_dim=input_dim,
+                  hidden_dim=hidden_dim,
+                  output_dim=output_dim)
         torch.npu.synchronize()
     finally:
         profiler.finalize(sid)

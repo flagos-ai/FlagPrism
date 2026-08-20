@@ -8,8 +8,8 @@
 #include <algorithm>
 #include <cctype>
 #include <chrono>
-#include <cstring>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -94,8 +94,8 @@ using AclProfConfig = void;
 struct AclProfApi {
   using FnInit = AclError (*)(const char *, size_t);
   using FnFinalize = AclError (*)();
-  using FnCreateConfig =
-      AclProfConfig *(*)(uint32_t *, uint32_t, uint32_t, const void *, uint64_t);
+  using FnCreateConfig = AclProfConfig *(*)(uint32_t *, uint32_t, uint32_t,
+                                            const void *, uint64_t);
   using FnDestroyConfig = AclError (*)(const AclProfConfig *);
   using FnStart = AclError (*)(const AclProfConfig *);
   using FnStop = AclError (*)(const AclProfConfig *);
@@ -160,13 +160,14 @@ struct AclProfApi {
       profCandidates.push_back(root + "/aarch64-linux/lib64/libmsprofiler.so");
       profCandidates.push_back(root + "/lib64/libmsprofiler.so");
       profCandidates.push_back(root + "/tools/profiler/lib64/libmsprofiler.so");
-      profCandidates.push_back(root + "/toolkit/tools/profiler/lib64/libmsprofiler.so");
+      profCandidates.push_back(
+          root + "/toolkit/tools/profiler/lib64/libmsprofiler.so");
 
       aclCandidates.push_back(root + "/aarch64-linux/devlib/libacl_rt.so");
       aclCandidates.push_back(root + "/aarch64-linux/devlib/libacl.so");
       aclCandidates.push_back(root + "/aarch64-linux/devlib/libascendcl.so");
-      aclCandidates.push_back(root +
-                              "/aarch64-linux/devlib/linux/aarch64/libacl_rt.so");
+      aclCandidates.push_back(
+          root + "/aarch64-linux/devlib/linux/aarch64/libacl_rt.so");
       aclCandidates.push_back(root +
                               "/aarch64-linux/devlib/linux/aarch64/libacl.so");
       aclCandidates.push_back(
@@ -174,9 +175,8 @@ struct AclProfApi {
       profCandidates.push_back(root + "/lib64/libacl_prof.so");
       profCandidates.push_back(root + "/aarch64-linux/lib64/libacl_prof.so");
       profCandidates.push_back(root + "/aarch64-linux/devlib/libacl_prof.so");
-      profCandidates.push_back(root +
-                               "/aarch64-linux/devlib/linux/aarch64/"
-                               "libacl_prof.so");
+      profCandidates.push_back(root + "/aarch64-linux/devlib/linux/aarch64/"
+                                      "libacl_prof.so");
     }
 
     for (const auto &cand : aclCandidates) {
@@ -198,13 +198,14 @@ struct AclProfApi {
 
     init = reinterpret_cast<FnInit>(dlsym(profLib, "aclprofInit"));
     finalize = reinterpret_cast<FnFinalize>(dlsym(profLib, "aclprofFinalize"));
-    createConfig = reinterpret_cast<FnCreateConfig>(
-        dlsym(profLib, "aclprofCreateConfig"));
+    createConfig =
+        reinterpret_cast<FnCreateConfig>(dlsym(profLib, "aclprofCreateConfig"));
     destroyConfig = reinterpret_cast<FnDestroyConfig>(
         dlsym(profLib, "aclprofDestroyConfig"));
     start = reinterpret_cast<FnStart>(dlsym(profLib, "aclprofStart"));
     stop = reinterpret_cast<FnStop>(dlsym(profLib, "aclprofStop"));
-    setConfig = reinterpret_cast<FnSetConfig>(dlsym(profLib, "aclprofSetConfig"));
+    setConfig =
+        reinterpret_cast<FnSetConfig>(dlsym(profLib, "aclprofSetConfig"));
     createStamp =
         reinterpret_cast<FnCreateStamp>(dlsym(profLib, "aclprofCreateStamp"));
     destroyStamp =
@@ -213,9 +214,11 @@ struct AclProfApi {
         dlsym(profLib, "aclprofSetStampTraceMessage"));
     rangeStart =
         reinterpret_cast<FnRangeStart>(dlsym(profLib, "aclprofRangeStart"));
-    rangeStop = reinterpret_cast<FnRangeStop>(dlsym(profLib, "aclprofRangeStop"));
+    rangeStop =
+        reinterpret_cast<FnRangeStop>(dlsym(profLib, "aclprofRangeStop"));
 
-    if (!init || !finalize || !createConfig || !destroyConfig || !start || !stop) {
+    if (!init || !finalize || !createConfig || !destroyConfig || !start ||
+        !stop) {
       loadError = "Missing aclprof symbols required for runtime profiling";
       return false;
     }
@@ -263,7 +266,7 @@ struct AclRuntimeApi {
         getEnvOrDefault("ASCEND_TOOLKIT_HOME", ""),
         "/usr/local/Ascend/cann-8.5.0",
         "/usr/local/Ascend/ascend-toolkit/latest",
-      "/usr/local/Ascend/ascend-toolkit/6.0.1",
+        "/usr/local/Ascend/ascend-toolkit/6.0.1",
     };
     std::vector<std::string> candidates = {"libascendcl.so", "libacl.so"};
     for (const auto &root : searchRoots) {
@@ -382,7 +385,7 @@ struct MstxApi {
         getEnvOrDefault("ASCEND_TOOLKIT_HOME", ""),
         "/usr/local/Ascend/cann-8.5.0",
         "/usr/local/Ascend/ascend-toolkit/latest",
-      "/usr/local/Ascend/ascend-toolkit/6.0.1",
+        "/usr/local/Ascend/ascend-toolkit/6.0.1",
     };
     const std::vector<std::string> libraryNames = {
         "libmstx.so", "libms_tools_ext.so", "libmsprofiler.so",
@@ -430,9 +433,9 @@ struct MstxApi {
     }
 #endif
 
-    loadError =
-        "Failed to load CANN mstx APIs. Run the program under "
-        "`msprof --msproftx=on` and ensure the mstx runtime library is visible.";
+    loadError = "Failed to load CANN mstx APIs. Run the program under "
+                "`msprof --msproftx=on` and ensure the mstx runtime library is "
+                "visible.";
     return false;
   }
 };
@@ -449,7 +452,8 @@ std::string normalizeColumnName(const std::string &name) {
   for (char c : name) {
     if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
         (c >= '0' && c <= '9')) {
-      out.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+      out.push_back(
+          static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
     }
   }
   return out;
@@ -541,8 +545,9 @@ std::string normalizeMetricKey(const std::string &name) {
   return out;
 }
 
-std::optional<uint64_t> parseMetricU64(const VendorMetricAssociation &association,
-                                       const std::string &metricName) {
+std::optional<uint64_t>
+parseMetricU64(const VendorMetricAssociation &association,
+               const std::string &metricName) {
   auto it = association.metrics.find(metricName);
   if (it == association.metrics.end()) {
     return std::nullopt;
@@ -679,8 +684,9 @@ std::optional<double> scaleBandwidthMetricToGbps(const std::string &key,
   return std::nullopt;
 }
 
-void enrichBandwidthMetrics(VendorMetricAssociation &association,
-                            const std::vector<std::string> &enabledVendorMetrics) {
+void enrichBandwidthMetrics(
+    VendorMetricAssociation &association,
+    const std::vector<std::string> &enabledVendorMetrics) {
   if (!metricEnabled(enabledVendorMetrics, "bandwidth")) {
     return;
   }
@@ -739,9 +745,8 @@ void enrichBandwidthMetrics(VendorMetricAssociation &association,
     totalBytesKey = "memory_read_write_bytes";
   }
 
-  if (readBytes.has_value() &&
-      association.metrics.find("memory_read_bytes") ==
-          association.metrics.end()) {
+  if (readBytes.has_value() && association.metrics.find("memory_read_bytes") ==
+                                   association.metrics.end()) {
     association.metrics["memory_read_bytes"] = readBytes.value();
   }
   if (writeBytes.has_value() &&
@@ -758,9 +763,8 @@ void enrichBandwidthMetrics(VendorMetricAssociation &association,
   if (!directBandwidthGbps.has_value() &&
       (directReadBandwidthGbps.has_value() ||
        directWriteBandwidthGbps.has_value())) {
-    directBandwidthGbps =
-        directReadBandwidthGbps.value_or(0.0) +
-        directWriteBandwidthGbps.value_or(0.0);
+    directBandwidthGbps = directReadBandwidthGbps.value_or(0.0) +
+                          directWriteBandwidthGbps.value_or(0.0);
     directBandwidthKey = "memory_read_write_bandwidth";
   }
 
@@ -968,10 +972,10 @@ void parseOpSummaryCsv(const std::filesystem::path &file,
       findColumn(headers, {"correlationid", "correlation_id", "corrid"});
   const auto streamIdIdx = findColumn(headers, {"streamid"});
   const auto deviceIdIdx = findColumn(headers, {"deviceid", "device"});
-  const auto startIdx = findColumn(headers, {"taskstarttimeus", "starttimeus",
-                                             "taskstarttime"});
-  const auto durationIdx = findColumn(headers, {"taskdurationus", "durationus",
-                                                "taskduration"});
+  const auto startIdx =
+      findColumn(headers, {"taskstarttimeus", "starttimeus", "taskstarttime"});
+  const auto durationIdx =
+      findColumn(headers, {"taskdurationus", "durationus", "taskduration"});
   const auto aiCoreTimeIdx =
       findColumn(headers, {"aicoretimems", "aicoretime"});
   const auto totalCycleIdx = findColumn(headers, {"totalcycle", "totalcycles"});
@@ -998,10 +1002,9 @@ void parseOpSummaryCsv(const std::filesystem::path &file,
     uint64_t startTimeNs =
         parseTimeToNs(startRaw, startIdx.has_value() ? headers[startIdx.value()]
                                                      : "start_time_us");
-    uint64_t durationNs =
-        parseTimeToNs(durationRaw, durationIdx.has_value()
-                                       ? headers[durationIdx.value()]
-                                       : "duration_us");
+    uint64_t durationNs = parseTimeToNs(
+        durationRaw,
+        durationIdx.has_value() ? headers[durationIdx.value()] : "duration_us");
     if (startTimeNs == 0 || durationNs == 0) {
       continue;
     }
@@ -1010,8 +1013,10 @@ void parseOpSummaryCsv(const std::filesystem::path &file,
     association.state = VendorMetricState::Collected;
     association.source = "aclprof_op_summary";
     association.runtimeEvent.opName = getCell(opNameIdx);
-    association.runtimeEvent.streamId = parseU64(getCell(streamIdIdx)).value_or(0);
-    association.runtimeEvent.deviceId = parseU64(getCell(deviceIdIdx)).value_or(0);
+    association.runtimeEvent.streamId =
+        parseU64(getCell(streamIdIdx)).value_or(0);
+    association.runtimeEvent.deviceId =
+        parseU64(getCell(deviceIdIdx)).value_or(0);
     association.runtimeEvent.startTimeNs = startTimeNs;
     association.runtimeEvent.endTimeNs = startTimeNs + durationNs;
 
@@ -1064,8 +1069,8 @@ void parseOpSummaryCsv(const std::filesystem::path &file,
   }
 
   if (parsedRows == 0) {
-    artifact.degradeReasons.push_back("No rows with task timing fields found in " +
-                                      file.string());
+    artifact.degradeReasons.push_back(
+        "No rows with task timing fields found in " + file.string());
   }
 }
 
@@ -1096,8 +1101,8 @@ void parseTaskTimeCsv(const std::filesystem::path &file,
   const auto deviceIdIdx = findColumn(headers, {"deviceid", "device"});
   const auto startIdx = findColumn(headers, {"taskstarttimeus", "starttimeus",
                                              "taskstarttime", "starttime"});
-  const auto durationIdx = findColumn(headers, {"taskdurationus", "durationus",
-                                                "taskduration", "duration"});
+  const auto durationIdx = findColumn(
+      headers, {"taskdurationus", "durationus", "taskduration", "duration"});
   if (!startIdx.has_value() || !durationIdx.has_value()) {
     return;
   }
@@ -1122,7 +1127,8 @@ void parseTaskTimeCsv(const std::filesystem::path &file,
       continue;
     }
     uint64_t startNs = parseTimeToNs(startRaw, headers[startIdx.value()]);
-    uint64_t durationNs = parseTimeToNs(durationRaw, headers[durationIdx.value()]);
+    uint64_t durationNs =
+        parseTimeToNs(durationRaw, headers[durationIdx.value()]);
     if (startNs == 0 || durationNs == 0) {
       continue;
     }
@@ -1140,8 +1146,8 @@ void parseTaskTimeCsv(const std::filesystem::path &file,
   }
 
   if (parsedRows == 0) {
-    degradeReasons.push_back("No runtime rows were parsed from task_time CSV: " +
-                             file.string());
+    degradeReasons.push_back(
+        "No runtime rows were parsed from task_time CSV: " + file.string());
   }
 }
 
@@ -1249,10 +1255,10 @@ bool populateRuntimeEventFromRow(const std::vector<std::string> &headers,
   return false;
 }
 
-void parseStructuredSupplementalCsv(const std::filesystem::path &file,
-                                    const std::string &sourceTag,
-                                    const std::vector<std::string> &enabledVendorMetrics,
-                                    VendorProfileArtifact &artifact) {
+void parseStructuredSupplementalCsv(
+    const std::filesystem::path &file, const std::string &sourceTag,
+    const std::vector<std::string> &enabledVendorMetrics,
+    VendorProfileArtifact &artifact) {
   std::ifstream in(file.string());
   if (!in.is_open()) {
     artifact.degradeReasons.push_back("Failed to open supplemental CSV: " +
@@ -1283,7 +1289,8 @@ void parseStructuredSupplementalCsv(const std::filesystem::path &file,
     association.source = sourceTag;
     association.note = "Supplemental msprof row (normalized).";
     association.metrics["input_file"] = file.string();
-    association.metrics["summary_row_index"] = static_cast<uint64_t>(parsedRows);
+    association.metrics["summary_row_index"] =
+        static_cast<uint64_t>(parsedRows);
     association.metrics["runtime_base_source"] = std::string("supplemental");
 
     (void)populateRuntimeEventFromRow(headers, row, association.runtimeEvent);
@@ -1291,10 +1298,12 @@ void parseStructuredSupplementalCsv(const std::filesystem::path &file,
       association.metrics["task_id"] = association.runtimeEvent.taskId;
     }
     if (association.runtimeEvent.correlationId != 0) {
-      association.metrics["correlation_id"] = association.runtimeEvent.correlationId;
+      association.metrics["correlation_id"] =
+          association.runtimeEvent.correlationId;
     }
     if (association.runtimeEvent.startTimeNs > 0 &&
-        association.runtimeEvent.endTimeNs > association.runtimeEvent.startTimeNs) {
+        association.runtimeEvent.endTimeNs >
+            association.runtimeEvent.startTimeNs) {
       association.metrics["task_duration_us"] =
           static_cast<double>(association.runtimeEvent.endTimeNs -
                               association.runtimeEvent.startTimeNs) /
@@ -1310,7 +1319,8 @@ void parseStructuredSupplementalCsv(const std::filesystem::path &file,
       }
       if (auto u64Value = parseU64(value); u64Value.has_value()) {
         association.metrics[key] = u64Value.value();
-      } else if (auto doubleValue = parseDouble(value); doubleValue.has_value()) {
+      } else if (auto doubleValue = parseDouble(value);
+                 doubleValue.has_value()) {
         association.metrics[key] = doubleValue.value();
       } else {
         association.metrics[key] = value;
@@ -1366,7 +1376,8 @@ void correlateVendorToRuntimeEvents(
   auto matchRuntimeEventByKernelOrder =
       [&](const VendorMetricAssociation &association)
       -> const RuntimeTraceEventKey * {
-    auto key = canonicalKernelNameForCorrelation(association.runtimeEvent.opName);
+    auto key =
+        canonicalKernelNameForCorrelation(association.runtimeEvent.opName);
     if (key.empty()) {
       return nullptr;
     }
@@ -1391,12 +1402,14 @@ void correlateVendorToRuntimeEvents(
   auto matchLaunchRangeByKernelOrder =
       [&](const VendorMetricAssociation &association)
       -> const VendorMetricAssociation * {
-    auto key = canonicalKernelNameForCorrelation(association.runtimeEvent.opName);
+    auto key =
+        canonicalKernelNameForCorrelation(association.runtimeEvent.opName);
     if (key.empty()) {
       return nullptr;
     }
     auto &nextIndex = nextLaunchRangeByKernel[key];
-    for (size_t index = nextIndex; index < artifact.associations.size(); ++index) {
+    for (size_t index = nextIndex; index < artifact.associations.size();
+         ++index) {
       const auto &launchRange = artifact.associations[index];
       if (launchRange.source != "msprof_mstx" ||
           launchRange.runtimeEvent.endTimeNs <=
@@ -1450,17 +1463,18 @@ void correlateVendorToRuntimeEvents(
         association.metrics["matched_runtime_scope_id"] =
             static_cast<uint64_t>(runtimeEvent->scopeId);
         association.state = VendorMetricState::Collected;
-        association.note =
-            "Matched msprof range to Triton runtime scope by kernel launch order.";
+        association.note = "Matched msprof range to Triton runtime scope by "
+                           "kernel launch order.";
       }
       continue;
     }
 
     if (association.runtimeEvent.scopeId != 0 &&
-        association.runtimeEvent.endTimeNs > association.runtimeEvent.startTimeNs) {
+        association.runtimeEvent.endTimeNs >
+            association.runtimeEvent.startTimeNs) {
       if (association.note.empty()) {
-        association.note =
-            "Scope mapped without host timing correlation; timing from aclprof summary.";
+        association.note = "Scope mapped without host timing correlation; "
+                           "timing from aclprof summary.";
       }
       continue;
     }
@@ -1529,13 +1543,13 @@ void correlateVendorToRuntimeEvents(
 
     if (!matched) {
       matched = selectBy(
-        [&](const RuntimeTraceEventKey &runtimeEvent) {
-          return sameKernelForCorrelation(association.runtimeEvent.opName,
-                                          runtimeEvent.opName) &&
-                 association.runtimeEvent.deviceId == runtimeEvent.deviceId &&
-                 association.runtimeEvent.streamId == runtimeEvent.streamId;
-        },
-        kStrictMatchWindowNs);
+          [&](const RuntimeTraceEventKey &runtimeEvent) {
+            return sameKernelForCorrelation(association.runtimeEvent.opName,
+                                            runtimeEvent.opName) &&
+                   association.runtimeEvent.deviceId == runtimeEvent.deviceId &&
+                   association.runtimeEvent.streamId == runtimeEvent.streamId;
+          },
+          kStrictMatchWindowNs);
       if (matched) {
         matchedTier = "strict";
       }
@@ -1566,14 +1580,15 @@ void correlateVendorToRuntimeEvents(
     if (!matched) {
       if (const auto *bestLaunchRange =
               matchLaunchRangeByKernelOrder(association)) {
-        association.runtimeEvent.scopeId = bestLaunchRange->runtimeEvent.scopeId;
+        association.runtimeEvent.scopeId =
+            bestLaunchRange->runtimeEvent.scopeId;
         association.runtimeEvent.opName = bestLaunchRange->runtimeEvent.opName;
         association.metrics["launch_range_op_name"] =
             bestLaunchRange->runtimeEvent.opName;
         association.metrics["merged_with_launch_range"] = std::string("true");
         association.state = VendorMetricState::Collected;
-        association.note =
-            "Matched CANN op_summary to msprof launch range by kernel launch order.";
+        association.note = "Matched CANN op_summary to msprof launch range by "
+                           "kernel launch order.";
         continue;
       }
       association.state = VendorMetricState::Unmatched;
@@ -1615,21 +1630,21 @@ void correlateVendorToRuntimeEvents(
     }
     association.state = VendorMetricState::Collected;
     if (matchedTier == "correlation_id") {
-      association.note =
-          "Matched runtime scope by correlation_id; timing from aclprof summary.";
+      association.note = "Matched runtime scope by correlation_id; timing from "
+                         "aclprof summary.";
     } else if (matchedTier == "task_id") {
       association.note =
           "Matched runtime scope by task_id; timing from aclprof summary.";
     } else if (matchedTier == "fuzzy") {
-      association.note =
-          "Fuzzy matched runtime scope by timestamp only; timing from aclprof summary.";
+      association.note = "Fuzzy matched runtime scope by timestamp only; "
+                         "timing from aclprof summary.";
     } else if (association.runtimeEvent.deviceId == 0 &&
                association.runtimeEvent.streamId == 0) {
-      association.note =
-          "Matched runtime scope by op_name/timestamp; timing from aclprof summary.";
+      association.note = "Matched runtime scope by op_name/timestamp; timing "
+                         "from aclprof summary.";
     } else {
-      association.note =
-          "Matched runtime scope by device_id/stream_id/op_name and timestamp; timing from aclprof summary.";
+      association.note = "Matched runtime scope by device_id/stream_id/op_name "
+                         "and timestamp; timing from aclprof summary.";
     }
   }
 }
@@ -1657,8 +1672,7 @@ void addRuntimeBaseFallbackAssociations(
 void addRuntimeBaseNativeAssociations(
     VendorProfileArtifact &artifact,
     const std::vector<RuntimeTraceEventKey> &runtimeEvents,
-    const std::string &sourceTag,
-    const std::string &sourceMetricTag,
+    const std::string &sourceTag, const std::string &sourceMetricTag,
     const std::string &note) {
   for (const auto &event : runtimeEvents) {
     if (event.endTimeNs <= event.startTimeNs) {
@@ -1695,8 +1709,8 @@ void addAssociationQualityReasons(VendorProfileArtifact &artifact) {
   if (unmatchedCount > 0) {
     artifact.degradeReasons.push_back(
         "Vendor/runtime correlation unmatched entries: " +
-        std::to_string(unmatchedCount) + " (collected=" +
-        std::to_string(collectedCount) + ").");
+        std::to_string(unmatchedCount) +
+        " (collected=" + std::to_string(collectedCount) + ").");
   }
 }
 
@@ -1755,7 +1769,8 @@ collectMsprofExportRoots(const std::filesystem::path &outputPath) {
   if (!std::filesystem::is_directory(outputPath, ec)) {
     return roots;
   }
-  for (const auto &entry : std::filesystem::directory_iterator(outputPath, ec)) {
+  for (const auto &entry :
+       std::filesystem::directory_iterator(outputPath, ec)) {
     if (ec) {
       break;
     }
@@ -1775,11 +1790,12 @@ collectMsprofExportRoots(const std::filesystem::path &outputPath) {
 void exportMsprofCsv(const std::string &outputPath,
                      std::vector<std::string> &reasons) {
   if (outputPath.empty()) {
-    appendUniqueReason(reasons,
-                       "CANN aclprof auto-export skipped: output path is empty.");
+    appendUniqueReason(
+        reasons, "CANN aclprof auto-export skipped: output path is empty.");
     return;
   }
-  auto exportRoots = collectMsprofExportRoots(std::filesystem::path(outputPath));
+  auto exportRoots =
+      collectMsprofExportRoots(std::filesystem::path(outputPath));
   if (exportRoots.empty()) {
     exportRoots.push_back(std::filesystem::path(outputPath));
   }
@@ -1829,7 +1845,8 @@ void CannProfiler::startOp(const Scope &scope) {
           "mstx APIs are unavailable; range annotations are disabled.");
     } else {
       if (domain && api.domainRangeStartA && api.domainRangeEnd) {
-        range.rangeId = api.domainRangeStartA(domain, scope.name.c_str(), stream);
+        range.rangeId =
+            api.domainRangeStartA(domain, scope.name.c_str(), stream);
         range.mstxDomainRange = true;
       } else {
         range.rangeId = api.rangeStartA(scope.name.c_str(), stream);
@@ -1839,9 +1856,10 @@ void CannProfiler::startOp(const Scope &scope) {
         range.active = true;
       } else {
         std::lock_guard<std::mutex> lock(mutex);
-        appendUniqueReason(runtimeDegradeReasons,
-                           "mstx range start returned an invalid range id from " +
-                               api.loadedFrom + ".");
+        appendUniqueReason(
+            runtimeDegradeReasons,
+            "mstx range start returned an invalid range id from " +
+                api.loadedFrom + ".");
       }
     }
   }
@@ -1952,8 +1970,7 @@ void CannProfiler::doStart() {
             appendUniqueReason(runtimeDegradeReasons,
                                "aclrtCreateStream failed while preparing mstx "
                                "stream from " +
-                                   aclRuntime.loadedFrom +
-                                   " with error code " +
+                                   aclRuntime.loadedFrom + " with error code " +
                                    std::to_string(createStreamRet));
           }
         }
@@ -2005,16 +2022,17 @@ void CannProfiler::doStart() {
   }
 
   if (api.setConfig && !memFreqHz.empty()) {
-    auto setRet =
-        api.setConfig(kAclProfSysHardwareMemFreq, memFreqHz.c_str(), memFreqHz.size());
+    auto setRet = api.setConfig(kAclProfSysHardwareMemFreq, memFreqHz.c_str(),
+                                memFreqHz.size());
     if (setRet != 0) {
-      runtimeDegradeReasons.push_back(
-          "aclprofSetConfig(ACL_PROF_SYS_HARDWARE_MEM_FREQ) failed with error code " +
-          std::to_string(setRet));
+      runtimeDegradeReasons.push_back("aclprofSetConfig(ACL_PROF_SYS_HARDWARE_"
+                                      "MEM_FREQ) failed with error code " +
+                                      std::to_string(setRet));
     }
   }
 
-  auto startRet = api.start(reinterpret_cast<const AclProfConfig *>(aclprofConfig));
+  auto startRet =
+      api.start(reinterpret_cast<const AclProfConfig *>(aclprofConfig));
   if (startRet != 0) {
     runtimeDegradeReasons.push_back("aclprofStart failed with error code " +
                                     std::to_string(startRet));
@@ -2152,9 +2170,11 @@ void CannProfiler::doSetMode(const std::vector<std::string> &modeAndOptions) {
   this->modeAndOptions = modeAndOptions;
 
   deviceId = 0;
-  outputPath = getEnvOrDefault("FLAGTREE_PROFILER_CANN_PROFILE_OUTPUT", "./flagtree_profiler_cann_profile");
+  outputPath = getEnvOrDefault("FLAGTREE_PROFILER_CANN_PROFILE_OUTPUT",
+                               "./flagtree_profiler_cann_profile");
   memFreqHz = "15";
-  aclprofDataTypeConfig = kAclProfAclApi | kAclProfTaskTime | kAclProfRuntimeApi;
+  aclprofDataTypeConfig =
+      kAclProfAclApi | kAclProfTaskTime | kAclProfRuntimeApi;
   aclprofAicoreMetricId = kAclAicoreArithmeticUtilization;
   msproftxEnabled = false;
   hostTimingFallbackEnabled = false;
@@ -2207,8 +2227,8 @@ void CannProfiler::doSetMode(const std::vector<std::string> &modeAndOptions) {
       if (flags != 0) {
         aclprofDataTypeConfig = flags;
       }
-    } else if (key == "aclprof_msproftx_enabled" ||
-               key == "msproftx_enabled" || key == "mstx_enabled") {
+    } else if (key == "aclprof_msproftx_enabled" || key == "msproftx_enabled" ||
+               key == "mstx_enabled") {
       msproftxEnabled = parseBool(value);
       msproftxExplicitlyConfigured = true;
     } else if (key == "mstx_domain" || key == "mstx_domain_name") {
@@ -2240,13 +2260,14 @@ void CannProfiler::doSetMode(const std::vector<std::string> &modeAndOptions) {
   }
 
   if (!hostTimingFallbackEnabled) {
-    auto envFlag = toLower(getEnvOrDefault("FLAGTREE_PROFILER_CANN_RUNTIME_HOST_FALLBACK", "0"));
+    auto envFlag = toLower(
+        getEnvOrDefault("FLAGTREE_PROFILER_CANN_RUNTIME_HOST_FALLBACK", "0"));
     hostTimingFallbackEnabled = parseBool(envFlag);
   }
 
   if (!aclprofRuntimeEnabled) {
-    aclprofRuntimeEnabled =
-        parseBool(getEnvOrDefault("FLAGTREE_PROFILER_CANN_ACLPROF_RUNTIME", "0"));
+    aclprofRuntimeEnabled = parseBool(
+        getEnvOrDefault("FLAGTREE_PROFILER_CANN_ACLPROF_RUNTIME", "0"));
   }
 }
 
@@ -2300,9 +2321,9 @@ CannProfiler::importMsprofOutput(const SessionProfileMetadata &metadata,
                lowerName.find("bandwidth") != std::string::npos ||
                lowerName.find("memory") != std::string::npos ||
                lowerName.find("mem") != std::string::npos) {
-      parseStructuredSupplementalCsv(
-          file, classifySupplementalSource(lowerName), plan.enabledVendorMetrics,
-          artifact);
+      parseStructuredSupplementalCsv(file,
+                                     classifySupplementalSource(lowerName),
+                                     plan.enabledVendorMetrics, artifact);
     }
   }
 
@@ -2333,16 +2354,17 @@ CannProfiler::importMsprofOutput(const SessionProfileMetadata &metadata,
   if (opSummaryAssociationCount == 0 && !csvFiles.empty() &&
       !plan.enabledVendorMetrics.empty()) {
     artifact.degradeReasons.push_back(
-        "Vendor CSV files were found, but no usable op_summary associations were parsed.");
+        "Vendor CSV files were found, but no usable op_summary associations "
+        "were parsed.");
   }
   if (opSummaryAssociationCount == 0 && csvFiles.empty() &&
       !plan.enabledVendorMetrics.empty()) {
-    artifact.degradeReasons.push_back(
-        "No vendor summary CSV files were found. Expected msprof exports such as "
-        "summary/op_summary*.csv.");
-    if (adapterOptionEnabled(plan.requested.adapterOptions,
-                             {"mstx_enabled", "msproftx_enabled",
-                              "aclprof_msproftx_enabled"})) {
+    artifact.degradeReasons.push_back("No vendor summary CSV files were found. "
+                                      "Expected msprof exports such as "
+                                      "summary/op_summary*.csv.");
+    if (adapterOptionEnabled(
+            plan.requested.adapterOptions,
+            {"mstx_enabled", "msproftx_enabled", "aclprof_msproftx_enabled"})) {
       artifact.degradeReasons.push_back(
           "msprof CSV exports were not visible at profiler.finalize time. When "
           "using external `msprof --msproftx=on`, summaries may only be "

@@ -160,7 +160,9 @@ def _matmul_kernel(
         )
         acc = tl.dot(a, b, acc)
     mask = (offs_m[:, None] < M) & (offs_n[None, :] < N)
-    tl.store(c_ptr + offs_m[:, None] * N + offs_n[None, :], acc.to(tl.float16), mask=mask)
+    tl.store(c_ptr + offs_m[:, None] * N + offs_n[None, :],
+             acc.to(tl.float16),
+             mask=mask)
 
 
 def _load_torch_npu():
@@ -195,10 +197,18 @@ def main() -> int:
     a = torch.randn((m, k), device=device, dtype=torch.float16)
     b = torch.randn((k, n), device=device, dtype=torch.float16)
     result = torch.empty((m, n), device=device, dtype=torch.float16)
-    grid = (triton.cdiv(m, block_m) * triton.cdiv(n, block_n),)
+    grid = (triton.cdiv(m, block_m) * triton.cdiv(n, block_n), )
 
     for _ in range(warmup):
-        _matmul_kernel[grid](a, b, result, m, n, k, BLOCK_M=block_m, BLOCK_N=block_n, BLOCK_K=block_k)
+        _matmul_kernel[grid](a,
+                             b,
+                             result,
+                             m,
+                             n,
+                             k,
+                             BLOCK_M=block_m,
+                             BLOCK_N=block_n,
+                             BLOCK_K=block_k)
     torch.npu.synchronize()
 
     sid = profiler.start(
@@ -207,17 +217,23 @@ def main() -> int:
         data="tree",
         backend="cann",
         hook="triton",
-        mode=(
-            "runtime_base:"
-            "device_id=1:"
-            "vendor_metrics=aicore,bandwidth:"
-            "mstx_enabled=true:"
-            "mstx_domain=flagtree_profiler"
-        ),
+        mode=("runtime_base:"
+              "device_id=1:"
+              "vendor_metrics=aicore,bandwidth:"
+              "mstx_enabled=true:"
+              "mstx_domain=flagtree_profiler"),
     )
     try:
         for _ in range(iters):
-            _matmul_kernel[grid](a, b, result, m, n, k, BLOCK_M=block_m, BLOCK_N=block_n, BLOCK_K=block_k)
+            _matmul_kernel[grid](a,
+                                 b,
+                                 result,
+                                 m,
+                                 n,
+                                 k,
+                                 BLOCK_M=block_m,
+                                 BLOCK_N=block_n,
+                                 BLOCK_K=block_k)
         torch.npu.synchronize()
     finally:
         profiler.finalize(sid)

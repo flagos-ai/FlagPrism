@@ -43,22 +43,21 @@ public:
   virtual ~RecordSink() = default;
 
   virtual RecordWriteResult writeSummary(const SummaryRecord &record) = 0;
-  virtual RecordWriteResult writeMemoryEvent(
-      const MemoryEventRecord &record) = 0;
-  virtual RecordWriteResult writeFullValueRef(
-      const FullValueRefRecord &record) = 0;
+  virtual RecordWriteResult
+  writeMemoryEvent(const MemoryEventRecord &record) = 0;
+  virtual RecordWriteResult
+  writeFullValueRef(const FullValueRefRecord &record) = 0;
 
   // Number of records that have been successfully written (WRITTEN status).
   virtual uint32_t recordCount() const = 0;
 };
 
 uint64_t computeLogicalInstanceId(uint32_t pid0, uint32_t pid1, uint32_t pid2,
-                                  uint32_t numPrograms0,
-                                  uint32_t numPrograms1);
+                                  uint32_t numPrograms0, uint32_t numPrograms1);
 
-RingBufferHeader makeRingBufferHeader(
-    uint32_t capacity, uint32_t recordSize = kDefaultRecordSize,
-    uint32_t payloadOffset = 0);
+RingBufferHeader makeRingBufferHeader(uint32_t capacity,
+                                      uint32_t recordSize = kDefaultRecordSize,
+                                      uint32_t payloadOffset = 0);
 
 bool initializeRingBufferStorage(void *ctrlPtr, size_t bufferSize,
                                  uint32_t capacity,

@@ -27,10 +27,10 @@ public:
 
   virtual void memsetDevice(void *ptr, int value, size_t bytes,
                             uint64_t streamHandle) = 0;
-  virtual void copyHostToDevice(void *deviceDst, const void *hostSrc, size_t bytes,
-                                uint64_t streamHandle) = 0;
-  virtual void copyDeviceToHost(void *hostDst, const void *deviceSrc, size_t bytes,
-                                uint64_t streamHandle) = 0;
+  virtual void copyHostToDevice(void *deviceDst, const void *hostSrc,
+                                size_t bytes, uint64_t streamHandle) = 0;
+  virtual void copyDeviceToHost(void *hostDst, const void *deviceSrc,
+                                size_t bytes, uint64_t streamHandle) = 0;
   virtual void synchronize(uint64_t streamHandle) = 0;
 };
 

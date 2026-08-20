@@ -12,7 +12,8 @@ from pathlib import Path
 import pytest
 
 _unit = Path(__file__).resolve().parents[1]
-_spec = importlib.util.spec_from_file_location("_module_a_doc", _unit / "_module_a_doc.py")
+_spec = importlib.util.spec_from_file_location("_module_a_doc",
+                                               _unit / "_module_a_doc.py")
 _mad = importlib.util.module_from_spec(_spec)
 assert _spec.loader is not None
 _spec.loader.exec_module(_mad)
@@ -25,7 +26,6 @@ import flagtree.language as ftl
 import triton.language as tl
 from triton.backends.compiler import GPUTarget
 from triton.compiler import ASTSource
-
 
 _ASCEND_TARGET = GPUTarget("npu", "Ascend910B", 0)
 

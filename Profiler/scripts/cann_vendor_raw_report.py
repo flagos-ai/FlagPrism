@@ -9,7 +9,6 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-
 IMPORTANT_METRICS = [
     "task_type",
     "task_duration_us",
@@ -61,19 +60,14 @@ def _format_value(value: Any) -> str:
 def _kernel_name(association: dict[str, Any]) -> str:
     metrics = association.get("metrics", {})
     event = association.get("runtime_event", {})
-    return (
-        metrics.get("op_name")
-        or metrics.get("op_type")
-        or metrics.get("message")
-        or event.get("op_name")
-        or "<unknown>"
-    )
+    return (metrics.get("op_name") or metrics.get("op_type")
+            or metrics.get("message") or event.get("op_name") or "<unknown>")
 
 
 def _canonical_name(name: str) -> str:
     for suffix in (" mix", " aiv", " aic"):
         if name.endswith(suffix):
-            return name[: -len(suffix)]
+            return name[:-len(suffix)]
     return name
 
 
@@ -85,7 +79,8 @@ def _source_prefix(source: str) -> str:
     return source
 
 
-def _aggregate_rows(associations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _aggregate_rows(
+        associations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for association in associations:
         source = association.get("source", "")
@@ -96,12 +91,18 @@ def _aggregate_rows(associations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rows = []
     for name, items in sorted(grouped.items()):
         row: dict[str, Any] = {
-            "kernel": name,
-            "sources": ",".join(sorted({str(item.get("source", "")) for item in items})),
-            "rows": len(items),
+            "kernel":
+            name,
+            "sources":
+            ",".join(sorted({str(item.get("source", ""))
+                             for item in items})),
+            "rows":
+            len(items),
         }
         for source in sorted({str(item.get("source", "")) for item in items}):
-            source_items = [item for item in items if item.get("source") == source]
+            source_items = [
+                item for item in items if item.get("source") == source
+            ]
             source_key = _source_prefix(source)
             row[source_key + ".rows"] = len(source_items)
             _aggregate_metrics(source_items, row, source_key)
@@ -109,23 +110,19 @@ def _aggregate_rows(associations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
-def _aggregate_metrics(items: list[dict[str, Any]], row: dict[str, Any], prefix: str):
+def _aggregate_metrics(items: list[dict[str, Any]], row: dict[str, Any],
+                       prefix: str):
     for metric in IMPORTANT_METRICS:
         values = [
-            _metric_value(item.get("metrics", {}), metric)
-            for item in items
+            _metric_value(item.get("metrics", {}), metric) for item in items
             if _metric_value(item.get("metrics", {}), metric) is not None
         ]
         numeric = [_as_float(value) for value in values]
         numeric = [value for value in numeric if value is not None]
         column = prefix + "." + metric
         if numeric:
-            if (
-                metric.endswith("_us")
-                or metric.endswith("_cycles")
-                or metric.endswith("_bytes")
-                or metric.endswith("_kb")
-            ):
+            if (metric.endswith("_us") or metric.endswith("_cycles")
+                    or metric.endswith("_bytes") or metric.endswith("_kb")):
                 row[column + ".sum"] = sum(numeric)
                 row[column + ".avg"] = sum(numeric) / len(numeric)
             elif metric.endswith("_gb_s"):
@@ -145,26 +142,27 @@ def _print_table(rows: list[dict[str, Any]], columns: list[str]):
     widths = {column: len(column) for column in columns}
     for row in rows:
         for column in columns:
-            widths[column] = max(widths[column], len(_format_value(row.get(column))))
+            widths[column] = max(widths[column],
+                                 len(_format_value(row.get(column))))
 
     print("  ".join(column.ljust(widths[column]) for column in columns))
     print("  ".join("-" * widths[column] for column in columns))
     for row in rows:
-        print(
-            "  ".join(
-                _format_value(row.get(column)).ljust(widths[column])
-                for column in columns
-            )
-        )
+        print("  ".join(
+            _format_value(row.get(column)).ljust(widths[column])
+            for column in columns))
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("vendor_json", type=Path, help="Path to profile.vendor.json")
+    parser.add_argument("vendor_json",
+                        type=Path,
+                        help="Path to profile.vendor.json")
     parser.add_argument(
         "--full",
         action="store_true",
-        help="Print all aggregated important columns instead of the compact default.",
+        help=
+        "Print all aggregated important columns instead of the compact default.",
     )
     parser.add_argument(
         "--json",
@@ -202,7 +200,8 @@ def main() -> int:
     if args.full:
         columns = sorted({key for row in rows for key in row.keys()})
         columns = ["kernel", "sources", "rows"] + [
-            column for column in columns if column not in {"kernel", "sources", "rows"}
+            column for column in columns
+            if column not in {"kernel", "sources", "rows"}
         ]
     else:
         columns = compact_columns

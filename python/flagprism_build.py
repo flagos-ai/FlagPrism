@@ -14,9 +14,8 @@ def _check_env_flag(name: str, default: str = "") -> bool:
 
 
 def _flagprism_enabled(default: bool = True) -> bool:
-    return _check_env_flag(
-        "TRITON_BUILD_FLAGPRISM", "ON" if default else "OFF"
-    )
+    return _check_env_flag("TRITON_BUILD_FLAGPRISM",
+                           "ON" if default else "OFF")
 
 
 @dataclass(frozen=True)
@@ -27,8 +26,9 @@ class FlagPrismBuildConfig:
 
     @classmethod
     def from_environment(
-        cls, project_root: Path, source_root: Path | None = None
-    ) -> "FlagPrismBuildConfig":
+            cls,
+            project_root: Path,
+            source_root: Path | None = None) -> "FlagPrismBuildConfig":
         configured_root = os.getenv("FLAGPRISM_SOURCE_DIR")
         root = Path(configured_root) if configured_root else source_root
         if root is None:
@@ -49,23 +49,25 @@ class FlagPrismBuildConfig:
             required.extend((
                 self.root / "cmake" / "FlagPrism.cmake",
                 self.root / "Debugger" / "native" / "CMakeLists.txt",
-                self.root / "Debugger" / "python" / "flagtree_debugger" / "__init__.py",
-                self.root / "Debugger" / "python" / "flagtree_debugger" / "language.py",
-                self.root / "Debugger" / "python" / "flagtree_debugger" / "statement.py",
+                self.root / "Debugger" / "python" / "flagtree_debugger" /
+                "__init__.py",
+                self.root / "Debugger" / "python" / "flagtree_debugger" /
+                "language.py",
+                self.root / "Debugger" / "python" / "flagtree_debugger" /
+                "statement.py",
                 self.root / "Profiler" / "CMakeLists.txt",
-                self.root / "Profiler" / "python" / "flagtree_profiler" / "__init__.py",
+                self.root / "Profiler" / "python" / "flagtree_profiler" /
+                "__init__.py",
             ))
         missing = [
             str(self.relative_root / path.relative_to(self.root))
-            for path in required
-            if not path.is_file()
+            for path in required if not path.is_file()
         ]
         if missing:
             raise RuntimeError(
                 "FlagPrism sources are missing. Initialize the submodule "
-                "with `git submodule update --init --recursive`. Missing: "
-                + ", ".join(missing)
-            )
+                "with `git submodule update --init --recursive`. Missing: " +
+                ", ".join(missing))
 
     def cmake_args(self, build_lib: str) -> list[str]:
         args = [
@@ -78,7 +80,8 @@ class FlagPrismBuildConfig:
             args.extend([
                 "-DFLAGPRISM_SOURCE_DIR=" + str(self.root),
                 "-DFLAGPRISM_PYTHON_DIR=" + os.path.abspath(build_lib),
-                "-DPYTHON_EXTENSION_SUFFIX=" + (sysconfig.get_config_var("EXT_SUFFIX") or ".so"),
+                "-DPYTHON_EXTENSION_SUFFIX=" +
+                (sysconfig.get_config_var("EXT_SUFFIX") or ".so"),
             ])
         return args
 
@@ -95,10 +98,12 @@ class FlagPrismBuildConfig:
             shutil.rmtree(build_root / package, ignore_errors=True)
         for package in ("debugger", "profiler"):
             shutil.rmtree(flagtree_root / package, ignore_errors=True)
-        for module in ("_components.py", "_devtools.py", "_statement_metadata.py"):
+        for module in ("_components.py", "_devtools.py",
+                       "_statement_metadata.py"):
             (triton_root / module).unlink(missing_ok=True)
         for module in ("_components", "_devtools", "_statement_metadata"):
-            for artifact in (triton_root / "__pycache__").glob(f"{module}.*.pyc"):
+            for artifact in (triton_root /
+                             "__pycache__").glob(f"{module}.*.pyc"):
                 artifact.unlink(missing_ok=True)
         for artifact in (triton_root / "_C").glob("libproton*"):
             artifact.unlink(missing_ok=True)
@@ -113,10 +118,12 @@ class FlagPrismBuildConfig:
             shutil.rmtree(triton_root / package, ignore_errors=True)
         for package in ("flagtree_debugger", "flagtree_profiler"):
             shutil.rmtree(build_root / package, ignore_errors=True)
-        for module in ("_components.py", "_devtools.py", "_statement_metadata.py"):
+        for module in ("_components.py", "_devtools.py",
+                       "_statement_metadata.py"):
             (triton_root / module).unlink(missing_ok=True)
         for module in ("_components", "_devtools", "_statement_metadata"):
-            for artifact in (triton_root / "__pycache__").glob(f"{module}.*.pyc"):
+            for artifact in (triton_root /
+                             "__pycache__").glob(f"{module}.*.pyc"):
                 artifact.unlink(missing_ok=True)
 
         if not self.enabled:
@@ -129,9 +136,8 @@ class FlagPrismBuildConfig:
         for artifact in (triton_root / "_C").glob("libproton*"):
             artifact.unlink(missing_ok=True)
 
-        expected_native = "_native" + (
-            sysconfig.get_config_var("EXT_SUFFIX") or ".so"
-        )
+        expected_native = "_native" + (sysconfig.get_config_var("EXT_SUFFIX")
+                                       or ".so")
         native_path = flagtree_root / "profiler" / expected_native
         if not native_path.is_file():
             raise RuntimeError(
@@ -144,15 +150,18 @@ class FlagPrismBuildConfig:
         return (
             (
                 "flagtree.debugger",
-                str(self.relative_root / "Debugger" / "python" / "flagtree_debugger"),
+                str(self.relative_root / "Debugger" / "python" /
+                    "flagtree_debugger"),
             ),
             (
                 "flagtree.profiler",
-                str(self.relative_root / "Profiler" / "python" / "flagtree_profiler"),
+                str(self.relative_root / "Profiler" / "python" /
+                    "flagtree_profiler"),
             ),
             (
                 "flagtree.profiler.hooks",
-                str(self.relative_root / "Profiler" / "python" / "flagtree_profiler" / "hooks"),
+                str(self.relative_root / "Profiler" / "python" /
+                    "flagtree_profiler" / "hooks"),
             ),
         )
 
@@ -169,8 +178,8 @@ class FlagPrismBuildConfig:
 
 
 def create_build_config(
-    project_root: Path, source_root: Path | None = None
-) -> FlagPrismBuildConfig:
+        project_root: Path,
+        source_root: Path | None = None) -> FlagPrismBuildConfig:
     config = FlagPrismBuildConfig.from_environment(project_root, source_root)
     config.validate_sources()
     return config
