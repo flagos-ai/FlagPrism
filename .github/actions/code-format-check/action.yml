@@ -21,6 +21,16 @@
 name: 'Code Format Check'
 description: 'Run set up python, pre-commit, and auto-commit changes'
 
+inputs:
+  auto_commit:
+    description: 'Whether to commit and push formatter changes'
+    required: false
+    default: 'true'
+  branch:
+    description: 'Branch to which formatter changes are committed'
+    required: false
+    default: ''
+
 runs:
   using: "composite"
   steps:
@@ -34,9 +44,10 @@ runs:
 
     - name: Auto-commit changes
       uses: stefanzweifel/git-auto-commit-action@v4
-      if: always()
+      if: always() && inputs.auto_commit == 'true'
       with:
         commit_message: Apply code-format changes
         commit_user_name: flagtree-bot
         commit_user_email: flagtree_ai@163.com
         commit_author: flagtree-bot <flagtree_ai@163.com>
+        branch: ${{ inputs.branch }}

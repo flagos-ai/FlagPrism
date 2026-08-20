@@ -45,4 +45,7 @@ jobs:
       with:
         token: ${{ secrets.BOT_PAT_TOKEN || github.token }}
     - name: Code format check
-      uses: flagos-ai/FlagPrism/.github/actions/code-format-check@main
+      uses: ./.github/actions/code-format-check
+      with:
+        auto_commit: ${{ github.event_name != 'pull_request' }}
+        branch: ${{ github.head_ref || github.ref_name }}
