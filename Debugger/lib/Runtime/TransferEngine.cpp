@@ -293,9 +293,7 @@ public:
 
   ~CoreXRuntimeBackendAdapter() override {
 #if defined(__linux__)
-    if (retainedPrimaryDevice_ >= 0 && primaryCtxRelease_) {
-      (void)primaryCtxRelease_(retainedPrimaryDevice_);
-    }
+    releaseRetainedPrimaryContext();
     if (library_) {
       dlclose(library_);
     }
@@ -313,7 +311,8 @@ public:
   void setDevice(uint32_t deviceId) override {
 #if defined(__linux__)
     require(ctxGetCurrent_ != nullptr && ctxGetDevice_ != nullptr &&
-                primaryCtxRetain_ != nullptr && ctxSetCurrent_ != nullptr,
+                primaryCtxRetain_ != nullptr && primaryCtxRelease_ != nullptr &&
+                ctxSetCurrent_ != nullptr,
             "cuCtxSetCurrent");
 
     void *currentContext = nullptr;
@@ -321,14 +320,32 @@ public:
     if (ctxGetCurrent_(&currentContext) == 0 && currentContext != nullptr &&
         ctxGetDevice_(&currentDevice) == 0 &&
         currentDevice == static_cast<int>(deviceId)) {
+      if (retainedPrimaryDevice_ >= 0 &&
+          retainedPrimaryDevice_ != static_cast<int>(deviceId)) {
+        releaseRetainedPrimaryContext();
+      }
+      return;
+    }
+
+    if (retainedPrimaryDevice_ == static_cast<int>(deviceId) &&
+        retainedPrimaryContext_ != nullptr) {
+      check(ctxSetCurrent_(retainedPrimaryContext_), "cuCtxSetCurrent");
       return;
     }
 
     void *primaryContext = nullptr;
     check(primaryCtxRetain_(&primaryContext, static_cast<int>(deviceId)),
           "cuDevicePrimaryCtxRetain");
-    check(ctxSetCurrent_(primaryContext), "cuCtxSetCurrent");
+    const Result setResult = ctxSetCurrent_(primaryContext);
+    if (setResult != 0) {
+      (void)primaryCtxRelease_(static_cast<int>(deviceId));
+      failRuntime("cuCtxSetCurrent failed with CoreX driver error=" +
+                  std::to_string(setResult) + " (library=" + loadedFrom_ + ")");
+    }
+
+    releaseRetainedPrimaryContext();
     retainedPrimaryDevice_ = static_cast<int>(deviceId);
+    retainedPrimaryContext_ = primaryContext;
 #else
     (void)deviceId;
     throwUnavailableBackend(*this);
@@ -535,6 +552,8 @@ private:
     }
     candidates.emplace_back("libcuda.so.1");
     candidates.emplace_back("libcuda.so");
+    candidates.emplace_back("/usr/local/corex-4.4.0/lib64/libcuda.so.1");
+    candidates.emplace_back("/usr/local/corex-4.4.0/lib64/libcuda.so");
     candidates.emplace_back("/usr/local/corex/lib/libcuda.so.1");
     candidates.emplace_back("/usr/local/corex/lib/libcuda.so");
 
@@ -601,6 +620,14 @@ private:
     }
   }
 
+  void releaseRetainedPrimaryContext() {
+    if (retainedPrimaryDevice_ >= 0 && primaryCtxRelease_) {
+      (void)primaryCtxRelease_(retainedPrimaryDevice_);
+    }
+    retainedPrimaryDevice_ = -1;
+    retainedPrimaryContext_ = nullptr;
+  }
+
   void *library_ = nullptr;
   std::string loadedFrom_;
   Init init_ = nullptr;
@@ -610,6 +637,7 @@ private:
   CtxGetCurrent ctxGetCurrent_ = nullptr;
   CtxGetDevice ctxGetDevice_ = nullptr;
   int retainedPrimaryDevice_ = -1;
+  void *retainedPrimaryContext_ = nullptr;
   MemAlloc allocateDevice_ = nullptr;
   MemFree freeDevice_ = nullptr;
   HostAlloc allocateHost_ = nullptr;

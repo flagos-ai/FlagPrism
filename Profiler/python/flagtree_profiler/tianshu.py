@@ -34,8 +34,7 @@ def find_ixkn_cli(explicit: str | None = None) -> str:
             return str(Path(candidate))
     raise FileNotFoundError(
         "ixkn-cli was not found; install the Tianshu CoreX tools or set "
-        "FLAGTREE_PROFILER_TIANSHU_IXKN_CLI"
-    )
+        "FLAGTREE_PROFILER_TIANSHU_IXKN_CLI")
 
 
 def build_ixkn_command(
@@ -63,7 +62,9 @@ def build_ixkn_command(
     if launch_skip is not None:
         command.extend(["--launch-skip", str(launch_skip)])
     if export_profile:
-        command.extend(["--export-profile", str(export_profile), "--force-overwrite"])
+        command.extend(
+            ["--export-profile",
+             str(export_profile), "--force-overwrite"])
     if csv_output:
         command.append("--csv")
     if profile_child_processes:
@@ -113,7 +114,8 @@ def run_ixkn_profile(
     stdout = result.stdout or ""
     csv_lines = stdout.splitlines()
     header_index = next(
-        (index for index, line in enumerate(csv_lines) if line.startswith('"Kernel ID"')),
+        (index for index, line in enumerate(csv_lines)
+         if line.startswith('"Kernel ID"')),
         None,
     )
     if export_profile and header_index is not None:
@@ -133,7 +135,10 @@ def run_ixkn_profile(
     # With --export-profile ixKN writes only its binary database during the
     # live run. Re-open that database to obtain the structured CSV report.
     if export_profile and result.returncode == 0 and header_index is None:
-        import_command = [find_ixkn_cli(ixkn_cli), "--import-profile", str(export_profile)]
+        import_command = [
+            find_ixkn_cli(ixkn_cli), "--import-profile",
+            str(export_profile)
+        ]
         if sections:
             import_command.extend(["--section", str(sections)])
         import_command.append("--csv")
@@ -146,7 +151,8 @@ def run_ixkn_profile(
         )
         imported_lines = (imported.stdout or "").splitlines()
         imported_header = next(
-            (index for index, line in enumerate(imported_lines) if line.startswith('"Kernel ID"')),
+            (index for index, line in enumerate(imported_lines)
+             if line.startswith('"Kernel ID"')),
             None,
         )
         if imported_header is not None:
@@ -195,70 +201,122 @@ def _time_ns(value: str, header: str) -> int:
 
 
 def _find_csv_files(root: Path) -> list[Path]:
+    root = root.expanduser()
     if root.is_file():
         if root.suffix.lower() == ".csv":
             return [root]
         sibling = root.with_suffix(".csv")
         return [sibling] if sibling.exists() else []
-    if not root.is_dir():
-        return []
-    return sorted(path for path in root.rglob("*.csv") if path.is_file())
+    if root.is_dir():
+        return sorted(path for path in root.rglob("*.csv") if path.is_file())
+
+    # ixKN accepts a profile basename, while the CSV is emitted as a sibling
+    # file. Resolve that basename before deciding that no vendor data exists.
+    candidates = [root.with_suffix(".csv")]
+    if root.suffix.lower() == ".ixkn":
+        candidates.append(root.with_suffix(".ixkn").with_suffix(".csv"))
+    return [path for path in dict.fromkeys(candidates) if path.is_file()]
+
+
+def _find_ixkn_profile(root: Path) -> Path | None:
+    root = root.expanduser()
+    if root.is_file() and root.suffix.lower() == ".ixkn":
+        return root
+    if root.is_dir():
+        return None
+    candidates = [root.with_suffix(".ixkn")]
+    if root.suffix.lower() == ".ixkn":
+        candidates.insert(0, root)
+    return next((path for path in dict.fromkeys(candidates) if path.is_file()),
+                None)
 
 
 def _parse_csv(path: Path) -> list[dict]:
     associations = []
     with path.open(newline="", encoding="utf-8", errors="replace") as stream:
         for row in csv.DictReader(stream):
-            name = _first(row, ("kernel_name", "kernelname", "op_name", "opname", "name"))
+            name = _first(
+                row,
+                ("kernel_name", "kernelname", "op_name", "opname", "name"))
             start_header = next(
-                (key for key in row if _normalize(key) in {"starttimens", "starttimeus", "starttime", "start"}),
+                (key for key in row if _normalize(key) in
+                 {"starttimens", "starttimeus", "starttime", "start"}),
                 "start_us",
             )
             end_header = next(
-                (key for key in row if _normalize(key) in {"endtimens", "endtimeus", "endtime", "end"}),
+                (key for key in row if _normalize(key) in
+                 {"endtimens", "endtimeus", "endtime", "end"}),
                 "end_us",
             )
             duration_header = next(
-                (key for key in row if _normalize(key) in {"durationns", "durationus", "durationms", "duration"}),
+                (key for key in row if _normalize(key) in
+                 {"durationns", "durationus", "durationms", "duration"}),
                 "",
             )
-            start = _time_ns(_first(row, (start_header,)), start_header)
-            end = _time_ns(_first(row, (end_header,)), end_header)
+            start = _time_ns(_first(row, (start_header, )), start_header)
+            end = _time_ns(_first(row, (end_header, )), end_header)
             if not end and duration_header:
-                end = start + _time_ns(row.get(duration_header, ""), duration_header)
+                end = start + _time_ns(row.get(duration_header, ""),
+                                       duration_header)
 
             metrics: dict[str, int | float | str] = {"ixkn_file": str(path)}
             metric_label = _first(row, ("metrics", "metric"))
-            metric_value = _first(row, ("value",))
+            metric_value = _first(row, ("value", ))
             if metric_label and metric_label != "INF" and metric_value:
                 numeric_value = _number(metric_value)
                 metrics[f"tianshu.{_normalize(metric_label)}"] = (
-                    numeric_value if numeric_value is not None else metric_value
-                )
+                    numeric_value
+                    if numeric_value is not None else metric_value)
             for header, value in row.items():
-                if header in {start_header, end_header, duration_header, "Metrics", "Value"}:
+                if _normalize(header) in {
+                        _normalize(start_header),
+                        _normalize(end_header),
+                        _normalize(duration_header), "metrics", "metric",
+                        "value"
+                }:
                     continue
                 number = _number(value or "")
                 if number is not None:
                     metrics[f"tianshu.{_normalize(header)}"] = number
-            associations.append(
-                {
-                    "runtime_event": {
-                        "scope_id": 0,
-                        "op_name": name,
-                        "task_id": int(_number(_first(row, ("task_id", "taskid", "kernel_id"))) or 0),
-                        "correlation_id": int(_number(_first(row, ("correlation_id", "correlationid", "corrid"))) or 0),
-                        "device_id": int(_number(_first(row, ("device_id", "deviceid", "device"))) or 0),
-                        "stream_id": int(_number(_first(row, ("stream_id", "streamid", "stream"))) or 0),
-                        "start_time_ns": start,
-                        "end_time_ns": end,
-                    },
-                    "state": "collected",
-                    "source": "ixkn_csv",
-                    "note": "imported from ixKN CSV; runtime correlation is deferred to native importer",
-                    "metrics": metrics,
-                }
-            )
+            associations.append({
+                "runtime_event": {
+                    "scope_id":
+                    0,
+                    "op_name":
+                    name,
+                    "task_id":
+                    int(
+                        _number(_first(row,
+                                       ("task_id", "taskid", "kernel_id")))
+                        or 0),
+                    "correlation_id":
+                    int(
+                        _number(
+                            _first(
+                                row,
+                                ("correlation_id", "correlationid", "corrid")))
+                        or 0),
+                    "device_id":
+                    int(
+                        _number(
+                            _first(row, ("device_id", "deviceid", "device")))
+                        or 0),
+                    "stream_id":
+                    int(
+                        _number(
+                            _first(row, ("stream_id", "streamid", "stream")))
+                        or 0),
+                    "start_time_ns":
+                    start,
+                    "end_time_ns":
+                    end,
+                },
+                "state": "collected",
+                "source": "ixkn_csv",
+                "note":
+                "imported from ixKN CSV; runtime correlation is deferred to native importer",
+                "metrics": metrics,
+            })
     return associations
 
 
@@ -270,12 +328,12 @@ def merge_ixkn_vendor_artifact(name: str, export_profile: str) -> Path | None:
     artifact = json.loads(vendor_path.read_text(encoding="utf-8"))
     root = Path(export_profile)
     files = _find_csv_files(root)
+    ixkn_profile = _find_ixkn_profile(root)
     raw_inputs = artifact.setdefault("raw_inputs", [])
     associations = artifact.setdefault("associations", [])
     existing = {
         str(item.get("metrics", {}).get("ixkn_file", ""))
-        for item in associations
-        if isinstance(item, dict)
+        for item in associations if isinstance(item, dict)
     }
     for path in files:
         if str(path) not in raw_inputs:
@@ -287,27 +345,28 @@ def merge_ixkn_vendor_artifact(name: str, export_profile: str) -> Path | None:
         enabled_metrics = artifact.setdefault("enabled_metrics", [])
         for association in associations:
             for metric_name in (association.get("metrics") or {}):
-                if metric_name.startswith("tianshu.") and metric_name not in enabled_metrics:
+                if metric_name.startswith(
+                        "tianshu.") and metric_name not in enabled_metrics:
                     enabled_metrics.append(metric_name)
         reasons = artifact.setdefault("degrade_reasons", [])
         artifact["degrade_reasons"] = [
-            reason
-            for reason in reasons
-            if "No Tianshu ixKN profiling associations could be imported." not in str(reason)
+            reason for reason in reasons
+            if "No Tianshu ixKN profiling associations could be imported."
+            not in str(reason)
             and "use --csv for structured vendor import" not in str(reason)
         ]
         by_source: dict[str, int] = {}
         by_state: dict[str, int] = {}
         timed = 0
         for association in associations:
-            by_source[str(association.get("source", "unknown"))] = by_source.get(
-                str(association.get("source", "unknown")), 0
-            ) + 1
+            by_source[str(association.get(
+                "source", "unknown"))] = by_source.get(
+                    str(association.get("source", "unknown")), 0) + 1
             by_state[str(association.get("state", "unknown"))] = by_state.get(
-                str(association.get("state", "unknown")), 0
-            ) + 1
+                str(association.get("state", "unknown")), 0) + 1
             event = association.get("runtime_event") or {}
-            if int(event.get("end_time_ns", 0)) > int(event.get("start_time_ns", 0)):
+            if int(event.get("end_time_ns",
+                             0)) > int(event.get("start_time_ns", 0)):
                 timed += 1
         summary = artifact.setdefault("summary", {})
         summary.update({
@@ -317,9 +376,9 @@ def merge_ixkn_vendor_artifact(name: str, export_profile: str) -> Path | None:
             "timed_association_count": timed,
             "raw_input_count": len(raw_inputs),
         })
-    if root.exists() and root.is_file() and root.suffix.lower() == ".ixkn":
-        if str(root) not in raw_inputs:
-            raw_inputs.append(str(root))
+    if ixkn_profile is not None:
+        if str(ixkn_profile) not in raw_inputs:
+            raw_inputs.append(str(ixkn_profile))
         if not files:
             artifact.setdefault("degrade_reasons", []).append(
                 "ixKN binary export retained; use --csv for structured vendor import"

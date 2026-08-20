@@ -49,6 +49,8 @@ struct Api {
     }
     candidates.emplace_back("libcuda.so.1");
     candidates.emplace_back("libcuda.so");
+    candidates.emplace_back("/usr/local/corex-4.4.0/lib64/libcuda.so.1");
+    candidates.emplace_back("/usr/local/corex-4.4.0/lib64/libcuda.so");
     candidates.emplace_back("/usr/local/corex/lib/libcuda.so.1");
     candidates.emplace_back("/usr/local/corex/lib/libcuda.so");
     for (const auto &candidate : candidates) {
@@ -62,11 +64,21 @@ struct Api {
     }
     init = reinterpret_cast<FnInit>(dlsym(library, "cuInit"));
     deviceGet = reinterpret_cast<FnDeviceGet>(dlsym(library, "cuDeviceGet"));
-    deviceGetName = reinterpret_cast<FnDeviceGetName>(
-        dlsym(library, "cuDeviceGetName"));
+    deviceGetName =
+        reinterpret_cast<FnDeviceGetName>(dlsym(library, "cuDeviceGetName"));
     deviceGetAttribute = reinterpret_cast<FnDeviceGetAttribute>(
         dlsym(library, "cuDeviceGetAttribute"));
-    return init != nullptr && deviceGet != nullptr;
+    if (init != nullptr && deviceGet != nullptr && deviceGetName != nullptr &&
+        deviceGetAttribute != nullptr) {
+      return true;
+    }
+    dlclose(library);
+    library = nullptr;
+    init = nullptr;
+    deviceGet = nullptr;
+    deviceGetName = nullptr;
+    deviceGetAttribute = nullptr;
+    return false;
   }
 };
 
