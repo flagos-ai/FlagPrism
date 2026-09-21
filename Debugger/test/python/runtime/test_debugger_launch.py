@@ -1,4 +1,5 @@
 import importlib.util
+import importlib
 import json
 from pathlib import Path
 import re
@@ -10,8 +11,6 @@ import torch
 import triton
 
 from flagtree.debugger import api as debugger
-
-ROOT = Path(__file__).resolve().parents[6]
 
 
 def _reset_debugger_state():
@@ -328,6 +327,7 @@ def test_configure_supplies_defaults_for_enable_debug(tmp_path, monkeypatch):
             "debug_addr_level": 1,
             "debug_export_mode": "STREAMING_EXPORT",
             "debug_record_capacity": 4096,
+            "debug_timeline_enabled": False,
         }
 
         metadata = SimpleNamespace(
@@ -361,6 +361,20 @@ def test_configure_rejects_unknown_keys_and_invalid_capacity():
             debugger.configure(debugger_output_dir="/tmp/wrong-key")
         with pytest.raises(ValueError, match="record capacity"):
             debugger.configure(record_capacity=0)
+    finally:
+        _reset_debugger_state()
+
+
+def test_timeline_config_is_exposed_to_compiler():
+    # FlagPrism: timeline is opt-in and must reach the compiler configuration
+    # without changing the default debugger record level or address level.
+    _reset_debugger_state()
+    try:
+        debugger.configure(timeline=True)
+        debugger.activate(level=1)
+        assert debugger.get_config()["timeline"] is True
+        assert debugger.current_compile_config(
+        )["debug_timeline_enabled"] is True
     finally:
         _reset_debugger_state()
 
@@ -930,10 +944,9 @@ def test_cuda_launcher_keeps_standard_scratch_abi():
         pytest.skip(
             "CUDA launcher source requires triton.knobs, unavailable in this backend package"
         )
-    module = _load_module(
-        ROOT / "third_party" / "nvidia" / "backend" / "driver.py",
-        "test_triton_nvidia_driver",
-    )
+    # FlagPrism: load the backend through Triton's registry/package so this
+    # test is independent of the checkout location and user home directory.
+    module = importlib.import_module("triton.backends.nvidia.driver")
     src = module.make_launcher({}, {0: "*fp32"}, None)
 
     params_line = "void *params[] = { &arg0, &global_scratch, &profile_scratch };"
@@ -947,10 +960,9 @@ def test_hip_launcher_keeps_standard_scratch_abi():
         pytest.skip(
             "HIP launcher source requires triton.knobs, unavailable in this backend package"
         )
-    module = _load_module(
-        ROOT / "third_party" / "amd" / "backend" / "driver.py",
-        "test_triton_hip_driver",
-    )
+    # FlagPrism: use the registered backend module instead of constructing a
+    # path into a particular FlagTree checkout.
+    module = importlib.import_module("triton.backends.amd.driver")
     src = module.make_launcher({}, {0: "*fp32"}, 64)
 
     params_line = "void *params[] = { &arg0, &global_scratch, &profile_scratch };"

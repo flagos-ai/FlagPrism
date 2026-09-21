@@ -39,6 +39,14 @@ FLAGTREE_BACKEND=mthreads FLAGPRISM_BACKEND=mthreads \
 TRITON_BUILD_FLAGPRISM=ON python -m pip install . --no-build-isolation
 ```
 
+For NVIDIA, select the NVIDIA-only build. It compiles the CUDA/CUPTI path
+without requiring ROCm headers or libraries:
+
+```bash
+FLAGTREE_BACKEND=nvidia FLAGPRISM_BACKEND=nvidia \
+TRITON_BUILD_FLAGPRISM=ON python -m pip install . --no-build-isolation
+```
+
 ## Usage
 
 ### Basic usage
@@ -106,10 +114,36 @@ with profiler.scope("test2", {"bytes": 3000}):
 
 ### Backend and mode
 
-FlagTree Profiler supports `cupti`, `roctracer`, `instrumentation`, `cann`, and
-`tianshu` backends.
+FlagTree Profiler supports `nvidia`, `cupti`, `roctracer`, `instrumentation`,
+`cann`, `mthreads`, and `tianshu` backends.
 
-- **`cupti`**: Used for NVIDIA GPUs. It supports both the default profiling mode and `pcsampling` (instruction sampling).
+- **`nvidia`**: The default NVIDIA backend. It uses the in-process CUPTI
+  activity stream and supports the derived vendor metrics `launch_stats` (one
+  kernel activity record) and `kernel_duration` (activity duration in
+  microseconds). `launch_stats` also exposes CUPTI launch geometry, block
+  threads, registers per thread, shared/local-memory reservations, graph and
+  cluster properties when the driver supplies them. These are
+  activity-derived values, not hardware counters. The `memory` metric imports
+  CUPTI memcpy/memset activity bytes, direction and transfer-rate estimates;
+  it is not a DRAM utilization counter. The `instruction` metric reuses the
+  CUPTI PC-sampling path and exports sampled instruction/stall buckets; it is
+  sampling data rather than a raw PM counter. Requesting `instruction` enables
+  PC sampling automatically. NVIDIA vendor PC sampling is best effort: when
+  the driver denies performance-counter access (for example CUPTI error 35),
+  the base activity profile is still finalized and the reason is recorded in
+  `*.vendor.json` instead of aborting the application. The hardware-counter
+  metrics `occupancy`, `throughput`, `bandwidth`, and `instruction_count` use
+  the CUPTI range-profiler plus NVPW/Perfworks; their values are evaluated
+  per AutoRange kernel and exposed with the `*_percent` aliases where the
+  selected NVIDIA metric is a percentage. `bandwidth` is DRAM throughput as a
+  percentage of sustained peak, while `memory` remains the activity-derived
+  byte/rate stream. Hardware-counter sessions use Kernel Replay and therefore
+  take precedence over the optional PC-sampling `instruction` metric when
+  both are requested; the disabled path is recorded as a degradation.
+- **`cupti`**: The legacy NVIDIA collector. Select it explicitly for
+  `pcsampling` (instruction sampling) or compatibility with existing traces.
+  The NVIDIA vendor backend also accepts `pcsampling` as a mode token when
+  combined with `vendor_metrics`.
 - **`roctracer`**: Used for AMD GPUs. It supports only the default profiling mode.
 - **`instrumentation`**: Available on both NVIDIA and AMD GPUs, this backend enables collection of custom metrics and advanced instrumentation.
 - **`cann`**: Uses the Ascend vendor adapter and CANN runtime/import path.
@@ -120,7 +154,7 @@ FlagTree Profiler supports `cupti`, `roctracer`, `instrumentation`, `cann`, and
   driver and imports ixKN CSV output. Use the `flagtree-profiler --ixkn` CLI
   wrapper because ixKN profiles the target process from startup.
 
-By default, FlagTree Profiler automatically selects `cupti`, `roctracer`,
+By default, FlagTree Profiler automatically selects `nvidia`, `roctracer`,
 `cann`, `mthreads`, or `tianshu` based on the active target backend. The `instrumentation`
 backend offers a wide range of mode options for fine-grained profiling, as
 detailed in the `mode.py` file.

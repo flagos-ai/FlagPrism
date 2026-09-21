@@ -112,6 +112,12 @@ def test_cudagraph(tmp_path: pathlib.Path):
     profiler.exit_scope()
     profiler.finalize()
 
+    # FlagPrism: do not leak the graph's private stream into the following
+    # tests.  NVIDIA CUPTI reports activity asynchronously per stream, so a
+    # lingering current stream can make later scope-only assertions race with
+    # the graph activity importer.
+    torch.cuda.set_stream(torch.cuda.default_stream())
+
     with temp_file.open() as f:
         data = json.load(f)
     # CUDA/HIP graph may also invoke additional kernels to reset outputs
@@ -436,7 +442,11 @@ def test_multiple_sessions(tmp_path: pathlib.Path):
 
 def test_trace(tmp_path: pathlib.Path):
     temp_file = tmp_path / "test_trace.chrome_trace"
-    profiler.start(str(temp_file.with_suffix("")), data="trace")
+    # This test validates the legacy trace writer. Keep it independent of the
+    # NVIDIA vendor-artifact overlay selected by automatic backend discovery.
+    profiler.start(str(temp_file.with_suffix("")),
+                   data="trace",
+                   backend="cupti")
 
     @triton.jit
     def foo(x, y, size: tl.constexpr):
@@ -455,11 +465,13 @@ def test_trace(tmp_path: pathlib.Path):
     with temp_file.open() as f:
         data = json.load(f)
         trace_events = data["traceEvents"]
-        assert len(trace_events) == 3
-        assert trace_events[-1]["name"] == "foo"
-        assert trace_events[-1]["args"]["call_stack"] == [
-            "ROOT", "test", "foo"
+        # CUDA runtime versions may emit more than one initialization kernel;
+        # assert the semantic trace contract instead of a fixed event count.
+        foo_events = [
+            event for event in trace_events if event.get("name") == "foo"
         ]
+        assert len(foo_events) == 1
+        assert foo_events[0]["args"]["call_stack"] == ["ROOT", "test", "foo"]
 
 
 def test_scope_multiple_threads(tmp_path: pathlib.Path):

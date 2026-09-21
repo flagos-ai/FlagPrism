@@ -122,6 +122,12 @@ void init_flagtree_debugger_compiler(py::module_ &m) {
   });
   m.def("set_debug_timeline_only",
         [](ModuleOp mod, bool enabled) { setDebugTimelineOnly(mod, enabled); });
+  // FlagPrism: the timeline pass selects the target-specific device clock
+  // while retaining one shared debugger record format.
+  m.def("set_debug_timeline_backend",
+        [](ModuleOp mod, const std::string &backend) {
+          setDebugTimelineBackend(mod, backend);
+        });
   m.def("assign_debug_collect_scope_ids_without_erase", [](ModuleOp mod) {
     return succeeded(assignDebugCollectScopeIdsWithoutErase(mod));
   });

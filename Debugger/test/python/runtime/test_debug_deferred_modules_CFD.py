@@ -13,7 +13,8 @@ from pathlib import Path
 import pytest
 
 DEBUGGER_ROOT = Path(__file__).resolve().parents[3]
-ROOT = Path(__file__).resolve().parents[6]
+# FlagPrism: keep path resolution checkout-relative; never depend on /home/*.
+ROOT = Path(__file__).resolve().parents[4]
 TRITON_OPT = ROOT / "python" / "build" / "cmake.linux-aarch64-cpython-3.11" / "bin" / "triton-opt"
 
 

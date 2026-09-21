@@ -133,6 +133,23 @@ module attributes {flagtree.debug.addr_level = 0 : i32, flagtree.debug.enable_hi
 
 // -----
 
+module attributes {flagtree.debug.addr_level = 0 : i32, flagtree.debug.enable_hidden_arg_abi = true, flagtree.debug.record_level = 1 : i32, flagtree.debug.timeline_backend = "cuda", flagtree.debug.timeline_enabled = true, flagtree.debug.timeline_only = true} {
+  // FlagPrism: NVIDIA's device timeline must lower to PTX %globaltimer while
+  // using the same ring-record ABI as the existing Ascend timeline path.
+  // CHECK-LABEL: tt.func @tt_cuda_timeline_uses_globaltimer
+  tt.func @tt_cuda_timeline_uses_globaltimer(%ptr: !tt.ptr<f32>) {
+    // CHECK: tt.elementwise_inline_asm
+    // CHECK-SAME: asm_string = "mov.u64 $0, %globaltimer;"
+    // CHECK: tt.load %arg0
+    %0 = tt.load %ptr {flagtree.debug.op_id = 52 : i32, flagtree.debug.scope_id = 1 : i32, flagtree.debug.is_memory_op = true} : !tt.ptr<f32>
+    // CHECK: scf.if
+    // CHECK: tt.store {{.*}} : tensor<16x!tt.ptr<i32>>
+    tt.return
+  }
+}
+
+// -----
+
 module attributes {flagtree.debug.addr_level = 1 : i32, flagtree.debug.record_level = 1 : i32} {
   // CHECK-LABEL: tt.func @tt_address_summary
   tt.func @tt_address_summary(%ptr: !tt.ptr<f32>, %n: i32) {

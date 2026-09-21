@@ -3,11 +3,20 @@ import pytest
 import subprocess
 import json
 import pathlib
+import shutil
+import sys
+
+
+def _profiler_command():
+    # FlagPrism: source-tree tests may not have installed console entry points.
+    if shutil.which("flagtree-profiler"):
+        return ["flagtree-profiler"]
+    return [sys.executable, "-m", "flagtree.profiler.cli"]
 
 
 def test_help():
     # Only check if the viewer can be invoked
-    subprocess.check_call(["flagtree-profiler", "-h"],
+    subprocess.check_call(_profiler_command() + ["-h"],
                           stdout=subprocess.DEVNULL)
 
 
@@ -22,9 +31,9 @@ def test_exec(mode, tmp_path: pathlib.Path):
     temp_file = tmp_path / "test_exec.hatchet"
     name = str(temp_file.with_suffix(""))
     if mode == "script":
-        subprocess.check_call(
-            ["flagtree-profiler", "-n", name, helper_file, "test"],
-            stdout=subprocess.DEVNULL)
+        subprocess.check_call(_profiler_command() +
+                              ["-n", name, helper_file, "test"],
+                              stdout=subprocess.DEVNULL)
     elif mode == "python":
         subprocess.check_call([
             "python3", "-m", "flagtree.profiler.cli", "-n", name, helper_file,
@@ -32,11 +41,10 @@ def test_exec(mode, tmp_path: pathlib.Path):
         ],
                               stdout=subprocess.DEVNULL)
     elif mode == "pytest":
-        subprocess.check_call([
-            "flagtree-profiler", "-n", name, "pytest", "-k", "test_main",
-            helper_file
-        ],
-                              stdout=subprocess.DEVNULL)
+        subprocess.check_call(
+            _profiler_command() +
+            ["-n", name, "pytest", "-k", "test_main", helper_file],
+            stdout=subprocess.DEVNULL)
     with temp_file.open() as f:
         data = json.load(f, )
     kernels = data[0]["children"]

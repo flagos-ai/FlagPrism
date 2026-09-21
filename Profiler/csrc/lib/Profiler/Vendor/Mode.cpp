@@ -54,6 +54,15 @@ VendorProfileOptions parseVendorProfileMode(const std::string &mode) {
       continue;
     }
 
+    // FlagPrism: NVIDIA exposes CUPTI PC sampling as a mode token so callers
+    // can request it together with vendor metrics, e.g.
+    // `pcsampling:vendor_metrics=launch_stats`.
+    const auto normalizedToken = toLower(token);
+    if (normalizedToken == "pcsampling" || normalizedToken == "pc_sampling") {
+      options.adapterOptions["pcsampling"] = "true";
+      continue;
+    }
+
     auto delimiter = token.find('=');
     if (delimiter == std::string::npos) {
       throw std::invalid_argument("Malformed vendor profile token: " + token);

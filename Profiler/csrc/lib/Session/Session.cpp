@@ -5,10 +5,14 @@
 #include "Data/TreeData.h"
 #include "Device.h"
 #include "Profiler/Profiler.h"
-#if FLAGTREE_PROFILER_GPU_RUNTIME
+#if FLAGTREE_PROFILER_CUDA_RUNTIME
 #include "Profiler/Cupti/CuptiProfiler.h"
+#endif
+#if FLAGTREE_PROFILER_ROCTRACER_RUNTIME
 #include "Profiler/Instrumentation/InstrumentationProfiler.h"
 #include "Profiler/Roctracer/RoctracerProfiler.h"
+#elif FLAGTREE_PROFILER_CUDA_RUNTIME
+#include "Profiler/Instrumentation/InstrumentationProfiler.h"
 #endif
 #include "Profiler/Vendor/Adapter.h"
 #include "Utility/String.h"
@@ -32,7 +36,7 @@ namespace {
 Profiler *getProfiler(const std::string &profilerName,
                       const std::string &profilerPath,
                       const std::string &mode) {
-#if FLAGTREE_PROFILER_GPU_RUNTIME
+#if FLAGTREE_PROFILER_CUDA_RUNTIME
   if (proton::toLower(profilerName) == "cupti") {
     auto *profiler = &CuptiProfiler::instance();
     profiler->setLibPath(profilerPath);
@@ -41,11 +45,20 @@ Profiler *getProfiler(const std::string &profilerName,
     return profiler;
   }
   if (proton::toLower(profilerName) == "cupti_pcsampling") {
-    return &CuptiProfiler::instance().enablePCSampling();
+    auto *profiler = &CuptiProfiler::instance();
+    // FlagPrism: explicit PC-sampling sessions must use the packaged CUPTI
+    // path just like the regular `cupti` profiler path.
+    profiler->setLibPath(profilerPath);
+    profiler->enablePCSampling();
+    return profiler;
   }
+#endif
+#if FLAGTREE_PROFILER_ROCTRACER_RUNTIME
   if (proton::toLower(profilerName) == "roctracer") {
     return &RoctracerProfiler::instance();
   }
+#endif
+#if FLAGTREE_PROFILER_GPU_RUNTIME
   if (proton::toLower(profilerName) == "instrumentation") {
     return InstrumentationProfiler::instance().setMode(
         proton::split(mode, ":"));
@@ -286,7 +299,15 @@ makeVendorMetrics(const VendorMetricAssociation &association,
   }
   for (const auto &[name, value] : association.metrics) {
     const bool isMthreadsMetric = name.rfind("mthreads.", 0) == 0;
-    vendorMetrics[(isMthreadsMetric ? "" : "cann.") + name] = value;
+    // FlagPrism: every CUPTI association, including PC sampling and memory
+    // activity sources, belongs to the NVIDIA namespace.
+    const bool isNvidiaMetric = association.source.rfind("cupti_", 0) == 0 ||
+                                association.source.rfind("nvidia_", 0) == 0;
+    // FlagPrism: keep vendor namespaces distinct when adapters share the
+    // common artifact overlay path.
+    const auto prefix =
+        isMthreadsMetric ? "" : (isNvidiaMetric ? "nvidia." : "cann.");
+    vendorMetrics[prefix + name] = value;
   }
   return vendorMetrics;
 }
@@ -532,14 +553,23 @@ size_t overlayVendorRuntimeMetrics(Data *treeData, Data *timelineData,
     if (mergeOpSummaryIntoExistingScope) {
       preserveLaunchTimingForMergedOpSummary(association, vendorMetrics);
     }
+    // FlagPrism: CUPTI activity is already inserted into the base tree by
+    // CuptiProfiler; overlay only its vendor fields to avoid double-counting
+    // the same kernel interval.
+    const bool mergeNvidiaActivityIntoExistingScope =
+        (association.source == "cupti_activity" ||
+         association.source == "nvidia_nvpw_hardware_counter") &&
+        association.runtimeEvent.scopeId != 0;
     if (!syntheticTimelineEvent) {
-      if (!mergeOpSummaryIntoExistingScope) {
+      if (!mergeOpSummaryIntoExistingScope &&
+          !mergeNvidiaActivityIntoExistingScope) {
         treeData->addMetric(scopeId, metric);
       }
       treeData->addMetrics(scopeId, vendorMetrics);
     }
     if (timelineData) {
-      if (!mergeOpSummaryIntoExistingScope) {
+      if (!mergeOpSummaryIntoExistingScope &&
+          !mergeNvidiaActivityIntoExistingScope) {
         timelineData->addMetric(scopeId, metric);
       }
       timelineData->addMetrics(scopeId, vendorMetrics);
@@ -763,9 +793,16 @@ std::unique_ptr<Session> SessionManager::makeSession(
     const std::string &dataName, const std::string &mode,
     const std::string &hookName) {
   if (const auto *vendorAdapter = VendorAdapterRegistry::find(profilerName)) {
+    auto vendorOptions = parseVendorProfileMode(mode);
+    auto vendorPlan = vendorAdapter->makePlan(vendorOptions);
     for (const auto &[existingId, existingSession] : sessions) {
       (void)existingId;
-      if (existingSession->vendorAdapter == vendorAdapter) {
+      const bool nvidiaBaseOnlyOverlap =
+          vendorAdapter->getName() == "nvidia" &&
+          vendorPlan.enabledVendorMetrics.empty() &&
+          existingSession->vendorPlan.enabledVendorMetrics.empty();
+      if (existingSession->vendorAdapter == vendorAdapter &&
+          !nvidiaBaseOnlyOverlap) {
         throw std::runtime_error(
             "Vendor backend '" + vendorAdapter->getName() +
             "' does not support overlapping sessions. Finalize the active "
@@ -773,8 +810,6 @@ std::unique_ptr<Session> SessionManager::makeSession(
       }
     }
 
-    auto vendorOptions = parseVendorProfileMode(mode);
-    auto vendorPlan = vendorAdapter->makePlan(vendorOptions);
     if (vendorAdapter->getName() == "cann") {
       isolateCannRuntimeOutputPath(vendorPlan, id);
     }
@@ -791,12 +826,21 @@ std::unique_ptr<Session> SessionManager::makeSession(
       vendorPlan.requested.adapterOptions["mupti_output_path"] =
           path + ".mupti.csv";
     }
+    if (vendorAdapter->getName() == "nvidia") {
+      // FlagPrism: NVIDIA vendor associations are collected in-process from
+      // CUPTI; record the selected collection path in session metadata.
+      vendorPlan.requested.adapterOptions["cupti_vendor_capture"] =
+          vendorPlan.enabledVendorMetrics.empty() ? "false" : "true";
+    }
     if (toLower(dataName) != "tree") {
       vendorPlan.degradeReasons.push_back(
           "backend=" + vendorAdapter->getName() +
           " currently emits tree base data; requested data=" + dataName +
           " was ignored.");
     }
+    // FlagPrism: vendor adapters may share the legacy runtime collector, but
+    // must still receive the path selected by the public profiler API.
+    vendorAdapter->configureRuntimeProfiler(profilerPath, vendorPlan);
     auto *profiler = vendorAdapter->getRuntimeProfiler();
     if (!profiler) {
       throw std::runtime_error("Vendor backend has no runtime profiler: " +

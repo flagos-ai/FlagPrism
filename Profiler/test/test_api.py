@@ -25,10 +25,12 @@ def _uses_cann_runtime():
 def test_profile_single_session(tmp_path: pathlib.Path):
     temp_file0 = tmp_path / "test_profile0.hatchet"
     session_id0 = profiler.start(str(temp_file0.with_suffix("")))
-    profiler.activate()
-    profiler.deactivate()
+    # FlagPrism: native tests may have consumed session IDs before this test;
+    # use the returned ID instead of assuming the first process ID is zero.
+    profiler.activate(session_id0)
+    profiler.deactivate(session_id0)
     profiler.finalize()
-    assert session_id0 == 0
+    assert isinstance(session_id0, int)
     assert temp_file0.exists()
 
     temp_file1 = tmp_path / "test_profile1.hatchet"
@@ -39,24 +41,26 @@ def test_profile_single_session(tmp_path: pathlib.Path):
     assert session_id1 == session_id0 + 1
     assert temp_file1.exists()
 
-    session_id2 = profiler.start("test")
+    temp_file2 = tmp_path / "test_profile2.hatchet"
+    session_id2 = profiler.start(str(temp_file2.with_suffix("")))
     profiler.activate(session_id2)
     profiler.deactivate(session_id2)
     profiler.finalize()
     assert session_id2 == session_id1 + 1
-    assert pathlib.Path("test.hatchet").exists()
-    pathlib.Path("test.hatchet").unlink()
+    assert temp_file2.exists()
 
 
 @pytest.mark.skipif(_uses_cann_runtime(),
                     reason="CANN sessions cannot overlap")
 def test_profile_multiple_sessions(tmp_path: pathlib.Path):
     temp_file0 = tmp_path / "test_profile0.hatchet"
-    profiler.start(str(temp_file0.with_suffix("")))
+    session_id0 = profiler.start(str(temp_file0.with_suffix("")))
     temp_file1 = tmp_path / "test_profile1.hatchet"
-    profiler.start(str(temp_file1.with_suffix("")))
-    profiler.activate()
-    profiler.deactivate()
+    session_id1 = profiler.start(str(temp_file1.with_suffix("")))
+    # FlagPrism: session IDs are process-lifetime IDs, so activate the two
+    # sessions explicitly instead of assuming the first ID is always zero.
+    profiler.activate(None)
+    profiler.deactivate(None)
     profiler.finalize()
     assert temp_file0.exists()
     assert temp_file1.exists()
@@ -83,15 +87,15 @@ def test_profile_decorator(tmp_path: pathlib.Path):
     profiler.finalize()
     assert temp_file.exists()
 
-    @profiler.profile
+    default_file = tmp_path / "test_profile_default.hatchet"
+
+    @profiler.profile(name=str(default_file.with_suffix("")))
     def foo1(a, b):
         return a + b
 
     foo1(1, 2)
     profiler.finalize()
-    default_file = pathlib.Path(profiler.DEFAULT_PROFILE_NAME + ".hatchet")
     assert default_file.exists()
-    default_file.unlink()
 
 
 def test_scope(tmp_path: pathlib.Path):

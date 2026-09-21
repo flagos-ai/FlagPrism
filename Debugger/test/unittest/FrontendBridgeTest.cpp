@@ -30,6 +30,11 @@ TEST(FrontendBridgeTest, AttachKernelMetadataCopiesFrontendIdentity) {
 }
 
 TEST(FrontendBridgeTest, PrepareLaunchNormalizesUnsetRuntimeFields) {
+  auto cudaOptions = makeTransferEngineOptions(BackendKind::CUDA);
+  auto cudaAdapter = createRuntimeBackendAdapter(cudaOptions);
+  if (!cudaAdapter->isAvailable()) {
+    GTEST_SKIP() << "NVIDIA CUDA driver is unavailable";
+  }
   auto bridge = createFrontendBridge();
 
   DebugCompileRequest request =
@@ -62,6 +67,11 @@ TEST(FrontendBridgeTest, PrepareLaunchNormalizesUnsetRuntimeFields) {
 }
 
 TEST(FrontendBridgeTest, PrepareOwnedLaunchCreatesBackendAwareTransferEngine) {
+  auto cudaOptions = makeTransferEngineOptions(BackendKind::CUDA);
+  auto cudaAdapter = createRuntimeBackendAdapter(cudaOptions);
+  if (!cudaAdapter->isAvailable()) {
+    GTEST_SKIP() << "NVIDIA CUDA driver is unavailable";
+  }
   auto bridge = createFrontendBridge();
 
   DebugCompileRequest request =
@@ -81,7 +91,7 @@ TEST(FrontendBridgeTest, PrepareOwnedLaunchCreatesBackendAwareTransferEngine) {
       artifacts, meta, makeTestRuntimeMetadata(), 0x1234);
 
   ASSERT_TRUE(prepared.transferEngine != nullptr);
-  EXPECT_EQ(prepared.transferOptions.driverKind, TransferDriverKind::HOST);
+  EXPECT_EQ(prepared.transferOptions.driverKind, TransferDriverKind::CUDA);
   EXPECT_EQ(prepared.transferOptions.streamHandle, 0x1234u);
   EXPECT_EQ(prepared.request.bufferMeta.backendKind, BackendKind::CUDA);
   EXPECT_EQ(prepared.request.bufferMeta.protocolVer, kProtocolVersion);

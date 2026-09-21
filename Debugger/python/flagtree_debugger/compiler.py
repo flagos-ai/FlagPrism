@@ -91,6 +91,10 @@ def _debug_launch_hidden_arg_enabled(metadata: dict) -> bool:
             "iluvatar",
             "mthreads",
             "musa",
+            # FlagPrism: NVIDIA launches use the same hidden control-pointer
+            # ABI, with CUDA driver transfers provided by TransferEngine.
+            "cuda",
+            "nvidia",
             "gcu",
             "enflame",
     }:
@@ -115,13 +119,18 @@ def _kernel_internal_timeline_supported() -> bool:
             triton.runtime.driver.active.get_current_target().backend).lower()
     except Exception:
         return False
-    # Tianshu/CoreX and MThreads/MUSA do not expose the Ascend SYS_CNT
-    # instruction used by the current device-cycle timeline implementation.
-    return backend in {"ascend", "npu", "cann"}
+    # FlagPrism: NVIDIA exposes the device-wide `%globaltimer` PTX register;
+    # the instrumentation pass selects it while preserving Ascend SYS_CNT.
+    return backend in {"ascend", "npu", "cann", "cuda", "nvidia"}
 
 
 def _finish_metadata_only_tensor_pointer_debug(fd, mod,
                                                metadata: dict) -> bool:
+    # FlagPrism: CUDA lowers ordinary pointer loads/stores through the native
+    # instrumentation path, so do not apply the metadata-only compatibility
+    # fallback used by backends that cannot lower Triton tensor pointers.
+    if _target_backend(metadata) in {"cuda", "nvidia"}:
+        return False
     has_tensor_pointer = getattr(fd, "has_triton_tensor_pointer_types", None)
     if has_tensor_pointer is None or not has_tensor_pointer(mod):
         return False
@@ -205,9 +214,16 @@ def run_ttir_debug_passes_if_needed(mod, metadata: dict) -> None:
     fd.set_debug_addr_level(mod, int(metadata["debug_addr_level"]))
     timeline_supported = (_instrumentation_kind() == "debugger_auto"
                           and _kernel_internal_timeline_supported())
-    fd.set_debug_timeline_enabled(mod, bool(auto_collect
-                                            and timeline_supported))
+    timeline_requested = auto_collect or bool(
+        debug_config.get("debug_timeline_enabled", False))
+    fd.set_debug_timeline_enabled(
+        mod, bool(timeline_requested and timeline_supported))
     fd.set_debug_timeline_only(mod, bool(auto_collect and timeline_supported))
+    # FlagPrism: pass the target backend into the shared instrumentation pass
+    # so CUDA uses `%globaltimer` instead of the Ascend SYS_CNT instruction.
+    set_timeline_backend = getattr(fd, "set_debug_timeline_backend", None)
+    if callable(set_timeline_backend):
+        set_timeline_backend(mod, _target_backend(metadata))
 
     if _finish_metadata_only_tensor_pointer_debug(fd, mod, metadata):
         return

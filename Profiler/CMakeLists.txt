@@ -59,11 +59,26 @@ if(FLAGTREE_BACKEND MATCHES "^(ascend|mthreads|tianshu|enflame)$" OR
   set(FLAGTREE_PROFILER_GPU_RUNTIME OFF)
 endif()
 
-# ============ Check for includes =============
+# FlagPrism: keep the historical aggregate switch for compatibility, but
+# split the SDK requirements so an NVIDIA-only build does not need ROCm.
+set(FLAGTREE_PROFILER_CUDA_RUNTIME OFF)
+set(FLAGTREE_PROFILER_ROCTRACER_RUNTIME OFF)
 if(FLAGTREE_PROFILER_GPU_RUNTIME)
+  if(FLAGPRISM_BACKEND STREQUAL "nvidia")
+    set(FLAGTREE_PROFILER_CUDA_RUNTIME ON)
+  else()
+    set(FLAGTREE_PROFILER_CUDA_RUNTIME ON)
+    set(FLAGTREE_PROFILER_ROCTRACER_RUNTIME ON)
+  endif()
+endif()
+
+# ============ Check for includes =============
+if(FLAGTREE_PROFILER_CUDA_RUNTIME)
   if(NOT CUPTI_INCLUDE_DIR)
     message(FATAL_ERROR "CUPTI include directory not defined")
   endif()
+endif()
+if(FLAGTREE_PROFILER_ROCTRACER_RUNTIME)
   if(NOT ROCTRACER_INCLUDE_DIR)
     message(FATAL_ERROR "ROCTRACER include directory not defined")
   endif()
@@ -121,7 +136,7 @@ function(add_profiler_library name)
 
   target_link_libraries(${name} PRIVATE Python3::Module pybind11::headers)
 
-  if(FLAGTREE_PROFILER_GPU_RUNTIME)
+  if(FLAGTREE_PROFILER_ROCTRACER_RUNTIME)
     # Use system to skip warnings caused by legacy clang compilers.
     target_include_directories(${name} SYSTEM PRIVATE
       "${ROCTRACER_INCLUDE_DIR}")
@@ -134,12 +149,14 @@ function(add_profiler_library name)
       "${PROFILER_SRC_DIR}/include"
   )
 
-  if(FLAGTREE_PROFILER_GPU_RUNTIME)
+  if(FLAGTREE_PROFILER_CUDA_RUNTIME)
     target_include_directories(${name} PRIVATE "${CUPTI_INCLUDE_DIR}")
   endif()
 
   target_compile_definitions(${name} PRIVATE
-    FLAGTREE_PROFILER_GPU_RUNTIME=$<BOOL:${FLAGTREE_PROFILER_GPU_RUNTIME}>)
+    FLAGTREE_PROFILER_GPU_RUNTIME=$<BOOL:${FLAGTREE_PROFILER_GPU_RUNTIME}>
+    FLAGTREE_PROFILER_CUDA_RUNTIME=$<BOOL:${FLAGTREE_PROFILER_CUDA_RUNTIME}>
+    FLAGTREE_PROFILER_ROCTRACER_RUNTIME=$<BOOL:${FLAGTREE_PROFILER_ROCTRACER_RUNTIME}>)
   flagprism_apply_backend_compile_definitions(${name})
   if(FLAGTREE_MTHREADS_MUPTI_INCLUDE_DIR AND
      (FLAGPRISM_BACKEND STREQUAL "mthreads" OR
@@ -149,7 +166,7 @@ function(add_profiler_library name)
     target_compile_definitions(${name} PRIVATE
       FLAGTREE_MTHREADS_HAS_MUPTI=1)
   endif()
-  if(FLAGTREE_PROFILER_GPU_RUNTIME)
+  if(FLAGTREE_PROFILER_ROCTRACER_RUNTIME)
     # If HIP is AMD-based.
     target_compile_definitions(${name} PRIVATE __HIP_PLATFORM_AMD__)
   endif()

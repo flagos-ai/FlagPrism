@@ -1,6 +1,8 @@
 import json
 import pytest
 import subprocess
+
+pytest.importorskip("hatchet")
 from flagtree.profiler.viewer import get_min_time_flops, get_min_time_bytes, read, format_frames, derive_metrics, filter_frames, parse
 from flagtree.profiler.hooks.launch import COMPUTE_METADATA_SCOPE_NAME
 import numpy as np

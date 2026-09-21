@@ -1,9 +1,13 @@
 #include "Profiler/Instrumentation/InstrumentationProfiler.h"
 #include "TraceDataIO/CircularLayoutParser.h"
 
+#if FLAGTREE_PROFILER_CUDA_RUNTIME
 #include "Driver/GPU/CudaApi.h"
 #include "Profiler/Instrumentation/CudaRuntime.h"
+#endif
+#if FLAGTREE_PROFILER_ROCTRACER_RUNTIME
 #include "Profiler/Instrumentation/HipRuntime.h"
+#endif
 #include "Utility/Numeric.h"
 #include "Utility/String.h"
 #include <algorithm>
@@ -47,11 +51,17 @@ InstrumentationProfiler::setMode(const std::vector<std::string> &mode) {
   if (mode.empty()) {
     throw std::runtime_error("Mode cannot be empty");
   }
+#if FLAGTREE_PROFILER_CUDA_RUNTIME
   if (toLower(mode[0]) == toLower(DeviceTraits<DeviceType::CUDA>::name)) {
     runtime = std::make_unique<CudaRuntime>();
-  } else if (toLower(mode[0]) == toLower(DeviceTraits<DeviceType::HIP>::name)) {
+  } else
+#endif
+#if FLAGTREE_PROFILER_ROCTRACER_RUNTIME
+      if (toLower(mode[0]) == toLower(DeviceTraits<DeviceType::HIP>::name)) {
     runtime = std::make_unique<HipRuntime>();
-  } else {
+  } else
+#endif
+  {
     throw std::runtime_error("Unknown device type: " + mode[0]);
   }
   for (size_t i = 1; i < mode.size(); ++i) {

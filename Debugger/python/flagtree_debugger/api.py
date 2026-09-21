@@ -28,6 +28,7 @@ class DebuggerConfig:
     enabled: bool = False
     record_level: int = 1
     addr_level: int = 0
+    timeline_enabled: bool = False
     export_mode: str = "POST_KERNEL_EXPORT"
     record_capacity: int = 1024
     export_on_error: bool = False
@@ -51,6 +52,7 @@ _record_capacity = _DEFAULT_RECORD_CAPACITY
 _export_mode = _DEFAULT_EXPORT_MODE
 _export_on_error = _DEFAULT_EXPORT_ON_ERROR
 _raw_record_export_enabled = False
+_timeline_enabled = False
 _active_config = DebuggerConfig()
 _exported_runs: list[dict[str, Any]] = []
 _CONFIG_KEYS = frozenset({
@@ -59,6 +61,7 @@ _CONFIG_KEYS = frozenset({
     "export_mode",
     "export_on_error",
     "export_raw_records",
+    "timeline",
 })
 _DISABLED_BUILD_MESSAGE = (
     "FlagPrism debugger native support is unavailable. Reinstall FlagTree with "
@@ -127,11 +130,11 @@ def configure(config: Mapping[str, Any] | None = None, **kwargs: Any) -> None:
     """Update debugger defaults used by the next ``activate(level=...)``.
 
     Supported keys are ``output_dir``, ``record_capacity``, ``export_mode``,
-    ``export_on_error``, and ``export_raw_records``. Keys not provided keep
-    their current values.
+    ``export_on_error``, ``export_raw_records``, and ``timeline``. Keys not
+    provided keep their current values.
     """
     global _output_dir, _record_capacity, _export_mode
-    global _export_on_error, _raw_record_export_enabled
+    global _export_on_error, _raw_record_export_enabled, _timeline_enabled
 
     updates = {}
     if config is not None:
@@ -156,6 +159,8 @@ def configure(config: Mapping[str, Any] | None = None, **kwargs: Any) -> None:
         _export_on_error = bool(updates["export_on_error"])
     if "export_raw_records" in updates:
         _raw_record_export_enabled = bool(updates["export_raw_records"])
+    if "timeline" in updates:
+        _timeline_enabled = bool(updates["timeline"])
 
 
 def reset_config() -> None:
@@ -166,6 +171,7 @@ def reset_config() -> None:
         export_mode=_DEFAULT_EXPORT_MODE,
         export_on_error=_DEFAULT_EXPORT_ON_ERROR,
         export_raw_records=False,
+        timeline=False,
     )
 
 
@@ -177,6 +183,7 @@ def get_config() -> dict[str, Any]:
         "export_mode": str(_export_mode),
         "export_on_error": bool(_export_on_error),
         "export_raw_records": bool(_raw_record_export_enabled),
+        "timeline": bool(_timeline_enabled),
     }
 
 
@@ -1450,6 +1457,7 @@ def current_compile_config() -> dict[str, Any]:
         "debug_export_mode":
         _normalize_export_mode(_active_config.export_mode),
         "debug_record_capacity": int(_active_config.record_capacity),
+        "debug_timeline_enabled": bool(_active_config.timeline_enabled),
     }
 
 
@@ -1458,6 +1466,7 @@ def activate(
     auto_collect: bool = False,
     level: int | None = None,
     addr_level: int = _DEFAULT_ADDR_LEVEL,
+    timeline: Any = _USE_CURRENT_CONFIG,
     record_level: int | None = None,
     export_mode: Any = _USE_CURRENT_CONFIG,
     record_capacity: Any = _USE_CURRENT_CONFIG,
@@ -1493,11 +1502,14 @@ def activate(
     effective_export_raw_records = (_raw_record_export_enabled if
                                     export_raw_records is _USE_CURRENT_CONFIG
                                     else bool(export_raw_records))
+    effective_timeline = (_timeline_enabled if timeline is _USE_CURRENT_CONFIG
+                          else bool(timeline))
 
     _active_config = DebuggerConfig(
         enabled=True,
         record_level=effective_level,
         addr_level=effective_addr_level,
+        timeline_enabled=effective_timeline,
         export_mode=effective_export_mode,
         record_capacity=effective_record_capacity,
         export_on_error=effective_export_on_error,
@@ -1628,6 +1640,12 @@ def launch_context(
                 import torch
 
                 torch.musa.synchronize()
+            elif backend in {"cuda", "nvidia"}:
+                # FlagPrism: TransferEngine.syncExport synchronizes the exact
+                # launch stream after the device-to-host copy. A process-wide
+                # torch.cuda.synchronize() would also stall unrelated streams
+                # and is unnecessary for the CUDA driver-backed adapter.
+                pass
             else:
                 raise RuntimeError(
                     f"FlagPrism has no hidden-argument synchronization adapter "

@@ -223,6 +223,10 @@ def test_tree(tmp_path: pathlib.Path, hook):
         if hook:
             assert "add_1024" == data[0]["children"][0]["frame"]["name"]
         kernel_frame = data[0]["children"][0]["children"][0]
+        # FlagPrism: the explicit Triton launch hook can add a same-named
+        # launcher frame around the instrumentation kernel.
+        if kernel_frame["frame"]["name"] == "add_1024":
+            kernel_frame = kernel_frame["children"][0]
         load_ops = kernel_frame["children"][0]
         assert "load_ops" in load_ops["frame"]["name"]
         assert ("load_x" in load_ops["children"][0]["frame"]["name"]
@@ -338,9 +342,16 @@ def test_multi_session(tmp_path: pathlib.Path):
     session_id1 = profiler.start(str(temp_file_driver.with_suffix("")))
     profiler.deactivate(session_id0)
     profiler.deactivate(session_id1)
-    profiler.activate()
+    # FlagPrism: IDs remain monotonic across tests; activate both sessions by
+    # asking the public API to activate all of them.
+    profiler.activate(None)
     add_kernel[grid](x, y, output, n_elements, BLOCK_SIZE=1024, num_warps=1)
     profiler.finalize()
+    # FlagPrism: both the instrumentation and NVIDIA sessions observe this
+    # launch.  Drain the device before the next test starts a new NVIDIA
+    # session so CUPTI's asynchronous callbacks cannot cross the test
+    # boundary.
+    torch.cuda.synchronize()
 
     with open(temp_file_inst, "rb") as f:
         data = json.load(f)

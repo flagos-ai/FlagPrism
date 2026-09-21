@@ -66,6 +66,8 @@ constexpr StringLiteral kAttrHiddenArgAbiEnabled =
 constexpr StringLiteral kAttrTimelineEnabled =
     "flagtree.debug.timeline_enabled";
 constexpr StringLiteral kAttrTimelineOnly = "flagtree.debug.timeline_only";
+constexpr StringLiteral kAttrTimelineBackend =
+    "flagtree.debug.timeline_backend";
 constexpr StringLiteral kAttrHiddenArgIndex = "flagtree.debug.hidden_arg_index";
 constexpr StringLiteral kAttrHiddenArgType = "flagtree.debug.hidden_arg_type";
 constexpr StringLiteral kAttrLogicalInstanceFormula =
@@ -3393,9 +3395,17 @@ Operation *createRecordFullValueRefOp(OpBuilder &builder, Operation *anchor,
   return builder.create(state);
 }
 
-Value createDeviceCycleRead(OpBuilder &builder, Location loc) {
+Value createDeviceCycleRead(OpBuilder &builder, Location loc,
+                            StringRef timelineBackend) {
   OperationState state(loc, "tt.elementwise_inline_asm");
-  state.addAttribute("asm_string", builder.getStringAttr("MOV $0, SYS_CNT"));
+  // FlagPrism: NVIDIA's `%globaltimer` is a device-wide nanosecond clock and
+  // is the CUDA counterpart of Ascend's SYS_CNT register. Keep the existing
+  // Ascend instruction unchanged so this shared pass remains backend-neutral.
+  const bool isNvidia =
+      timelineBackend == "cuda" || timelineBackend == "nvidia";
+  state.addAttribute(
+      "asm_string", builder.getStringAttr(isNvidia ? "mov.u64 $0, %globaltimer;"
+                                                   : "MOV $0, SYS_CNT"));
   state.addAttribute("constraints", builder.getStringAttr("=l"));
   state.addAttribute("pure", builder.getBoolAttr(false));
   state.addAttribute("packed_element", builder.getI32IntegerAttr(1));
@@ -3405,15 +3415,18 @@ Value createDeviceCycleRead(OpBuilder &builder, Location loc) {
 
 Operation *createRecordTimelineOp(OpBuilder &builder, Operation *anchor,
                                   const InstrumentationTarget &target,
-                                  int32_t recordIndex) {
+                                  int32_t recordIndex,
+                                  StringRef timelineBackend) {
   if (!target.op)
     return anchor;
 
   builder.setInsertionPoint(target.op);
-  Value startCycle = createDeviceCycleRead(builder, target.op->getLoc());
+  Value startCycle =
+      createDeviceCycleRead(builder, target.op->getLoc(), timelineBackend);
 
   builder.setInsertionPointAfter(anchor);
-  Value endCycle = createDeviceCycleRead(builder, target.op->getLoc());
+  Value endCycle =
+      createDeviceCycleRead(builder, target.op->getLoc(), timelineBackend);
 
   OperationState state(target.op->getLoc(), kRecordTimelineOpName);
   state.addOperands({startCycle, endCycle});
@@ -3455,7 +3468,7 @@ void insertRecordOps(OpBuilder &builder, const InstrumentationTarget &target,
                      int32_t &nextRecordIndex,
                      llvm::SmallVectorImpl<RecordPlanEntry> &recordPlan,
                      llvm::SmallVectorImpl<FullDumpPlanEntry> &fullDumpPlan,
-                     uint64_t &nextPayloadOffset) {
+                     uint64_t &nextPayloadOffset, StringRef timelineBackend) {
   if (!target.op || target.op->hasTrait<OpTrait::IsTerminator>())
     return;
 
@@ -3463,7 +3476,8 @@ void insertRecordOps(OpBuilder &builder, const InstrumentationTarget &target,
   if (target.hasTimeline) {
     appendRecordPlanEntry(recordPlan, nextRecordIndex, target,
                           kRecordKindTimeline);
-    anchor = createRecordTimelineOp(builder, anchor, target, nextRecordIndex++);
+    anchor = createRecordTimelineOp(builder, anchor, target, nextRecordIndex++,
+                                    timelineBackend);
   }
   if (target.hasSummary) {
     if (target.observedValue &&
@@ -3738,6 +3752,10 @@ struct InsertInstrumentationPass
         timelineEnabledAttr && timelineEnabledAttr.getValue();
     auto timelineOnlyAttr = module->getAttrOfType<BoolAttr>(kAttrTimelineOnly);
     const bool timelineOnly = timelineOnlyAttr && timelineOnlyAttr.getValue();
+    auto timelineBackendAttr =
+        module->getAttrOfType<StringAttr>(kAttrTimelineBackend);
+    const StringRef timelineBackend =
+        timelineBackendAttr ? timelineBackendAttr.getValue() : StringRef();
     auto disableL2NormAttr =
         module->getAttrOfType<BoolAttr>("flagtree.debug.disable_l2_norm");
     const bool disableL2Norm =
@@ -3931,7 +3949,7 @@ struct InsertInstrumentationPass
     if (!metadataOnlyCompilePath) {
       for (const InstrumentationTarget &target : targets)
         insertRecordOps(opBuilder, target, recordsPerInstance, recordPlan,
-                        fullDumpPlan, payloadBytesPerInstance);
+                        fullDumpPlan, payloadBytesPerInstance, timelineBackend);
       // Local entry alignment is insufficient: every program's payload base
       // must preserve it too, including a final four-byte scalar entry.
       uint64_t payloadAlignment = 1;
@@ -4032,6 +4050,14 @@ void setDebugTimelineEnabled(ModuleOp module, bool enabled) {
 void setDebugTimelineOnly(ModuleOp module, bool enabled) {
   Builder builder(module.getContext());
   module->setAttr(kAttrTimelineOnly, builder.getBoolAttr(enabled));
+}
+
+void setDebugTimelineBackend(ModuleOp module, const std::string &backend) {
+  Builder builder(module.getContext());
+  // FlagPrism: store the backend explicitly because the instrumentation pass
+  // runs after Python metadata has been computed and cannot inspect the
+  // runtime driver directly.
+  module->setAttr(kAttrTimelineBackend, builder.getStringAttr(backend));
 }
 
 uint32_t getDebugRecordsPerInstance(ModuleOp module) {

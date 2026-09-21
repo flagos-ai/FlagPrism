@@ -5,9 +5,15 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 set(_flagprism_vendor_lowering_libs)
 if(FLAGPRISM_BUILD_VENDOR_LOWERING)
-  list(APPEND _flagprism_vendor_lowering_libs
-    ProtonAMDGPUToLLVM
-    ProtonNVIDIAGPUToLLVM)
+  if(FLAGPRISM_BACKEND STREQUAL "nvidia")
+    # FlagPrism: NVIDIA-only builds need only the NVIDIA lowering library;
+    # the all-backend build below keeps both existing vendor lowerings.
+    list(APPEND _flagprism_vendor_lowering_libs ProtonNVIDIAGPUToLLVM)
+  else()
+    list(APPEND _flagprism_vendor_lowering_libs
+      ProtonAMDGPUToLLVM
+      ProtonNVIDIAGPUToLLVM)
+  endif()
 endif()
 
 add_subdirectory(include)

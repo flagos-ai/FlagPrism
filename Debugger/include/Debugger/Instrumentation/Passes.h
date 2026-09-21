@@ -18,6 +18,7 @@ void setDebugHiddenArgAbiEnabled(mlir::ModuleOp module, bool enabled);
 void setDebugAddrLevel(mlir::ModuleOp module, int32_t addrLevel);
 void setDebugTimelineEnabled(mlir::ModuleOp module, bool enabled);
 void setDebugTimelineOnly(mlir::ModuleOp module, bool enabled);
+void setDebugTimelineBackend(mlir::ModuleOp module, const std::string &backend);
 uint32_t getDebugRecordsPerInstance(mlir::ModuleOp module);
 uint32_t getDebugRecordSize(mlir::ModuleOp module);
 std::string getDebugRecordLayout(mlir::ModuleOp module);

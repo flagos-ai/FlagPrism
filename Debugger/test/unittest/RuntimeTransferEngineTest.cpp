@@ -11,14 +11,18 @@ namespace debugger {
 namespace {
 
 TransferEngineOptions makeHostTransferOptions() {
-  return makeTransferEngineOptions(BackendKind::CUDA);
+  // FlagPrism: host-backed protocol tests remain device-independent; CUDA
+  // selection is covered by the backend routing assertion below.
+  TransferEngineOptions options;
+  options.driverKind = TransferDriverKind::HOST;
+  return options;
 }
 
 TEST(TransferDriverSelectionTest, ResolvesBackendKindsToDriverKinds) {
   EXPECT_EQ(resolveTransferDriverKind(BackendKind::CANN),
             TransferDriverKind::CANN);
   EXPECT_EQ(resolveTransferDriverKind(BackendKind::CUDA),
-            TransferDriverKind::HOST);
+            TransferDriverKind::CUDA);
   EXPECT_EQ(resolveTransferDriverKind(BackendKind::HIP),
             TransferDriverKind::HOST);
   EXPECT_EQ(resolveTransferDriverKind(BackendKind::MUSA),

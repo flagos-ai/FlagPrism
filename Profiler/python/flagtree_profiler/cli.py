@@ -23,17 +23,31 @@ def parse_arguments():
                         "--name",
                         type=str,
                         help="Name of the profiling session")
-    parser.add_argument("-b",
-                        "--backend",
-                        type=str,
-                        help="Profiling backend",
-                        default=None,
-                        choices=[
-                            "cupti", "cupti_pcsampling", "roctracer",
-                            "instrumentation", "cann", "mthreads", "musa",
-                            "tianshu", "corex", "iluvatar", "enflame", "gcu",
-                            "tops"
-                        ])
+    parser.add_argument(
+        "-b",
+        "--backend",
+        type=str,
+        help="Profiling backend",
+        default=None,
+        choices=[
+            # FlagPrism: expose the NVIDIA adapter through
+            # the command-line interface as well as the API.
+            "nvidia",
+            "cuda",
+            "cupti",
+            "cupti_pcsampling",
+            "roctracer",
+            "instrumentation",
+            "cann",
+            "mthreads",
+            "musa",
+            "tianshu",
+            "corex",
+            "iluvatar",
+            "enflame",
+            "gcu",
+            "tops"
+        ])
     parser.add_argument("-c",
                         "--context",
                         type=str,

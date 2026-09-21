@@ -15,5 +15,7 @@ add_triton_library(ProtonGPUToLLVM
 
 if(FLAGPRISM_BUILD_VENDOR_LOWERING)
   add_subdirectory(ProtonNvidiaGPUToLLVM)
-  add_subdirectory(ProtonAMDGPUToLLVM)
+  if(NOT FLAGPRISM_BACKEND STREQUAL "nvidia")
+    add_subdirectory(ProtonAMDGPUToLLVM)
+  endif()
 endif()

@@ -6,7 +6,8 @@ FlagPrism Debugger 用于观察 Triton kernel 内部的数值、内存访问和 
 执行状态。它将编译期静态 metadata 与 device 运行期记录关联，导出 Triton
 语句级报告、IR op 级报告和 level 2 NumPy artifact，用于定位数值异常、异常
 访存和 kernel 内部数据流问题。当前动态采集和 hidden-argument launch 路径已在
-Ascend/CANN9 与 Tianshu/CoreX 4.4 LLVM 22 后端验证；其他后端的接入边界见
+Ascend/CANN9、Tianshu/CoreX 4.4 LLVM 22、MUSA/mthreads 4.3.5 与 NVIDIA CUDA
+后端验证；其他后端的接入边界见
 [Backend Support](#backend-support)。
 
 The MUSA/mthreads 4.3.5 path has also been validated for dynamic collection and
@@ -157,6 +158,7 @@ debugger.configure(
     export_mode="POST_KERNEL_EXPORT",
     export_on_error=False,
     export_raw_records=False,
+    timeline=False,
 )
 ```
 
@@ -167,6 +169,7 @@ debugger.configure(
 | `export_mode` | `POST_KERNEL_EXPORT` | kernel 完成后导出；协议也接受 `STREAMING_EXPORT` |
 | `export_on_error` | `False` | kernel 报错后是否仍尝试导出 |
 | `export_raw_records` | `False` | 是否额外写出 decoded raw-record sidecar |
+| `timeline` | `False` | 在支持的后端插入 device timestamp timeline record |
 
 查询和恢复配置：
 
@@ -180,7 +183,7 @@ debugger.reset_config()
 `level` 和 `addr_level` 属于采集策略，通过 `activate()` 配置：
 
 ```python
-debugger.activate(level=1, addr_level=1)
+debugger.activate(level=1, addr_level=1, timeline=True)
 ```
 
 - `level=1`：采集数值 summary。
@@ -189,6 +192,9 @@ debugger.activate(level=1, addr_level=1)
 - `addr_level=1`：采集 load/store 的地址摘要。
 - `addr_level=2`：当 `level=2` 且后端支持当前 pointer/mask pattern 时，额外
   导出完整 lane address；与 `level=1` 组合时仍只生成地址摘要。
+- `timeline=True`：在 NVIDIA CUDA 上使用 PTX `%globaltimer` 采集 device-wide
+  nanosecond timestamps；Ascend 继续使用 `SYS_CNT`。默认关闭，以免给普通
+  debugger session 增加额外 device-side 记录开销。
 
 `ftl.debug_collect_start()` 可以为当前 region 指定 level。`addr_level=None`
 时继承 `debugger.activate()` 的地址采集等级：
@@ -437,22 +443,23 @@ export TRITON_ASCEND_ARCH=Ascend910B4
 | Host/component integration | Host API 2.x 与 capability 协商，不按 FlagTree 3.5/3.6 版本号硬编码 |
 | Statement annotation and static metadata | 通过通用 compiler/frontend callback 接入 |
 | Summary/full-value instrumentation | 依赖目标后端可 lowering 的 TTIR operation |
-| Hidden control pointer and post-kernel export | 当前接入并验证 Ascend/CANN9 与 Tianshu/CoreX 4.4 LLVM 22 |
-| CUDA/HIP runtime collection | Protocol enums and adapter interfaces are reserved; launcher, synchronization, and transfer implementations are not connected yet |
+| Hidden control pointer and post-kernel export | 当前接入并验证 Ascend/CANN9、Tianshu/CoreX 4.4 LLVM 22、MUSA/mthreads 4.3.5 与 NVIDIA CUDA |
+| NVIDIA CUDA runtime collection | CUDA hidden argument、exact-stream transfer、summary/full dump、device timeline 和 level 1 collection 已接入；level 2 依赖编译期可合法 lowering 的 tensor/pointer pattern |
+| CUDA/HIP runtime collection | NVIDIA CUDA 已通过上行专用路径接入；其他 CUDA/HIP-compatible 后端仍保持未启用 |
 | MUSA/mthreads runtime collection | Compiler/launcher integration, MUSA transfer, stream synchronization, summaries, address summaries, and level 2 value/address dumps are connected and validated on MUSA 4.3.5 hardware |
 | Tianshu/CoreX runtime collection | 复用协议和 hidden pointer；通过 CUDA-compatible driver API 动态加载 CoreX transfer，实现 summary/memory/full dump；device-cycle timeline 暂未启用 |
 
 When the Debugger is active, a hidden control pointer is appended only to
-Ascend/CANN, Tianshu/CoreX, or MUSA/mthreads kernels whose metadata explicitly
-sets `debug_launch_hidden_arg=True`. Unsupported backends never change their
-kernel launch ABI because of the global Debugger state.
+Ascend/CANN, Tianshu/CoreX, MUSA/mthreads, or NVIDIA CUDA kernels whose metadata
+explicitly sets `debug_launch_hidden_arg=True`. Unsupported backends never
+change their kernel launch ABI because of the global Debugger state.
 
 ## Current Limitations
 
 - summary 插桩主要依赖通用 TTIR arithmetic/reduce/store。
 - memory address 采集使用 Debugger 专用
   `flagtree_debug.capture_memory_address` operation，需要后端提供 lowering。
-- The CANN9, Tianshu/CoreX 4.4 LLVM 22, and MUSA/mthreads 4.3.5 paths
+- The CANN9, Tianshu/CoreX 4.4 LLVM 22, MUSA/mthreads 4.3.5, and NVIDIA CUDA paths
   generate lane-aware address summaries for provable
   `tt.addptr(tt.splat(base), offsets)` pointer chains and prefix masks.
   Tianshu/CoreX uses scalar i64 address calculations for contiguous address
@@ -462,8 +469,8 @@ kernel launch ABI because of the global Debugger state.
   provable address information is reported.
 - `addr_level=2` is available only when a backend supports full lane-address
   lowering for the pointer/mask pattern. Supported patterns on CANN9,
-  Tianshu/CoreX 4.4 LLVM 22, and MUSA/mthreads 4.3.5 generate
-  `*_memory_address.npy`.
+  Tianshu/CoreX 4.4 LLVM 22, MUSA/mthreads 4.3.5, and NVIDIA CUDA generate
+  `*_memory_address.npy` when the target lowering accepts the pattern.
 - Debug hidden-argument ABI 尚未穿透任意 Triton call graph。含不可安全
   改写 call signature 的 helper/callee 会保持 metadata-only，避免 Debugger 改变
   原 kernel 语义。

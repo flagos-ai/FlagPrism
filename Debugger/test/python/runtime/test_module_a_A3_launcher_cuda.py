@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""A-3: CUDA keeps its stock launcher ABI while Debugger CUDA support is deferred."""
+"""A-3: CUDA keeps its stock ABI unless debugger instrumentation is enabled."""
 from __future__ import annotations
 
 import importlib.util
@@ -69,3 +69,43 @@ def test_module_a_A3_cuda_launcher_forwards_original_arguments(monkeypatch):
 
     assert launch_module.seen[-1] == 99
     assert not hasattr(launcher, "debug_launch_hidden_arg")
+
+
+class _HiddenArgContext:
+
+    def __init__(self, value):
+        self.value = value
+
+    def __enter__(self):
+        return (self.value, )
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+
+@pytest.mark.module_a
+@pytest.mark.module_a_a3
+def test_module_a_A3_cuda_launcher_routes_debugger_hidden_argument(
+        monkeypatch):
+    launch_module = SimpleNamespace()
+    launch_module.launch = lambda *args: setattr(launch_module, "seen", args)
+    monkeypatch.setattr(
+        nvidia_driver,
+        "compile_module_from_src",
+        lambda *args, **kwargs: launch_module,
+    )
+    monkeypatch.setattr(nvidia_driver, "library_dirs", lambda: [])
+
+    metadata = _launcher_metadata()
+    metadata.debug_enabled = True
+    metadata.debug_launch_hidden_arg = True
+    launcher = nvidia_driver.CudaLauncher(_launcher_src(), metadata)
+    monkeypatch.setattr(
+        nvidia_driver._flagprism,
+        "debugger_launch_context",
+        lambda *args: _HiddenArgContext(0x1234),
+    )
+    launcher(1, 1, 1, object(), object(), object(), {"grid": (1, 1, 1)}, None,
+             None, 99)
+
+    assert launch_module.seen[-1] == 0x1234

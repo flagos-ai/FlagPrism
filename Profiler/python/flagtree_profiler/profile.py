@@ -1108,7 +1108,10 @@ def _drop_all_sessions() -> None:
 def _select_backend() -> str:
     backend = triton.runtime.driver.active.get_current_target().backend
     if backend == "cuda":
-        return "cupti"
+        # FlagPrism: route automatic CUDA sessions through the NVIDIA vendor
+        # adapter. The legacy collector remains available as explicit
+        # backend="cupti" for compatibility and PC sampling.
+        return "nvidia"
     elif backend == "hip":
         return "roctracer"
     elif backend in {"ascend", "npu"}:
@@ -1134,9 +1137,16 @@ def _check_env(backend: str) -> None:
 
 
 def _get_backend_default_path(backend: str) -> str:
-    if backend != "cupti":
+    if backend not in {"cupti", "cupti_pcsampling", "nvidia", "cuda"}:
         return ""
-    lib_path = triton.knobs.profiler.cupti_dir
+    # FlagPrism: FlagTree releases expose the CUPTI path under different knob
+    # namespaces; support both the newer profiler knob and the Proton knob
+    # used by the FlagTree branch used for the NVIDIA backend.
+    profiler_knobs = getattr(triton.knobs, "profiler", None)
+    lib_path = getattr(profiler_knobs, "cupti_dir", None)
+    if lib_path is None:
+        proton_knobs = getattr(triton.knobs, "proton", None)
+        lib_path = getattr(proton_knobs, "cupti_lib_dir", None)
     if lib_path is not None:
         return lib_path
     return str(
@@ -1176,7 +1186,7 @@ def start(
         name (str, optional): The name (with path) of the profiling session.
                               If not provided, the default name is "~/profiler.hatchet".
         backend (str, optional): The backend to use for profiling.
-        Available options are [None, "cupti", "cupti_pcsampling", "roctracer", "cann", "mthreads", "tianshu"].
+        Available options are [None, "cupti", "nvidia", "cuda", "cupti_pcsampling", "roctracer", "cann", "mthreads", "tianshu"].
                                  Defaults to None, which automatically selects the backend matching the current active runtime.
         context (str, optional): The context to use for profiling.
                                  Available options are ["shadow", "python"].
@@ -1190,6 +1200,11 @@ def start(
                       For "mthreads", vendor metrics use the MUPTI activity API.
                       For "tianshu", vendor metrics are imported from an
                       ixKN CSV export when `ixkn_import_path` is provided.
+                      For "nvidia", launch/memory metrics come from the
+                      in-process CUPTI activity stream; instruction sampling
+                      uses CUPTI PC sampling, and occupancy/throughput/
+                      bandwidth/instruction_count use CUPTI range profiling
+                      with NVPW/Perfworks when the driver permits counters.
         hook (str, optional): The hook to use for profiling.
                               Available options are [None, "triton", "instrumentation"].
                               Defaults to None.

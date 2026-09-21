@@ -42,6 +42,24 @@ public:
   // skeleton.
   virtual Profiler *getRuntimeProfiler() const = 0;
 
+  // Vendor adapters that use a dynamically loaded runtime may consume the
+  // path selected by the public Python API and the session's capture choice.
+  // Existing adapters keep the no-op default so this remains source-compatible
+  // with their implementations.
+  virtual void configureRuntimeProfiler(const std::string &profilerPath,
+                                        bool captureVendorEvents) const {
+    (void)profilerPath;
+    (void)captureVendorEvents;
+  }
+
+  // FlagPrism: adapters that share a runtime collector can use the complete
+  // plan to enable only the activity classes required by the request. The
+  // boolean overload remains the compatibility path for existing adapters.
+  virtual void configureRuntimeProfiler(const std::string &profilerPath,
+                                        const VendorProfilePlan &plan) const {
+    configureRuntimeProfiler(profilerPath, !plan.enabledVendorMetrics.empty());
+  }
+
   virtual std::unique_ptr<VendorMetricsImporter> createImporter() const = 0;
 };
 

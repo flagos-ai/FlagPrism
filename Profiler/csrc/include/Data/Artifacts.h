@@ -85,6 +85,10 @@ struct RuntimeTraceEventKey {
   uint64_t streamId{0};
   uint64_t startTimeNs{0};
   uint64_t endTimeNs{0};
+  // FlagPrism: retain optional backend-owned launch properties alongside the
+  // correlation key.  They are used by the NVIDIA CUPTI importer and are
+  // intentionally empty for the other runtime event producers.
+  std::map<std::string, MetricValueType> vendorMetrics{};
 };
 
 struct VendorMetricRequest {

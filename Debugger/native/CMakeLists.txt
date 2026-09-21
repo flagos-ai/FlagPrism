@@ -108,6 +108,7 @@ set_source_files_properties(
 )
 
 include("${DEBUGGER_ROOT}/lib/Runtime/CoreX.cmake")
+include("${DEBUGGER_ROOT}/lib/Runtime/CUDA.cmake")
 if(NOT FLAGPRISM_BACKEND STREQUAL "tianshu")
   include("${DEBUGGER_ROOT}/lib/Runtime/CANN.cmake")
 endif()

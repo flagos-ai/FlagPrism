@@ -381,6 +381,21 @@ void CuptiPCSampling::processPCSamplingData(ConfigureData *configureData,
         if (!configureData->stallReasonIndexToMetricIndex.count(
                 stallReason->pcSamplingStallReasonIndex))
           throw std::runtime_error("[PROTON] Invalid stall reason index");
+        auto metricKind = static_cast<PCSamplingMetric::PCSamplingMetricKind>(
+            configureData->stallReasonIndexToMetricIndex
+                [stallReason->pcSamplingStallReasonIndex]);
+        auto samples = stallReason->samples;
+        auto stalledSamples = configureData->notIssuedStallReasonIndices.count(
+                                  stallReason->pcSamplingStallReasonIndex)
+                                  ? 0
+                                  : samples;
+        // FlagPrism: publish once per CUPTI stall bucket. TreeData and
+        // TraceData are both consumers of dataSet, so recording inside the
+        // loop would duplicate the NVIDIA vendor association.
+        profiler.recordVendorPCSampling(
+            externId, lineInfo.functionName,
+            PCSamplingMetric().getValueName(metricKind), samples,
+            stalledSamples);
         for (auto *data : dataSet) {
           auto scopeId = externId;
           if (isAPI)
@@ -390,15 +405,6 @@ void CuptiPCSampling::processPCSamplingData(ConfigureData *configureData,
                 scopeId, lineInfo.dirName + "/" + lineInfo.fileName + ":" +
                              std::to_string(lineInfo.lineNumber) + "@" +
                              lineInfo.functionName);
-          auto metricKind = static_cast<PCSamplingMetric::PCSamplingMetricKind>(
-              configureData->stallReasonIndexToMetricIndex
-                  [stallReason->pcSamplingStallReasonIndex]);
-          auto samples = stallReason->samples;
-          auto stalledSamples =
-              configureData->notIssuedStallReasonIndices.count(
-                  stallReason->pcSamplingStallReasonIndex)
-                  ? 0
-                  : samples;
           auto metric = std::make_shared<PCSamplingMetric>(metricKind, samples,
                                                            stalledSamples);
           data->addMetric(scopeId, metric);
