@@ -4,6 +4,7 @@ add_profiler_library(FlagTreeProfilerBindings
 
 if(FLAGPRISM_BACKEND STREQUAL "enflame")
   add_profiler_library(FlagTreeProfilerEnflame
+    lib/Driver/Enflame/EnflameApi.cpp
     lib/Profiler/Vendor/EnflameProfiler.cpp
     lib/Profiler/Vendor/Adapter.cpp
     lib/Profiler/Vendor/Mode.cpp
