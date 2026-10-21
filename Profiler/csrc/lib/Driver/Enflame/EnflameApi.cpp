@@ -3,6 +3,7 @@
 #include <tops_runtime.h>
 
 #include <cstdlib>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -106,9 +107,12 @@ struct Api {
   bool is40Version = false;
 
   bool load() {
-    if (library) {
-      return getDeviceProperties != nullptr;
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (initialized_) {
+      return ready_;
     }
+    initialized_ = true;
+
     std::vector<std::string> candidates = {"libtopsrt.so.1"};
     for (const char *env : {"TOPS_HOME", "CAPS_PATH"}) {
       const char *root = std::getenv(env);
@@ -125,6 +129,7 @@ struct Api {
       }
     }
     if (!library) {
+      ready_ = false;
       return false;
     }
 
@@ -132,21 +137,27 @@ struct Api {
         dlsym(library, "topsGetDeviceProperties"));
     runtimeGetVersion = reinterpret_cast<FnRuntimeGetVersion>(
         dlsym(library, "topsRuntimeGetVersion"));
-    is40Version = detectIs40Version();
-    return getDeviceProperties != nullptr;
-  }
-
-private:
-  bool detectIs40Version() const {
-    if (!runtimeGetVersion) {
+    // Struct layout depends on runtime version. Refuse to guess when detection
+    // fails, otherwise a 4.0/1.10+ library could be queried with the 1.9 prop
+    // layout (or the reverse).
+    if (!getDeviceProperties || !runtimeGetVersion) {
+      ready_ = false;
       return false;
     }
     int runtimeVersion = 0;
     if (runtimeGetVersion(&runtimeVersion) != topsSuccess) {
+      ready_ = false;
       return false;
     }
-    return runtimeVersion >= kLargeDevicePropRuntimeVersion;
+    is40Version = runtimeVersion >= kLargeDevicePropRuntimeVersion;
+    ready_ = true;
+    return true;
   }
+
+private:
+  std::mutex mutex_;
+  bool initialized_ = false;
+  bool ready_ = false;
 };
 
 Api &api() {
@@ -174,7 +185,8 @@ Device getDevice(uint64_t index) {
   auto &enflameApi = api();
   if (!enflameApi.load()) {
     throw std::runtime_error(
-        "failed to load topsGetDeviceProperties from libtopsrt.so.1");
+        "failed to load tops runtime APIs from libtopsrt.so.1 "
+        "(topsGetDeviceProperties / topsRuntimeGetVersion)");
   }
   if (enflameApi.is40Version) {
     return queryDevice<topsDeviceProp>(enflameApi, index);
