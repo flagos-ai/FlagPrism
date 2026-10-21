@@ -39,13 +39,13 @@ typedef struct topsDeviceProp_t {
   int computeMode;                 ///< Compute mode.
   int clockInstructionRate; ///< Frequency in khz of the timer used by the
                             ///< device-side "clock*" instructions.
-  topsDeviceArch_t arch; ///< Architectural feature flags.
-  int concurrentKernels; ///< Device can possibly execute multiple kernels
-                         ///< concurrently.
-  int pciDomainID;       ///< PCI Domain ID
-  int pciBusID;          ///< PCI Bus ID.
-  int pciDeviceID;       ///< PCI Device ID.
-  int pciFunctionID;     ///< PCI Function ID.A must for SRIOV
+  topsDeviceArch_t arch;    ///< Architectural feature flags.
+  int concurrentKernels;    ///< Device can possibly execute multiple kernels
+                            ///< concurrently.
+  int pciDomainID;          ///< PCI Domain ID
+  int pciBusID;             ///< PCI Bus ID.
+  int pciDeviceID;          ///< PCI Device ID.
+  int pciFunctionID;        ///< PCI Function ID.A must for SRIOV
   size_t maxSharedMemoryPerMultiProcessor; ///< Maximum Shared Memory Per
                                            ///< Multiprocessor.
   int canMapHostMemory;             ///< Check whether TOPS can map host memory
@@ -55,8 +55,8 @@ typedef struct topsDeviceProp_t {
                                     ///< on multiple devices
   int kernelExecTimeoutEnabled; ///< Run time limit for kernels executed on the
                                 ///< device
-  int ECCEnabled;    ///< Device has ECC support enabled
-  int isLargeBar;    ///< 1: if it is a large PCI bar device, else 0
+  int ECCEnabled;               ///< Device has ECC support enabled
+  int isLargeBar;               ///< 1: if it is a large PCI bar device, else 0
   int managedMemory; ///< Device supports allocating managed memory on this
                      ///< system
   int directManagedMemAccessFromHost; ///< Host can directly access managed
