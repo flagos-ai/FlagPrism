@@ -10,7 +10,7 @@
 #endif
 
 #if FLAGTREE_DEBUGGER_HAS_ENFLAME_RUNTIME
-#include "tops/tops_runtime.h"
+#include "tops_runtime.h"
 #endif
 
 #include <algorithm>
@@ -155,42 +155,52 @@ public:
 #if FLAGTREE_DEBUGGER_HAS_ENFLAME_RUNTIME
 class EnflameRuntimeBackendAdapter final : public RuntimeBackendAdapter {
 public:
+  // The TOPS headers only provide types; libtopsrt is loaded at runtime so
+  // the debugger builds without a TopsPlatform installation.
+  EnflameRuntimeBackendAdapter() { load(); }
+
   TransferDriverKind driverKind() const override {
     return TransferDriverKind::TOPS;
   }
   const char *name() const override { return "tops"; }
   bool isAvailable() const override {
     int count = 0;
-    return topsGetDeviceCount(&count) == topsSuccess && count > 0;
+    return loaded_ && getDeviceCount_(&count) == topsSuccess && count > 0;
   }
   void setDevice(uint32_t deviceId) override {
-    check(topsSetDevice(static_cast<int>(deviceId)), "topsSetDevice");
+    require("topsSetDevice");
+    check(setDevice_(static_cast<int>(deviceId)), "topsSetDevice");
   }
   void *allocateDevice(size_t bytes) override {
+    require("topsMalloc");
     void *ptr = nullptr;
-    check(topsMalloc(&ptr, bytes), "topsMalloc");
+    check(malloc_(&ptr, bytes), "topsMalloc");
     return ptr;
   }
   void freeDevice(void *ptr) override {
+    require("topsFree");
     if (ptr)
-      check(topsFree(ptr), "topsFree");
+      check(free_(ptr), "topsFree");
   }
   void *allocateHost(size_t bytes) override {
+    require("topsHostMalloc");
     void *ptr = nullptr;
-    check(topsHostMalloc(&ptr, bytes, topsHostMallocDefault), "topsHostMalloc");
+    check(hostMalloc_(&ptr, bytes, topsHostMallocDefault), "topsHostMalloc");
     return ptr;
   }
   void freeHost(void *ptr) override {
+    require("topsHostFree");
     if (ptr)
-      check(topsHostFree(ptr), "topsHostFree");
+      check(hostFree_(ptr), "topsHostFree");
   }
   void memsetDevice(void *ptr, int value, size_t bytes,
                     uint64_t stream) override {
+    require("topsMemset");
     if (stream)
-      check(topsMemsetAsync(ptr, value, bytes, toStream(stream)),
+      check(memsetAsync_(ptr, value, bytes, toStream(stream)),
             "topsMemsetAsync");
     else
-      check(topsMemset(ptr, value, bytes), "topsMemset");
+      check(memset_(ptr, value, bytes), "topsMemset");
   }
   void copyHostToDevice(void *dst, const void *src, size_t bytes,
                         uint64_t stream) override {
@@ -201,27 +211,127 @@ public:
     copy(dst, src, bytes, topsMemcpyDeviceToHost, stream);
   }
   void synchronize(uint64_t stream) override {
-    check(topsStreamSynchronize(toStream(stream)), "topsStreamSynchronize");
+    require("topsStreamSynchronize");
+    check(streamSynchronize_(toStream(stream)), "topsStreamSynchronize");
   }
 
 private:
+  using GetDeviceCount = topsError_t (*)(int *);
+  using SetDevice = topsError_t (*)(int);
+  using Malloc = topsError_t (*)(void **, size_t);
+  using Free = topsError_t (*)(void *);
+  using HostMalloc = topsError_t (*)(void **, size_t, unsigned int);
+  using HostFree = topsError_t (*)(void *);
+  using Memset = topsError_t (*)(void *, int, size_t);
+  using MemsetAsync = topsError_t (*)(void *, int, size_t, topsStream_t);
+  using Memcpy = topsError_t (*)(void *, const void *, size_t, topsMemcpyKind);
+  using MemcpyAsync = topsError_t (*)(void *, const void *, size_t,
+                                      topsMemcpyKind, topsStream_t);
+  using StreamSynchronize = topsError_t (*)(topsStream_t);
+  using GetErrorString = const char *(*)(topsError_t);
+
+  template <typename Function>
+  Function loadSymbol(std::initializer_list<const char *> names) {
+    if (!library_) {
+      return nullptr;
+    }
+    for (const char *name : names) {
+      if (void *symbol = dlsym(library_, name)) {
+        return reinterpret_cast<Function>(symbol);
+      }
+    }
+    return nullptr;
+  }
+
+  // libtopsrt holds process-wide device state shared with the Triton
+  // launcher, so it is intentionally never dlclose'd.
+  void load() {
+    // The bare soname comes first so an already loaded runtime is reused.
+    std::vector<std::string> candidates = {"libtopsrt.so.1"};
+    for (const char *env : {"TOPS_HOME", "CAPS_PATH"}) {
+      const char *root = std::getenv(env);
+      if (root && *root) {
+        candidates.push_back(std::string(root) + "/lib/libtopsrt.so.1");
+      }
+    }
+    candidates.emplace_back("/opt/tops/lib/libtopsrt.so.1");
+
+    for (const auto &candidate : candidates) {
+      library_ = dlopen(candidate.c_str(), RTLD_LOCAL | RTLD_LAZY);
+      if (library_) {
+        loadedFrom_ = candidate;
+        break;
+      }
+    }
+    if (!library_) {
+      return;
+    }
+
+    getDeviceCount_ = loadSymbol<GetDeviceCount>({"topsGetDeviceCount"});
+    setDevice_ = loadSymbol<SetDevice>({"topsSetDevice"});
+    malloc_ = loadSymbol<Malloc>({"topsMalloc"});
+    free_ = loadSymbol<Free>({"topsFree"});
+    // TopsPlatform >= 1.10 only exports topsHostAlloc; 1.9 only exports
+    // topsHostMalloc. Both share the same signature.
+    hostMalloc_ = loadSymbol<HostMalloc>({"topsHostAlloc", "topsHostMalloc"});
+    hostFree_ = loadSymbol<HostFree>({"topsHostFree"});
+    memset_ = loadSymbol<Memset>({"topsMemset"});
+    memsetAsync_ = loadSymbol<MemsetAsync>({"topsMemsetAsync"});
+    memcpy_ = loadSymbol<Memcpy>({"topsMemcpy"});
+    memcpyAsync_ = loadSymbol<MemcpyAsync>({"topsMemcpyAsync"});
+    streamSynchronize_ =
+        loadSymbol<StreamSynchronize>({"topsStreamSynchronize"});
+    getErrorString_ = loadSymbol<GetErrorString>({"topsGetErrorString"});
+
+    loaded_ = getDeviceCount_ && setDevice_ && malloc_ && free_ &&
+              hostMalloc_ && hostFree_ && memset_ && memsetAsync_ && memcpy_ &&
+              memcpyAsync_ && streamSynchronize_;
+  }
+
+  void require(const char *call) const {
+    if (!loaded_) {
+      failRuntime(std::string("TOPS runtime unavailable for ") + call +
+                  ": libtopsrt.so.1 could not be loaded or is incomplete");
+    }
+  }
+
   static topsStream_t toStream(uint64_t stream) {
     return reinterpret_cast<topsStream_t>(stream);
   }
-  static void check(topsError_t result, const char *call) {
+
+  void check(topsError_t result, const char *call) const {
     if (result != topsSuccess)
       failRuntime(std::string(call) + " failed with topsError=" +
                   std::to_string(static_cast<int>(result)) + ": " +
-                  topsGetErrorString(result));
+                  (getErrorString_ ? getErrorString_(result) : "unknown") +
+                  " (library=" + loadedFrom_ + ")");
   }
-  static void copy(void *dst, const void *src, size_t bytes,
-                   topsMemcpyKind kind, uint64_t stream) {
+
+  void copy(void *dst, const void *src, size_t bytes, topsMemcpyKind kind,
+            uint64_t stream) {
+    require("topsMemcpy");
     if (stream)
-      check(topsMemcpyAsync(dst, src, bytes, kind, toStream(stream)),
+      check(memcpyAsync_(dst, src, bytes, kind, toStream(stream)),
             "topsMemcpyAsync");
     else
-      check(topsMemcpy(dst, src, bytes, kind), "topsMemcpy");
+      check(memcpy_(dst, src, bytes, kind), "topsMemcpy");
   }
+
+  void *library_ = nullptr;
+  std::string loadedFrom_;
+  bool loaded_ = false;
+  GetDeviceCount getDeviceCount_ = nullptr;
+  SetDevice setDevice_ = nullptr;
+  Malloc malloc_ = nullptr;
+  Free free_ = nullptr;
+  HostMalloc hostMalloc_ = nullptr;
+  HostFree hostFree_ = nullptr;
+  Memset memset_ = nullptr;
+  MemsetAsync memsetAsync_ = nullptr;
+  Memcpy memcpy_ = nullptr;
+  MemcpyAsync memcpyAsync_ = nullptr;
+  StreamSynchronize streamSynchronize_ = nullptr;
+  GetErrorString getErrorString_ = nullptr;
 };
 #endif
 

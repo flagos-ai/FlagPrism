@@ -2,13 +2,16 @@
 #include "Context/Context.h"
 #include "Profiler/Profiler.h"
 #include <cstdlib>
+#include <dlfcn.h>
 #include <mutex>
 #include <set>
 #include <stdexcept>
-#include <tops/tops_runtime.h>
+#include <string>
+#include <tops_runtime.h>
 #include <topspti_activity.h>
 #include <topspti_callbacks.h>
 #include <unordered_map>
+#include <vector>
 
 namespace proton {
 namespace {
@@ -17,6 +20,102 @@ void check(TopsptiResult result, const char *operation) {
     throw std::runtime_error(std::string(operation) +
                              " failed: TOPSPTI status " +
                              std::to_string(static_cast<int>(result)));
+}
+
+// The TOPS headers only provide types; libtopspti and libtopsrt are loaded at
+// runtime so the profiler builds without a TopsPlatform installation.
+struct EnflameTopsptiApi {
+  using RegisterCallbacks = TopsptiResult (*)(
+      Topspti_BuffersCallbackRequestFunc, Topspti_BuffersCallbackCompleteFunc);
+  using ActivityEnable = TopsptiResult (*)(Topspti_ActivityKind);
+  using ActivityDisable = TopsptiResult (*)(Topspti_ActivityKind);
+  using ActivityFlushAll = TopsptiResult (*)(uint32_t);
+  using ActivityGetNextRecord = TopsptiResult (*)(uint8_t *, size_t,
+                                                  Topspti_Activity **);
+  using ActivityGetNumDroppedRecords = TopsptiResult (*)(size_t *);
+  using Subscribe = TopsptiResult (*)(Topspti_SubscriberHandle *,
+                                      Topspti_CallbackFunc, void *);
+  using Unsubscribe = TopsptiResult (*)(Topspti_SubscriberHandle);
+  using EnableDomain = TopsptiResult (*)(uint32_t, Topspti_SubscriberHandle,
+                                         Topspti_CallbackDomain);
+  using DeviceSynchronize = topsError_t (*)();
+
+  void *library = nullptr;
+  void *runtimeLibrary = nullptr;
+  RegisterCallbacks registerCallbacks = nullptr;
+  ActivityEnable activityEnable = nullptr;
+  ActivityDisable activityDisable = nullptr;
+  ActivityFlushAll activityFlushAll = nullptr;
+  ActivityGetNextRecord activityGetNextRecord = nullptr;
+  ActivityGetNumDroppedRecords activityGetNumDroppedRecords = nullptr;
+  Subscribe subscribe = nullptr;
+  Unsubscribe unsubscribe = nullptr;
+  EnableDomain enableDomain = nullptr;
+  DeviceSynchronize deviceSynchronize = nullptr;
+
+  // TOPSPTI may still own activity buffers at process teardown and libtopsrt
+  // is shared with the Triton launcher, so neither library is dlclose'd.
+  bool load() {
+    if (!library) {
+      library = open("libtopspti.so", "/extras/TOPSPTI/lib64/");
+      if (library) {
+        registerCallbacks = reinterpret_cast<RegisterCallbacks>(
+            dlsym(library, "topsptiActivityRegisterCallbacks"));
+        activityEnable = reinterpret_cast<ActivityEnable>(
+            dlsym(library, "topsptiActivityEnable"));
+        activityDisable = reinterpret_cast<ActivityDisable>(
+            dlsym(library, "topsptiActivityDisable"));
+        activityFlushAll = reinterpret_cast<ActivityFlushAll>(
+            dlsym(library, "topsptiActivityFlushAll"));
+        activityGetNextRecord = reinterpret_cast<ActivityGetNextRecord>(
+            dlsym(library, "topsptiActivityGetNextRecord"));
+        activityGetNumDroppedRecords =
+            reinterpret_cast<ActivityGetNumDroppedRecords>(
+                dlsym(library, "topsptiActivityGetNumDroppedRecords"));
+        subscribe =
+            reinterpret_cast<Subscribe>(dlsym(library, "topsptiSubscribe"));
+        unsubscribe =
+            reinterpret_cast<Unsubscribe>(dlsym(library, "topsptiUnsubscribe"));
+        enableDomain = reinterpret_cast<EnableDomain>(
+            dlsym(library, "topsptiEnableDomain"));
+      }
+    }
+    if (!runtimeLibrary) {
+      runtimeLibrary = open("libtopsrt.so.1", "/lib/");
+      if (runtimeLibrary) {
+        deviceSynchronize = reinterpret_cast<DeviceSynchronize>(
+            dlsym(runtimeLibrary, "topsDeviceSynchronize"));
+      }
+    }
+    return registerCallbacks && activityEnable && activityDisable &&
+           activityFlushAll && activityGetNextRecord &&
+           activityGetNumDroppedRecords && subscribe && unsubscribe &&
+           enableDomain && deviceSynchronize;
+  }
+
+private:
+  // The bare soname comes first so an already loaded library is reused.
+  static void *open(const char *soname, const char *subdir) {
+    std::vector<std::string> candidates = {soname};
+    for (const char *env : {"TOPS_HOME", "CAPS_PATH"}) {
+      const char *root = std::getenv(env);
+      if (root && *root) {
+        candidates.push_back(std::string(root) + subdir + soname);
+      }
+    }
+    candidates.push_back(std::string("/opt/tops") + subdir + soname);
+    for (const auto &candidate : candidates) {
+      if (void *handle = dlopen(candidate.c_str(), RTLD_LOCAL | RTLD_LAZY)) {
+        return handle;
+      }
+    }
+    return nullptr;
+  }
+};
+
+EnflameTopsptiApi &topsptiApi() {
+  static EnflameTopsptiApi api;
+  return api;
 }
 thread_local std::vector<RuntimeTraceEventKey> activeScopes;
 class EnflameProfiler final : public Profiler,
@@ -109,7 +208,8 @@ private:
     std::lock_guard<std::mutex> lock(self.eventsMutex);
     Topspti_Activity *record = nullptr;
     TopsptiResult result;
-    while ((result = topsptiActivityGetNextRecord(buffer, valid, &record)) ==
+    auto &api = topsptiApi();
+    while ((result = api.activityGetNextRecord(buffer, valid, &record)) ==
            TOPSPTI_SUCCESS) {
       if (record->kind != TOPSPTI_ACTIVITY_KIND_KERNEL)
         continue;
@@ -140,20 +240,23 @@ private:
       launches.clear();
       callbackError.clear();
     }
-    check(topsptiActivityRegisterCallbacks(request, complete),
+    auto &api = topsptiApi();
+    if (!api.load())
+      throw std::runtime_error(
+          "failed to load TOPSPTI from libtopspti.so and libtopsrt.so.1");
+    check(api.registerCallbacks(request, complete),
           "register activity callbacks");
-    check(topsptiSubscribe(&subscriber, callback, nullptr),
-          "subscribe callbacks");
+    check(api.subscribe(&subscriber, callback, nullptr), "subscribe callbacks");
     try {
-      check(topsptiEnableDomain(1, subscriber, TOPSPTI_CB_DOMAIN_RUNTIME_API),
+      check(api.enableDomain(1, subscriber, TOPSPTI_CB_DOMAIN_RUNTIME_API),
             "enable runtime callbacks");
-      check(topsptiEnableDomain(1, subscriber, TOPSPTI_CB_DOMAIN_DRIVER_API),
+      check(api.enableDomain(1, subscriber, TOPSPTI_CB_DOMAIN_DRIVER_API),
             "enable driver callbacks");
-      check(topsptiActivityEnable(TOPSPTI_ACTIVITY_KIND_KERNEL),
+      check(api.activityEnable(TOPSPTI_ACTIVITY_KIND_KERNEL),
             "enable kernel activities");
       enabled = true;
     } catch (...) {
-      topsptiUnsubscribe(subscriber);
+      api.unsubscribe(subscriber);
       subscriber = nullptr;
       throw;
     }
@@ -161,14 +264,14 @@ private:
   void doFlush() override {
     if (!enabled)
       return;
-    if (topsDeviceSynchronize() != topsSuccess)
+    auto &api = topsptiApi();
+    if (api.deviceSynchronize() != topsSuccess)
       throw std::runtime_error(
           "topsDeviceSynchronize failed during TOPSPTI flush");
-    check(topsptiActivityFlushAll(TOPSPTI_ACTIVITY_FLAG_FLUSH_FORCED),
+    check(api.activityFlushAll(TOPSPTI_ACTIVITY_FLAG_FLUSH_FORCED),
           "flush activities");
     size_t dropped = 0;
-    check(topsptiActivityGetNumDroppedRecords(&dropped),
-          "get dropped activities");
+    check(api.activityGetNumDroppedRecords(&dropped), "get dropped activities");
     std::lock_guard<std::mutex> lock(eventsMutex);
     if (dropped)
       throw std::runtime_error("TOPSPTI dropped " + std::to_string(dropped) +
@@ -178,12 +281,12 @@ private:
   }
   void doStop() override {
     if (enabled) {
-      check(topsptiActivityDisable(TOPSPTI_ACTIVITY_KIND_KERNEL),
+      check(topsptiApi().activityDisable(TOPSPTI_ACTIVITY_KIND_KERNEL),
             "disable kernel activities");
       enabled = false;
     }
     if (subscriber) {
-      check(topsptiUnsubscribe(subscriber), "unsubscribe callbacks");
+      check(topsptiApi().unsubscribe(subscriber), "unsubscribe callbacks");
       subscriber = nullptr;
     }
   }

@@ -63,8 +63,11 @@ if(FLAGTREE_RUN_ENFLAME_HARDWARE_TESTS)
     message(FATAL_ERROR "Enflame hardware tests require FLAGPRISM_BACKEND=enflame")
   endif()
   enable_testing()
+  find_library(FLAGTREE_TOPS_RUNTIME topsrt
+    HINTS "$ENV{TOPS_HOME}/lib" "$ENV{CAPS_PATH}/lib" "/opt/tops/lib" REQUIRED)
   add_executable(FlagTreeDebuggerEnflameSmokeTest EnflameSmokeTest.cpp)
-  target_link_libraries(FlagTreeDebuggerEnflameSmokeTest PRIVATE FlagTreeDebuggerRuntimeStandalone)
+  target_link_libraries(FlagTreeDebuggerEnflameSmokeTest PRIVATE
+    FlagTreeDebuggerRuntimeStandalone "${FLAGTREE_TOPS_RUNTIME}")
   flagtree_debugger_enable_enflame(FlagTreeDebuggerEnflameSmokeTest)
   add_test(NAME FlagTreeDebuggerEnflameSmokeTest COMMAND FlagTreeDebuggerEnflameSmokeTest)
 endif()
