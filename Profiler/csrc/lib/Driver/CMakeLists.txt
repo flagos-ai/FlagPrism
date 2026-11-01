@@ -1,7 +1,10 @@
 set(PROFILER_DRIVER_SOURCES
   Device.cpp
 )
-if(NOT FLAGPRISM_BACKEND STREQUAL "enflame" AND
+# FlagPrism：MetaX builds do not require CoreX device queries.
+if(NOT FLAGPRISM_BACKEND STREQUAL "metax" AND
+   NOT FLAGPRISM_BACKEND STREQUAL "enflame" AND
+# FlagPrism end
    NOT FLAGPRISM_BACKEND STREQUAL "ascend" AND
    NOT FLAGPRISM_BACKEND STREQUAL "mthreads" AND
    NOT FLAGPRISM_BACKEND STREQUAL "nvidia")

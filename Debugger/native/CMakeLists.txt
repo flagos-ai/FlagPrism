@@ -113,6 +113,9 @@ if(NOT FLAGPRISM_BACKEND STREQUAL "tianshu")
   include("${DEBUGGER_ROOT}/lib/Runtime/CANN.cmake")
 endif()
 include("${DEBUGGER_ROOT}/lib/Runtime/MUSA.cmake")
+# FlagPrism：MACA SDK discovery belongs to the FlagPrism build boundary.
+include("${DEBUGGER_ROOT}/lib/Runtime/MACA.cmake")
+# FlagPrism end
 flagprism_enable_debugger_runtime(flagtree_debugger_native)
 
 set(_flagtree_debugger_output_dir

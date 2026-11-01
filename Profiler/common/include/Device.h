@@ -6,7 +6,18 @@
 
 namespace proton {
 
-enum class DeviceType { HIP, CUDA, ASCEND, TIANSHU, MTHREADS, ENFLAME, COUNT };
+// FlagPrism：append MetaX without renumbering existing device kinds.
+enum class DeviceType {
+  HIP,
+  CUDA,
+  ASCEND,
+  TIANSHU,
+  MTHREADS,
+  ENFLAME,
+  METAX,
+  COUNT
+};
+// FlagPrism end
 
 template <DeviceType T> struct DeviceTraits;
 
@@ -39,6 +50,13 @@ template <> struct DeviceTraits<DeviceType::ENFLAME> {
   constexpr static DeviceType type = DeviceType::ENFLAME;
   constexpr static const char *name = "ENFLAME";
 };
+
+// FlagPrism：report MetaX as its own device family.
+template <> struct DeviceTraits<DeviceType::METAX> {
+  constexpr static DeviceType type = DeviceType::METAX;
+  constexpr static const char *name = "METAX";
+};
+// FlagPrism end
 
 struct Device {
   DeviceType type;

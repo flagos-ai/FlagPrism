@@ -33,6 +33,9 @@ enum class BackendKind : uint16_t {
   CANN = 4,
   TIANSHU = 5,
   ENFLAME = 6,
+  // FlagPrism：MACA has its own device transfer ABI.
+  METAX = 7,
+  // FlagPrism end
 };
 
 enum class RecordKind : uint16_t {

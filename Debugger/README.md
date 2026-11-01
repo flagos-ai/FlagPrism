@@ -438,6 +438,12 @@ export TRITON_ASCEND_ARCH=Ascend910B4
 
 ## Backend Support
 
+<!-- FlagPrism：document the dedicated MACA runtime rather than CUDA compatibility. -->
+MetaX/MACA now uses TTIR instrumentation, the hidden control pointer and native
+MACA device transfers for L1 summaries and L2 tensor/address artifacts.
+Device instruction timeline is not enabled. See [MetaX setup and validation](../docs/metax.md).
+<!-- FlagPrism end -->
+
 | Capability | Current status |
 | --- | --- |
 | Host/component integration | Host API 2.x 与 capability 协商，不按 FlagTree 3.5/3.6 版本号硬编码 |
@@ -450,7 +456,7 @@ export TRITON_ASCEND_ARCH=Ascend910B4
 | Tianshu/CoreX runtime collection | 复用协议和 hidden pointer；通过 CUDA-compatible driver API 动态加载 CoreX transfer，实现 summary/memory/full dump；device-cycle timeline 暂未启用 |
 
 When the Debugger is active, a hidden control pointer is appended only to
-Ascend/CANN, Tianshu/CoreX, MUSA/mthreads, or NVIDIA CUDA kernels whose metadata
+Ascend/CANN, Tianshu/CoreX, MUSA/mthreads, MetaX/MACA, or NVIDIA CUDA kernels whose metadata
 explicitly sets `debug_launch_hidden_arg=True`. Unsupported backends never
 change their kernel launch ABI because of the global Debugger state.
 

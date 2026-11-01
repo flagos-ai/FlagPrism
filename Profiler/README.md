@@ -115,7 +115,7 @@ with profiler.scope("test2", {"bytes": 3000}):
 ### Backend and mode
 
 FlagTree Profiler supports `nvidia`, `cupti`, `roctracer`, `instrumentation`,
-`cann`, `mthreads`, and `tianshu` backends.
+`cann`, `mthreads`, `tianshu`, and `metax` backends.
 
 - **`nvidia`**: The default NVIDIA backend. It uses the in-process CUPTI
   activity stream and supports the derived vendor metrics `launch_stats` (one
@@ -150,12 +150,18 @@ FlagTree Profiler supports `nvidia`, `cupti`, `roctracer`, `instrumentation`,
 - **`mthreads`**: Uses the native MUPTI callback/activity interface. The
   in-process path reports launch geometry, theoretical occupancy, static
   resource usage and theoretical peak memory bandwidth.
+<!-- FlagPrism：MCPTI reports actual device kernel intervals. -->
+- **`metax`** (alias `maca`): Uses native MCPTI concurrent-kernel activities
+  and API correlation for device duration and session attribution. It does not
+  enable hardware counters or instruction-level instrumentation. See
+  [MetaX setup and validation](../docs/metax.md).
+<!-- FlagPrism end -->
 - **`tianshu`**: Reuses Debugger instrumentation through the CoreX-compatible
   driver and imports ixKN CSV output. Use the `flagtree-profiler --ixkn` CLI
   wrapper because ixKN profiles the target process from startup.
 
 By default, FlagTree Profiler automatically selects `nvidia`, `roctracer`,
-`cann`, `mthreads`, or `tianshu` based on the active target backend. The `instrumentation`
+`cann`, `mthreads`, `tianshu`, or `metax` based on the active target backend. The `instrumentation`
 backend offers a wide range of mode options for fine-grained profiling, as
 detailed in the `mode.py` file.
 

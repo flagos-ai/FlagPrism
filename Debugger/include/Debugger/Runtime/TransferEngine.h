@@ -82,6 +82,9 @@ enum class TransferDriverKind : uint16_t {
   // FlagPrism: CUDA uses the NVIDIA driver API for device-backed debug
   // buffers and stream-ordered exports. Keep TOPS's upstream value stable.
   CUDA = 6,
+  // FlagPrism：select the MACA runtime adapter explicitly.
+  MACA = 7,
+  // FlagPrism end
 };
 
 TransferDriverKind resolveTransferDriverKind(BackendKind backendKind);

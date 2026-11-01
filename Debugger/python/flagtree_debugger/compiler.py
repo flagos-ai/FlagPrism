@@ -89,6 +89,10 @@ def _debug_launch_hidden_arg_enabled(metadata: dict) -> bool:
             "tianshu",
             "corex",
             "iluvatar",
+            # FlagPrism：MACA uses the shared hidden control-pointer ABI.
+            "metax",
+            "maca",
+            # FlagPrism end
             "mthreads",
             "musa",
             # FlagPrism: NVIDIA launches use the same hidden control-pointer

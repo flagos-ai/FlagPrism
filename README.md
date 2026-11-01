@@ -37,9 +37,13 @@ and Profiler integration, not the availability of the corresponding FlagTree
 compiler backend. We are rapidly expanding FlagPrism to support more devices
 and accelerator backends.
 
+<!-- FlagPrism：MetaX debugger and native MCPTI integration. -->
+
 | NVIDIA | Huawei Ascend | T-Head | Hygon | Moore Threads | MetaX | ILUVATAR | Enflame |
 |:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-| In progress<br>Target: Sep 2026 | ✅ | — | — | Merging | Not started<br>Target: Oct 2026 | ✅ | In progress<br>Target: Sep 2026 |
+| In progress<br>Target: Sep 2026 | ✅ | — | — | Merging | [✅](docs/metax.md) | ✅ | In progress<br>Target: Sep 2026 |
+
+<!-- FlagPrism end -->
 
 ## Relationship with FlagTree
 

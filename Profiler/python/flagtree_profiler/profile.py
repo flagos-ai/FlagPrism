@@ -33,16 +33,29 @@ def _is_tianshu_backend(backend: Optional[str]) -> bool:
     return str(backend or "").lower() in {"tianshu", "corex", "iluvatar"}
 
 
+# FlagPrism：MetaX uses the shared debugger IR collector.
+def _is_metax_backend(backend: Optional[str]) -> bool:
+    return str(backend or "").lower() in {"metax", "maca"}
+
+
+# FlagPrism end
+
+
 def _is_mthreads_backend(backend: Optional[str]) -> bool:
     return str(backend or "").lower() in {"mthreads", "musa"}
 
 
+# FlagPrism：include MetaX in the default IR hook policy.
 def _uses_default_ir_triton_hook(backend: Optional[str],
                                  hook: Optional[str]) -> bool:
     return (hook == "triton"
-            and (_is_cann_backend(backend) or _is_tianshu_backend(backend))
+            and (_is_cann_backend(backend) or _is_tianshu_backend(backend)
+                 or _is_metax_backend(backend))
             and (not _is_cann_backend(backend)
                  or not _env_flag_enabled(_CANN_TRITON_LEGACY_ENV)))
+
+
+# FlagPrism end
 
 
 def _mode_with_ir_triton_overrides(mode: Optional[str],
@@ -74,6 +87,7 @@ def _instrumentation_record_capacity() -> int:
     return buffer_mb * 1024 * 1024 // _IR_RECORD_SIZE_BYTES
 
 
+# FlagPrism：capture MetaX memory addresses for IR byte metrics.
 def _activate_instrumentation(backend: Optional[str] = None) -> None:
     import flagtree.debugger as debugger
 
@@ -81,11 +95,15 @@ def _activate_instrumentation(backend: Optional[str] = None) -> None:
     debugger.clear_exported_runs()
     debugger.activate(
         record_level=1,
-        addr_level=1 if _is_tianshu_backend(backend) else 0,
+        addr_level=1 if
+        (_is_tianshu_backend(backend) or _is_metax_backend(backend)) else 0,
         record_capacity=record_capacity,
         output_dir=None,
     )
     _set_instrumentation_mode("debugger_auto")
+
+
+# FlagPrism end
 
 
 def _deactivate_instrumentation() -> None:
@@ -743,7 +761,16 @@ def _upsert_child(node: dict, name: str) -> dict:
     return child
 
 
-def _augment_hatchet(path: Path, runs: list[dict]) -> None:
+# FlagPrism：preserve each launch's device instead of assigning the session device.
+def _run_device_id(run: dict, fallback: int = 0) -> int:
+    value = (run.get("meta") or {}).get("device_id")
+    return fallback if value is None else int(value)
+
+
+def _augment_hatchet(path: Path,
+                     runs: list[dict],
+                     device_id: int = 0,
+                     use_run_devices: bool = False) -> None:
     if not path.exists():
         return
     database = json.loads(path.read_text())
@@ -752,9 +779,17 @@ def _augment_hatchet(path: Path, runs: list[dict]) -> None:
         return
     root = database[0]
     root_metrics = root.setdefault("metrics", {})
-    root_metrics.setdefault("device_id", 0)
+    root_metrics.setdefault("device_id", device_id)
+    devices_by_kernel: dict[str, set[int]] = {}
+    if use_run_devices:
+        for run in runs:
+            devices_by_kernel.setdefault(
+                str(run.get("debug_kernel_name") or ""),
+                set()).add(_run_device_id(run, device_id))
     changed = False
     for run_index, run in enumerate(runs):
+        run_device = _run_device_id(
+            run, device_id) if use_run_devices else device_id
         metrics_by_op = _internal_hatchet_metrics_for_run(run)
         if not metrics_by_op:
             continue
@@ -765,7 +800,13 @@ def _augment_hatchet(path: Path, runs: list[dict]) -> None:
         if kernel_node is None:
             kernel_node = _upsert_child(
                 root, kernel_name or f"instrumentation_run_{run_index}")
-        kernel_node.setdefault("metrics", {}).setdefault("device_id", 0)
+        # FlagPrism：native tree scopes may aggregate one symbol across devices.
+        # Keep IR metrics in distinct device children in that case.
+        if use_run_devices and len(devices_by_kernel.get(kernel_name, ())) > 1:
+            kernel_node = _upsert_child(kernel_node, f"IR device {run_device}")
+        kernel_node.setdefault("metrics",
+                               {}).setdefault("device_id", run_device)
+        # FlagPrism end
         run_summary = _run_ir_summary(run)
         if run_summary:
             kernel_metrics = kernel_node.setdefault("metrics", {})
@@ -805,7 +846,7 @@ def _augment_hatchet(path: Path, runs: list[dict]) -> None:
             child_name = f"{op_id}:{_tracked_op_name(entry) if entry else f'op_{op_id}'}"
             child = _upsert_child(kernel_node, child_name)
             child_metrics = child.setdefault("metrics", {})
-            child_metrics.setdefault("device_id", 0)
+            child_metrics.setdefault("device_id", run_device)
             for name, value in metrics_by_op[op_id].items():
                 child_metrics[name] = value
                 root_metrics.setdefault(name, 0)
@@ -813,6 +854,9 @@ def _augment_hatchet(path: Path, runs: list[dict]) -> None:
     if changed:
         path.write_text("\n" + json.dumps(database, indent=4, default=str) +
                         "\n")
+
+
+# FlagPrism end
 
 
 def _load_json_object(path: Path, default: dict) -> dict:
@@ -1038,7 +1082,19 @@ def _augment_ir_vendor(path: Path, runs: list[dict],
             f"Set {_CANN_TRITON_LEGACY_ENV}=1 to collect legacy CANN metrics.",
         )
     associations = vendor.setdefault("associations", [])
-    associations.extend(_ir_associations_for_runs(runs))
+    # FlagPrism：IR events use the session device instead of assuming device 0.
+    ir_associations = _ir_associations_for_runs(runs)
+    if _is_metax_backend(backend):
+        meta = _load_json_object(
+            path.with_name(
+                path.name.removesuffix(".vendor.json") + ".meta.json"), {})
+        device_id = int((meta.get("device") or {}).get("id", 0))
+        for association in ir_associations:
+            run_index = int(association["runtime_event"]["correlation_id"])
+            association["runtime_event"]["device_id"] = _run_device_id(
+                runs[run_index], device_id)
+    associations.extend(ir_associations)
+    # FlagPrism end
     _refresh_vendor_summary(vendor)
     vendor["ir_summary"] = {
         "runs":
@@ -1073,7 +1129,15 @@ def _augment_instrumentation_artifacts(
         runs,
         synthesize_kernel_events=ir_default_for_triton,
     )
-    _augment_hatchet(base.with_suffix(".hatchet"), runs)
+    # FlagPrism：propagate the native session device to inserted IR tree nodes.
+    meta = _load_json_object(base.with_suffix(".meta.json"), {})
+    device_id = int((meta.get("device") or {}).get("id", 0))
+    _augment_hatchet(base.with_suffix(".hatchet"),
+                     runs,
+                     device_id=device_id,
+                     use_run_devices=_is_metax_backend(
+                         str(meta.get("backend") or "")))
+    # FlagPrism end
     _augment_ir_meta(base.with_suffix(".meta.json"), runs,
                      ir_default_for_triton)
     _augment_ir_vendor(base.with_suffix(".vendor.json"), runs,
@@ -1112,6 +1176,10 @@ def _select_backend() -> str:
         # adapter. The legacy collector remains available as explicit
         # backend="cupti" for compatibility and PC sampling.
         return "nvidia"
+    # FlagPrism：MACA target maps to the MCPTI vendor adapter.
+    elif backend in {"metax", "maca"}:
+        return "metax"
+    # FlagPrism end
     elif backend == "hip":
         return "roctracer"
     elif backend in {"ascend", "npu"}:
@@ -1223,28 +1291,43 @@ def start(
 
     _check_env(backend)
 
+    # FlagPrism：route MetaX through the shared IR hooks.
     use_triton_hook = (
         hook == "triton" or (_is_mthreads_backend(backend) and hook is None)
         or (hook == "instrumentation" and
-            (_is_cann_backend(backend) or _is_tianshu_backend(backend))))
+            (_is_cann_backend(backend) or _is_tianshu_backend(backend)
+             or _is_metax_backend(backend))))
     ir_default_for_triton = _uses_default_ir_triton_hook(backend, hook)
     use_instrumentation_hook = (
-        (_is_cann_backend(backend) or _is_tianshu_backend(backend))
+        (_is_cann_backend(backend) or _is_tianshu_backend(backend)
+         or _is_metax_backend(backend))
         and (hook == "instrumentation" or ir_default_for_triton))
     use_native_instrumentation_hook = backend == "instrumentation" or (
         hook == "instrumentation"
-        and not (_is_cann_backend(backend) or _is_tianshu_backend(backend)))
+        and not (_is_cann_backend(backend) or _is_tianshu_backend(backend)
+                 or _is_metax_backend(backend)))
+    # FlagPrism end
     effective_mode = (_mode_with_ir_triton_overrides(mode, backend) if
                       ir_default_for_triton else _get_mode_str(backend, mode))
+    # FlagPrism：record the actual current device unless explicitly selected.
+    if _is_metax_backend(backend) and not any(
+            token.partition("=")[0].strip() == "device_id"
+            for token in effective_mode.split(":")):
+        device_id = triton.runtime.driver.active.get_current_device()
+        effective_mode = ":".join(
+            filter(None, [effective_mode, f"device_id={device_id}"]))
+    # FlagPrism end
     set_profiling_on()
     instrumentation_was_active = any(
         state.get("instrumentation_hook", False)
         for state in _active_sessions.values())
     instrumentation_activated = use_instrumentation_hook and not instrumentation_was_active
-    if instrumentation_activated:
-        _activate_instrumentation(backend)
     session = None
     try:
+        # FlagPrism：instrumentation setup participates in startup rollback.
+        if instrumentation_activated:
+            _activate_instrumentation(backend)
+        # FlagPrism end
         session = profiler_native.start(
             name,
             context,
@@ -1259,8 +1342,17 @@ def start(
         if use_native_instrumentation_hook:
             HookManager.register(InstrumentationHook(mode), session)
     except Exception:
+        # FlagPrism：roll back native ownership even if hook cleanup fails.
         if session is not None:
-            HookManager.unregister(session)
+            try:
+                HookManager.unregister(session)
+            except Exception:
+                pass
+            try:
+                profiler_native.finalize(session, "")
+            except Exception:
+                pass  # Preserve the original initialization error.
+        # FlagPrism end
         if instrumentation_activated:
             _deactivate_instrumentation()
         if not _active_sessions:

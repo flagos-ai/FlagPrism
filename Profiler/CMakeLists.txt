@@ -54,8 +54,10 @@ endif()
 # vendor builds can validate the component without CUDA SDK packages.
 option(FLAGTREE_PROFILER_GPU_RUNTIME
        "Build the CUDA/HIP profiler runtime adapters" ON)
-if(FLAGTREE_BACKEND MATCHES "^(ascend|mthreads|tianshu|enflame)$" OR
-   FLAGPRISM_BACKEND MATCHES "^(ascend|mthreads|tianshu|enflame)$")
+# FlagPrism：MetaX uses MCPTI instead of CUDA/CUPTI or ROCtracer.
+if(FLAGTREE_BACKEND MATCHES "^(ascend|mthreads|tianshu|enflame|metax|maca)$" OR
+   FLAGPRISM_BACKEND MATCHES "^(ascend|mthreads|tianshu|enflame|metax)$")
+# FlagPrism end
   set(FLAGTREE_PROFILER_GPU_RUNTIME OFF)
 endif()
 
@@ -198,6 +200,12 @@ if(FLAGTREE_PROFILER_STANDALONE)
 endif()
 
 # ============ Add Profiler runtime and internal compiler dialect ============
+# FlagPrism：provide MACA headers to all profiler runtime object targets.
+if(FLAGPRISM_BACKEND STREQUAL "metax" OR FLAGPRISM_HAS_METAX)
+  find_path(FLAGPRISM_MACA_INCLUDE_DIR mcpti/mcpti.h HINTS "$ENV{MACA_PATH}/include" /opt/maca/include REQUIRED)
+  include_directories("${FLAGPRISM_MACA_INCLUDE_DIR}" "${FLAGPRISM_MACA_INCLUDE_DIR}/mcr")
+endif()
+# FlagPrism end
 add_subdirectory("${PROFILER_COMMON_DIR}")
 add_subdirectory("${PROFILER_SRC_DIR}")
 if(FLAGTREE_PROFILER_STANDALONE)
@@ -257,6 +265,11 @@ if(FLAGPRISM_PYTHON_DIR)
 endif()
 
 target_link_libraries(flagtree_profiler_native PRIVATE Python3::Module)
+# FlagPrism：object-library usage requirements do not propagate via TARGET_OBJECTS.
+if(FLAGPRISM_BACKEND STREQUAL "metax" OR FLAGPRISM_HAS_METAX)
+  target_link_libraries(flagtree_profiler_native PRIVATE ${FLAGPRISM_MCPTI_LIBRARY} ${FLAGPRISM_MACA_RUNTIME})
+endif()
+# FlagPrism end
 if(FLAGTREE_PROFILER_STANDALONE)
   target_link_libraries(flagtree_profiler_native PRIVATE
     "${FLAGTREE_LIBTRITON}"

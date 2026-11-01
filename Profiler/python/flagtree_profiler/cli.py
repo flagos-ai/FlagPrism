@@ -39,6 +39,10 @@ def parse_arguments():
             "roctracer",
             "instrumentation",
             "cann",
+            # FlagPrism：MetaX profiler aliases.
+            "metax",
+            "maca",
+            # FlagPrism end
             "mthreads",
             "musa",
             "tianshu",

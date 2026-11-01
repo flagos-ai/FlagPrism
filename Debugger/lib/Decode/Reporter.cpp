@@ -67,6 +67,10 @@ std::string toString(BackendKind value) {
     return "MUSA";
   case BackendKind::CANN:
     return "CANN";
+  // FlagPrism：keep decoded device identity distinct from CUDA.
+  case BackendKind::METAX:
+    return "METAX";
+  // FlagPrism end
   case BackendKind::ENFLAME:
     return "ENFLAME";
   case BackendKind::TIANSHU:

@@ -11,9 +11,18 @@ if(NOT FLAGPRISM_BACKEND STREQUAL "tianshu")
   include(${CMAKE_CURRENT_SOURCE_DIR}/CANN.cmake)
 endif()
 include(${CMAKE_CURRENT_SOURCE_DIR}/MUSA.cmake)
+# FlagPrism：standalone MACA transfer validation uses the same SDK discovery.
+include(${CMAKE_CURRENT_SOURCE_DIR}/MACA.cmake)
+# FlagPrism end
 
 if(NOT COMMAND flagprism_enable_debugger_runtime)
   function(flagprism_enable_debugger_runtime target)
+    # FlagPrism：route standalone MetaX builds to device-backed transfers.
+    if(FLAGPRISM_BACKEND STREQUAL "metax")
+      flagtree_debugger_enable_maca(${target})
+      return()
+    endif()
+    # FlagPrism end
     if(FLAGPRISM_BACKEND STREQUAL "enflame")
       flagtree_debugger_enable_enflame(${target})
     elseif(FLAGPRISM_BACKEND STREQUAL "mthreads")
@@ -111,3 +120,17 @@ if(FLAGTREE_DEBUGGER_RUNTIME_BUILD_ASYNC_LOOP_TEST)
   )
   flagprism_enable_debugger_runtime(FlagTreeDebuggerRuntimeAsyncLoopTest)
 endif()
+
+# FlagPrism：run explicit MACA hardware tests without touching unrelated devices.
+option(FLAGTREE_RUN_METAX_HARDWARE_TESTS "Build MACA device transfer tests" OFF)
+if(FLAGTREE_RUN_METAX_HARDWARE_TESTS)
+  if(NOT FLAGPRISM_BACKEND STREQUAL "metax")
+    message(FATAL_ERROR "MetaX hardware tests require FLAGPRISM_BACKEND=metax")
+  endif()
+  enable_testing()
+  add_executable(FlagTreeDebuggerMetaxSmokeTest MetaxSmokeTest.cpp)
+  target_link_libraries(FlagTreeDebuggerMetaxSmokeTest PRIVATE FlagTreeDebuggerRuntimeStandalone)
+  flagtree_debugger_enable_maca(FlagTreeDebuggerMetaxSmokeTest)
+  add_test(NAME FlagTreeDebuggerMetaxSmokeTest COMMAND FlagTreeDebuggerMetaxSmokeTest)
+endif()
+# FlagPrism end

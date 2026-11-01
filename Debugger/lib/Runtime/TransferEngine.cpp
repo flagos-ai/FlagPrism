@@ -1,5 +1,10 @@
 #include "Debugger/Runtime/TransferEngine.h"
 #include "BackendAdapter.h"
+// FlagPrism：use the native MACA runtime rather than CUDA symbols.
+#if FLAGTREE_DEBUGGER_HAS_MACA_RUNTIME
+#include <mcr/mc_runtime_api.h>
+#endif
+// FlagPrism end
 
 #if FLAGTREE_DEBUGGER_HAS_CANN_RUNTIME
 #include "acl/acl.h"
@@ -49,6 +54,10 @@ const char *getDriverKindName(TransferDriverKind driverKind) {
     return "musa";
   case TransferDriverKind::CUDA:
     return "cuda";
+  // FlagPrism：MACA diagnostics.
+  case TransferDriverKind::MACA:
+    return "maca";
+    // FlagPrism end
   }
   return "unknown";
 }
@@ -103,6 +112,10 @@ aclrtStream toAclrtStream(uint64_t streamHandle) {
   return reinterpret_cast<aclrtStream>(streamHandle);
 }
 #endif
+
+// FlagPrism：keep the MACA implementation separate from other vendors.
+#include "MacaAdapter.inc"
+// FlagPrism end
 
 class HostRuntimeBackendAdapter final : public RuntimeBackendAdapter {
 public:
@@ -1425,6 +1438,13 @@ private:
       failRuntime(
           "tops transfer driver requires BufferMeta.backendKind == ENFLAME");
     }
+    // FlagPrism：reject backend mismatches before touching device pointers.
+    if (options_.driverKind == TransferDriverKind::MACA) {
+      if (meta.backendKind != BackendKind::METAX)
+        failRuntime("maca transfer driver requires METAX metadata");
+      adapter_->setDevice(meta.deviceId);
+    }
+    // FlagPrism end
     if (options_.driverKind == TransferDriverKind::COREX ||
         options_.driverKind == TransferDriverKind::TOPS ||
         options_.driverKind == TransferDriverKind::CUDA ||
@@ -1481,6 +1501,10 @@ private:
 
 TransferDriverKind resolveTransferDriverKind(BackendKind backendKind) {
   switch (backendKind) {
+  // FlagPrism：dispatch metax metadata to native MACA transfers.
+  case BackendKind::METAX:
+    return TransferDriverKind::MACA;
+  // FlagPrism end
   case BackendKind::ENFLAME:
     return TransferDriverKind::TOPS;
   case BackendKind::CANN:
@@ -1509,6 +1533,14 @@ TransferEngineOptions makeTransferEngineOptions(BackendKind backendKind,
 std::unique_ptr<RuntimeBackendAdapter>
 createRuntimeBackendAdapter(const TransferEngineOptions &options) {
   switch (options.driverKind) {
+  // FlagPrism：fail explicitly when MACA was not compiled.
+  case TransferDriverKind::MACA:
+#if FLAGTREE_DEBUGGER_HAS_MACA_RUNTIME
+    return std::make_unique<MacaRuntimeBackendAdapter>();
+#else
+    failRuntime("MACA runtime support is not compiled in");
+#endif
+  // FlagPrism end
   case TransferDriverKind::TOPS:
 #if FLAGTREE_DEBUGGER_HAS_ENFLAME_RUNTIME
     return std::make_unique<EnflameRuntimeBackendAdapter>();

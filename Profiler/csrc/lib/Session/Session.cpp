@@ -505,6 +505,12 @@ size_t overlayVendorRuntimeMetrics(Data *treeData, Data *timelineData,
       continue;
     }
     auto event = association.runtimeEvent;
+    // FlagPrism：API/copy/synchronization intervals belong only in the
+    // timeline; inserting them as KernelMetric tree entries would inflate
+    // kernel totals.
+    const bool metaxRuntimeOnly = association.source.rfind("mcpti_", 0) == 0 &&
+                                  association.source != "mcpti_activity";
+    // FlagPrism end
     bool syntheticTimelineEvent = false;
 
     auto scopeId = event.scopeId;
@@ -532,7 +538,7 @@ size_t overlayVendorRuntimeMetrics(Data *treeData, Data *timelineData,
       scopeId = Scope::getNewScopeId();
       auto opName = syntheticTimelineEvent ? event.opName
                                            : makeUniqueRuntimeOpName(event);
-      if (!syntheticTimelineEvent) {
+      if (!syntheticTimelineEvent && !metaxRuntimeOnly) {
         treeData->addOp(scopeId, opName);
       }
       if (timelineData) {
@@ -560,13 +566,15 @@ size_t overlayVendorRuntimeMetrics(Data *treeData, Data *timelineData,
         (association.source == "cupti_activity" ||
          association.source == "nvidia_nvpw_hardware_counter") &&
         association.runtimeEvent.scopeId != 0;
-    if (!syntheticTimelineEvent) {
+    // FlagPrism：preserve kernel-only aggregation for MetaX runtime events.
+    if (!syntheticTimelineEvent && !metaxRuntimeOnly) {
       if (!mergeOpSummaryIntoExistingScope &&
           !mergeNvidiaActivityIntoExistingScope) {
         treeData->addMetric(scopeId, metric);
       }
       treeData->addMetrics(scopeId, vendorMetrics);
     }
+    // FlagPrism end
     if (timelineData) {
       if (!mergeOpSummaryIntoExistingScope &&
           !mergeNvidiaActivityIntoExistingScope) {
@@ -714,6 +722,10 @@ void Session::finalize(const std::string &outputFormat) {
     }
 
     auto vendorArtifact = importer->import(metadata, vendorPlan);
+    // FlagPrism：report actual counter availability after hardware collection.
+    if (metadata.backend == "metax")
+      metadata.vendorMetricsEnabled = vendorArtifact.enabledMetrics;
+    // FlagPrism end
     appendUnique(metadata.degradeReasons, vendorArtifact.degradeReasons);
     auto overlayCount = overlayVendorRuntimeMetrics(
         data.get(), timelineData.get(), vendorArtifact, metadata.device.type);
@@ -725,7 +737,11 @@ void Session::finalize(const std::string &outputFormat) {
         countAssociationsBySource(vendorArtifact, "runtime_base_fallback");
     auto nativeBaseCount = countAssociationsBySources(
         vendorArtifact,
-        {"aclprof_op_summary", "aclprof_task_time", "topspti_activity"});
+        // FlagPrism：count MCPTI device intervals as native runtime
+        // associations.
+        {"aclprof_op_summary", "aclprof_task_time", "topspti_activity",
+         "mcpti_activity"} // FlagPrism end
+    );
     metadata.config["vendor_runtime_metric_overlays"] =
         std::to_string(overlayCount);
     metadata.config["vendor_association_collected"] =
@@ -902,8 +918,10 @@ void SessionManager::activateSessionImpl(size_t sessionId) {
   throwIfSessionNotInitialized(sessions, sessionId);
   if (activeSessions[sessionId])
     return;
-  activeSessions[sessionId] = true;
+  // FlagPrism：publish activity only after the runtime starts successfully.
   sessions[sessionId]->activate();
+  activeSessions[sessionId] = true;
+  // FlagPrism end
   registerInterface<ScopeInterface>(sessionId, scopeInterfaceCounts);
   registerInterface<OpInterface>(sessionId, opInterfaceCounts);
   registerInterface<InstrumentationInterface>(sessionId,

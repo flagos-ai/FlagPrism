@@ -28,8 +28,10 @@ public:
   /// If the profiler is already started, this function does nothing.
   Profiler *start() {
     if (!this->started) {
-      this->started = true;
+      // FlagPrism：failed initialization must remain retryable.
       this->doStart();
+      this->started = true;
+      // FlagPrism end
     }
     return this;
   }

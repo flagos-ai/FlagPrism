@@ -28,7 +28,17 @@ static void initProfiler(pybind11::module &&m) {
         auto sessionId = SessionManager::instance().addSession(
             path, profilerName, profilerPath, contextSourceName, dataName, mode,
             hookName);
-        SessionManager::instance().activateSession(sessionId);
+        // FlagPrism：failed native startup must release the reserved session.
+        try {
+          SessionManager::instance().activateSession(sessionId);
+        } catch (...) {
+          try {
+            SessionManager::instance().finalizeSession(sessionId, "");
+          } catch (...) {
+          }
+          throw;
+        }
+        // FlagPrism end
         return sessionId;
       },
       pybind11::arg("path"), pybind11::arg("contextSourceName"),
