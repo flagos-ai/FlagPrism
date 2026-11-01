@@ -1,7 +1,7 @@
-#ifdef FLAGPRISM_BACKEND_ENFLAME
-#include <tops/tops_runtime.h>
-#endif
 #include "Device.h"
+#ifdef FLAGPRISM_BACKEND_ENFLAME
+#include "Driver/Enflame/EnflameApi.h"
+#endif
 // FlagPrism：query the actual MACA device properties.
 #if defined(FLAGPRISM_BACKEND_METAX) || defined(FLAGPRISM_HAS_METAX)
 #include <mcr/mc_runtime_api.h>
@@ -56,12 +56,7 @@ Device getDevice(DeviceType type, uint64_t index) {
   // FlagPrism end
 #ifdef FLAGPRISM_BACKEND_ENFLAME
   if (type == DeviceType::ENFLAME) {
-    topsDeviceProp_t prop{};
-    if (topsGetDeviceProperties(&prop, index) != topsSuccess)
-      throw std::runtime_error("topsGetDeviceProperties failed");
-    return Device(type, index, prop.clockRate, prop.memoryClockRate,
-                  prop.memoryBusWidth, prop.multiProcessorCount,
-                  prop.gcuArchName);
+    return enflame::getDevice(index);
   }
 #endif
 #if FLAGTREE_PROFILER_CUDA_RUNTIME

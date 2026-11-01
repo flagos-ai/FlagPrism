@@ -3,7 +3,7 @@
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
-#include <tops/tops_runtime.h>
+#include <tops_runtime.h>
 
 using namespace mlir::flagtree::debugger;
 

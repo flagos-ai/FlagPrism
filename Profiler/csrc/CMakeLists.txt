@@ -16,6 +16,7 @@ if(FLAGPRISM_BACKEND STREQUAL "metax")
 elseif(FLAGPRISM_BACKEND STREQUAL "enflame")
 # FlagPrism end
   add_profiler_library(FlagTreeProfilerEnflame
+    lib/Driver/Enflame/EnflameApi.cpp
     lib/Profiler/Vendor/EnflameProfiler.cpp
     lib/Profiler/Vendor/Adapter.cpp
     lib/Profiler/Vendor/Mode.cpp
