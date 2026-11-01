@@ -505,8 +505,9 @@ size_t overlayVendorRuntimeMetrics(Data *treeData, Data *timelineData,
       continue;
     }
     auto event = association.runtimeEvent;
-    // FlagPrism：API/copy/synchronization intervals belong only in the timeline;
-    // inserting them as KernelMetric tree entries would inflate kernel totals.
+    // FlagPrism：API/copy/synchronization intervals belong only in the
+    // timeline; inserting them as KernelMetric tree entries would inflate
+    // kernel totals.
     const bool metaxRuntimeOnly = association.source.rfind("mcpti_", 0) == 0 &&
                                   association.source != "mcpti_activity";
     // FlagPrism end
@@ -736,9 +737,10 @@ void Session::finalize(const std::string &outputFormat) {
         countAssociationsBySource(vendorArtifact, "runtime_base_fallback");
     auto nativeBaseCount = countAssociationsBySources(
         vendorArtifact,
-        // FlagPrism：count MCPTI device intervals as native runtime associations.
-        {"aclprof_op_summary", "aclprof_task_time", "topspti_activity", "mcpti_activity"}
-        // FlagPrism end
+        // FlagPrism：count MCPTI device intervals as native runtime
+        // associations.
+        {"aclprof_op_summary", "aclprof_task_time", "topspti_activity",
+         "mcpti_activity"} // FlagPrism end
     );
     metadata.config["vendor_runtime_metric_overlays"] =
         std::to_string(overlayCount);

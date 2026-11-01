@@ -13,8 +13,11 @@ from triton.language import core
 
 @core.extern
 def metax_clock(_semantic=None):
-    return core.extern_elementwise("", "", [], {(): ("llvm.readcyclecounter", core.uint64)},
-                                   is_pure=False, _semantic=_semantic)
+    return core.extern_elementwise(
+        "",
+        "", [], {(): ("llvm.readcyclecounter", core.uint64)},
+        is_pure=False,
+        _semantic=_semantic)
 
 
 @triton.jit
@@ -39,10 +42,10 @@ def test_local_clock_interval_probe(tmp_path, programs):
     times = torch.empty(programs * 2, device="cuda", dtype=torch.int64)
     measurements = {}
     for iterations in (0, 1000, 10000):
-        compiled = clock_interval[(programs,)](x, y, times, iterations)
+        compiled = clock_interval[(programs, )](x, y, times, iterations)
         samples = []
         for _ in range(5):
-            clock_interval[(programs,)](x, y, times, iterations)
+            clock_interval[(programs, )](x, y, times, iterations)
             torch.cuda.synchronize()
             captured = times.cpu().reshape(programs, 2)
             assert torch.all(captured[:, 0] > 0)
@@ -52,7 +55,9 @@ def test_local_clock_interval_probe(tmp_path, programs):
         assert torch.all(y >= x)
         measurements[str(iterations)] = statistics.median(samples)
         llvm = compiled.asm["llir"]
-        reads = list(re.finditer(r"call (?:noundef )?i64 @llvm\.readcyclecounter\(\)", llvm))
+        reads = list(
+            re.finditer(r"call (?:noundef )?i64 @llvm\.readcyclecounter\(\)",
+                        llvm))
         assert len(reads) == 2
         if iterations:
             # A retained dependency loop/FMA must lie between the two reads.
@@ -61,12 +66,17 @@ def test_local_clock_interval_probe(tmp_path, programs):
         (tmp_path / f"clock_{iterations}.ll").write_text(llvm)
     assert measurements["1000"] > measurements["0"]
     assert measurements["10000"] > 4 * measurements["1000"]
-    (tmp_path / "clock-probe.json").write_text(json.dumps({
-        "programs": programs,
-        "median_local_counter_ticks": measurements,
-        "source": "llvm.readcyclecounter (SDK clock64 intrinsic)",
-        "cross_sm_clock_alignment_verified": False,
-        "constant_tick_to_ns_conversion_verified": False,
-        "production_internal_timeline_enabled": False,
-    }, indent=2))
+    (tmp_path / "clock-probe.json").write_text(
+        json.dumps(
+            {
+                "programs": programs,
+                "median_local_counter_ticks": measurements,
+                "source": "llvm.readcyclecounter (SDK clock64 intrinsic)",
+                "cross_sm_clock_alignment_verified": False,
+                "constant_tick_to_ns_conversion_verified": False,
+                "production_internal_timeline_enabled": False,
+            },
+            indent=2))
+
+
 # FlagPrism end

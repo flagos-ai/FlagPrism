@@ -7,7 +7,6 @@ import sys
 import textwrap
 
 
-
 def run_probe(tmp_path):
     import triton
     if triton.runtime.driver.active.get_current_target().backend != "maca":
@@ -15,9 +14,11 @@ def run_probe(tmp_path):
     compiler = shutil.which("c++")
     sdk = Path(os.getenv("MACA_PATH", "/opt/maca"))
     if not compiler or not (sdk / "include/mcpti/mcpti.h").exists():
-        raise RuntimeError("C++ compiler and MCPTI SDK required for fault injection")
+        raise RuntimeError(
+            "C++ compiler and MCPTI SDK required for fault injection")
     source = tmp_path / "cleanup.cpp"
-    source.write_text(textwrap.dedent('''
+    source.write_text(
+        textwrap.dedent('''
         #include <mcpti/mcpti.h>
         #include <dlfcn.h>
         extern "C" MCptiResult MCPTIAPI mcptiEventGroupSetsDestroy(MCpti_EventGroupSets *groups) {
@@ -34,12 +35,20 @@ def run_probe(tmp_path):
         }
     '''))
     library = tmp_path / "cleanup.so"
-    subprocess.run([compiler, "-shared", "-fPIC", str(source), "-I" + str(sdk / "include"),
-                    "-I" + str(sdk / "include/mcr"), "-I" + str(sdk / "include/mc"),
-                    "-L" + str(sdk / "lib"), "-Wl,--no-as-needed", "-lmcpti",
-                    "-Wl,-rpath," + str(sdk / "lib"), "-ldl", "-o", str(library)], check=True, capture_output=True, text=True)
+    subprocess.run([
+        compiler, "-shared", "-fPIC",
+        str(source), "-I" + str(sdk / "include"),
+        "-I" + str(sdk / "include/mcr"), "-I" + str(sdk / "include/mc"),
+        "-L" + str(sdk / "lib"), "-Wl,--no-as-needed", "-lmcpti",
+        "-Wl,-rpath," + str(sdk / "lib"), "-ldl", "-o",
+        str(library)
+    ],
+                   check=True,
+                   capture_output=True,
+                   text=True)
     script = tmp_path / "probe.py"
-    script.write_text(textwrap.dedent('''
+    script.write_text(
+        textwrap.dedent('''
         import json
         import sys
         from pathlib import Path
@@ -70,11 +79,19 @@ def run_probe(tmp_path):
         print("cleanup error reported; next session recovered")
     '''))
     env = os.environ.copy()
-    env["LD_PRELOAD"] = str(library) + (":" + env["LD_PRELOAD"] if env.get("LD_PRELOAD") else "")
-    result = subprocess.run([sys.executable, str(script), str(tmp_path)], env=env,
-                            capture_output=True, text=True, timeout=120)
+    env["LD_PRELOAD"] = str(library) + (":" + env["LD_PRELOAD"]
+                                        if env.get("LD_PRELOAD") else "")
+    result = subprocess.run(
+        [sys.executable, str(script),
+         str(tmp_path)],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=120)
     assert result.returncode == 0, result.stdout + result.stderr
     assert "next session recovered" in result.stdout
+
+
 # FlagPrism end
 
 # FlagPrism：MACA keeps the perf-counter channel attached to the process after use.

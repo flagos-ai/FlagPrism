@@ -9,7 +9,7 @@
 // FlagPrism end
 
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -17,7 +17,7 @@
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -25,7 +25,7 @@
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_TIANSHU) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -33,7 +33,7 @@
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
@@ -59,7 +59,7 @@ const VendorAdapter *VendorAdapterRegistry::find(const std::string &name) {
     return &EnflameAdapter::instance();
 #endif
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -69,7 +69,7 @@ const VendorAdapter *VendorAdapterRegistry::find(const std::string &name) {
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -79,7 +79,7 @@ const VendorAdapter *VendorAdapterRegistry::find(const std::string &name) {
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_TIANSHU) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -90,7 +90,7 @@ const VendorAdapter *VendorAdapterRegistry::find(const std::string &name) {
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
@@ -101,7 +101,7 @@ const VendorAdapter *VendorAdapterRegistry::find(const std::string &name) {
     return &NvidiaAdapter::instance();
   }
 #endif
-// FlagPrism end
+  // FlagPrism end
   return nullptr;
 }
 
@@ -116,7 +116,7 @@ std::vector<std::string> VendorAdapterRegistry::names() {
   result.push_back("enflame");
 #endif
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -124,7 +124,7 @@ std::vector<std::string> VendorAdapterRegistry::names() {
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -132,7 +132,7 @@ std::vector<std::string> VendorAdapterRegistry::names() {
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_TIANSHU) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -140,14 +140,14 @@ std::vector<std::string> VendorAdapterRegistry::names() {
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_MTHREADS)
   result.push_back("nvidia");
 #endif
-// FlagPrism end
+  // FlagPrism end
   return result;
 }
 

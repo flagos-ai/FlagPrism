@@ -8,7 +8,7 @@
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -22,7 +22,7 @@
 #include "Driver/GPU/HipApi.h"
 #endif
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -30,7 +30,7 @@
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_TIANSHU) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -70,7 +70,7 @@ Device getDevice(DeviceType type, uint64_t index) {
   }
 #endif
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -80,7 +80,7 @@ Device getDevice(DeviceType type, uint64_t index) {
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_MTHREADS) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -90,7 +90,7 @@ Device getDevice(DeviceType type, uint64_t index) {
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
     !defined(FLAGPRISM_BACKEND_TIANSHU) && !defined(FLAGPRISM_BACKEND_NVIDIA)
@@ -98,7 +98,7 @@ Device getDevice(DeviceType type, uint64_t index) {
     return mthreads::getDevice(index);
   }
 #endif
-// FlagPrism end
+  // FlagPrism end
   throw std::runtime_error("DeviceType not supported");
 }
 
@@ -116,7 +116,7 @@ const std::string getDeviceTypeString(DeviceType type) {
     return DeviceTraits<DeviceType::HIP>::name;
   }
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_MTHREADS)
@@ -126,14 +126,14 @@ const std::string getDeviceTypeString(DeviceType type) {
 #endif
 // FlagPrism end
 // FlagPrism：exclude unrelated SDKs in MetaX builds.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) && !defined(FLAGPRISM_BACKEND_MTHREADS)
   if (type == DeviceType::TIANSHU) {
     return DeviceTraits<DeviceType::TIANSHU>::name;
   }
 #endif
-// FlagPrism end
+  // FlagPrism end
   if (type == DeviceType::MTHREADS) {
     return DeviceTraits<DeviceType::MTHREADS>::name;
   }

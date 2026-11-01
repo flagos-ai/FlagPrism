@@ -1,7 +1,7 @@
 #include "Analysis/ScopeIdAllocation.h"
 #include "Conversion/ProtonGPUToLLVM/Passes.h"
 // FlagPrism：MACA does not compile CUDA or AMD device-counter lowering.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
@@ -107,7 +107,7 @@ void init_triton_proton(py::module &&m) {
         });
 
 // FlagPrism：MACA does not compile CUDA or AMD device-counter lowering.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
@@ -121,7 +121,7 @@ void init_triton_proton(py::module &&m) {
   ADD_PASS_WRAPPER_0("add_convert_proton_nvidia_gpu_to_llvm",
                      proton::gpu::createConvertProtonNvidiaGPUToLLVMPass);
 #endif
-// FlagPrism end
+  // FlagPrism end
   ADD_PASS_WRAPPER_0("add_allocate_proton_shared_memory",
                      proton::gpu::createAllocateProtonSharedMemoryPass);
   ADD_PASS_WRAPPER_0("add_allocate_proton_global_scratch_buffer",
@@ -129,7 +129,7 @@ void init_triton_proton(py::module &&m) {
   ADD_PASS_WRAPPER_0("add_schedule_buffer_store",
                      proton::gpu::createScheduleBufferStorePass);
 // FlagPrism：MACA does not compile CUDA or AMD device-counter lowering.
-#if !defined(FLAGPRISM_BACKEND_METAX) && \
+#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
@@ -137,5 +137,5 @@ void init_triton_proton(py::module &&m) {
   ADD_PASS_WRAPPER_0("add_sched_barriers",
                      proton::gpu::createAddSchedBarriersPass);
 #endif
-// FlagPrism end
+  // FlagPrism end
 }

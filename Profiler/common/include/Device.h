@@ -7,7 +7,16 @@
 namespace proton {
 
 // FlagPrism：append MetaX without renumbering existing device kinds.
-enum class DeviceType { HIP, CUDA, ASCEND, TIANSHU, MTHREADS, ENFLAME, METAX, COUNT };
+enum class DeviceType {
+  HIP,
+  CUDA,
+  ASCEND,
+  TIANSHU,
+  MTHREADS,
+  ENFLAME,
+  METAX,
+  COUNT
+};
 // FlagPrism end
 
 template <DeviceType T> struct DeviceTraits;

@@ -547,9 +547,11 @@ void dumpKernelMetricTrace(
       const auto runtimeCategory =
           isMthreadsRuntime ? "mthreads_runtime:" : "cann_runtime:";
       // FlagPrism：label MACA device events with their real collector.
-      element["cat"] = vendorSource.rfind("mcpti_", 0) == 0
-                           ? "metax_runtime:" + vendorSource
-                           : (vendorSource.empty() ? "kernel" : runtimeCategory + vendorSource);
+      element["cat"] =
+          vendorSource.rfind("mcpti_", 0) == 0
+              ? "metax_runtime:" + vendorSource
+              : (vendorSource.empty() ? "kernel"
+                                      : runtimeCategory + vendorSource);
       // FlagPrism end
       element["ph"] = "X";
       element["pid"] = 0;

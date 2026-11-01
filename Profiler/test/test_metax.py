@@ -83,7 +83,9 @@ def test_metax_session_launch_membership(tmp_path):
     assert len(events[1]) == 1
     assert not events[0] & events[1]
 
+
 # FlagPrism end
+
 
 # FlagPrism：exercise startup rollback, current-device metadata and IR routing.
 def test_metax_failed_hook_is_retryable(tmp_path, monkeypatch):
@@ -93,8 +95,10 @@ def test_metax_failed_hook_is_retryable(tmp_path, monkeypatch):
     import importlib
     api = importlib.import_module("flagtree.profiler.profile")
     original = api.HookManager.register
+
     def fail(*args, **kwargs):
         raise RuntimeError("injected hook registration failure")
+
     monkeypatch.setattr(api.HookManager, "register", fail)
     with pytest.raises(RuntimeError, match="injected hook"):
         api.start(str(tmp_path / "failed"), backend="metax", hook="triton")
@@ -126,17 +130,24 @@ def test_metax_ir_and_native_metrics(tmp_path, hook):
         x = torch.ones(32, device="cuda")
         y = torch.empty_like(x)
         session = profiler.start(
-            str(path), backend="metax", hook=hook,
-            mode="runtime_base:vendor_metrics=launch_stats,resource_usage,kernel_duration,unsupported_counter:runtime_host_timing_fallback=false")
+            str(path),
+            backend="metax",
+            hook=hook,
+            mode=
+            "runtime_base:vendor_metrics=launch_stats,resource_usage,kernel_duration,unsupported_counter:runtime_host_timing_fallback=false"
+        )
         try:
-            ir_probe[(1,)](x, y)
+            ir_probe[(1, )](x, y)
         finally:
             profiler.finalize(session)
         torch.testing.assert_close(y, x + 1)
         meta = json.loads(path.with_suffix(".meta.json").read_text())
         vendor = json.loads(path.with_suffix(".vendor.json").read_text())
         assert meta["device"]["id"] == device
-        native = [a for a in vendor["associations"] if a["source"] == "mcpti_activity"]
+        native = [
+            a for a in vendor["associations"]
+            if a["source"] == "mcpti_activity"
+        ]
         assert native
         event = native[0]["runtime_event"]
         assert event["device_id"] == device
@@ -146,12 +157,18 @@ def test_metax_ir_and_native_metrics(tmp_path, hook):
         assert metrics["metax.block_x"] > 0
         assert metrics["metax.registers_per_thread"] > 0
         assert metrics["metax.kernel_duration_ns"] > 0
-        ir = [a for a in vendor["associations"] if a["source"] == "flagtree_ir_kernel"]
+        ir = [
+            a for a in vendor["associations"]
+            if a["source"] == "flagtree_ir_kernel"
+        ]
         assert ir and ir[0]["metrics"]["op_event_count"] > 0
         assert all(a["runtime_event"]["device_id"] == device for a in ir)
         assert ir[0]["metrics"]["memory_read_bytes"] > 0
         assert ir[0]["metrics"]["memory_write_bytes"] > 0
-        assert any("unsupported_counter" in reason for reason in vendor["degrade_reasons"])
+        assert any("unsupported_counter" in reason
+                   for reason in vendor["degrade_reasons"])
     finally:
         torch.cuda.set_device(previous)
+
+
 # FlagPrism end

@@ -57,7 +57,7 @@ const char *getDriverKindName(TransferDriverKind driverKind) {
   // FlagPrism：MACA diagnostics.
   case TransferDriverKind::MACA:
     return "maca";
-  // FlagPrism end
+    // FlagPrism end
   }
   return "unknown";
 }

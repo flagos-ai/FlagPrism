@@ -36,6 +36,8 @@ def _is_tianshu_backend(backend: Optional[str]) -> bool:
 # FlagPrism：MetaX uses the shared debugger IR collector.
 def _is_metax_backend(backend: Optional[str]) -> bool:
     return str(backend or "").lower() in {"metax", "maca"}
+
+
 # FlagPrism end
 
 
@@ -52,7 +54,9 @@ def _uses_default_ir_triton_hook(backend: Optional[str],
             and (not _is_cann_backend(backend)
                  or not _env_flag_enabled(_CANN_TRITON_LEGACY_ENV)))
 
+
 # FlagPrism end
+
 
 def _mode_with_ir_triton_overrides(mode: Optional[str],
                                    backend: Optional[str]) -> str:
@@ -91,13 +95,16 @@ def _activate_instrumentation(backend: Optional[str] = None) -> None:
     debugger.clear_exported_runs()
     debugger.activate(
         record_level=1,
-        addr_level=1 if (_is_tianshu_backend(backend) or _is_metax_backend(backend)) else 0,
+        addr_level=1 if
+        (_is_tianshu_backend(backend) or _is_metax_backend(backend)) else 0,
         record_capacity=record_capacity,
         output_dir=None,
     )
     _set_instrumentation_mode("debugger_auto")
 
+
 # FlagPrism end
+
 
 def _deactivate_instrumentation() -> None:
     import flagtree.debugger as debugger
@@ -760,7 +767,9 @@ def _run_device_id(run: dict, fallback: int = 0) -> int:
     return fallback if value is None else int(value)
 
 
-def _augment_hatchet(path: Path, runs: list[dict], device_id: int = 0,
+def _augment_hatchet(path: Path,
+                     runs: list[dict],
+                     device_id: int = 0,
                      use_run_devices: bool = False) -> None:
     if not path.exists():
         return
@@ -774,11 +783,13 @@ def _augment_hatchet(path: Path, runs: list[dict], device_id: int = 0,
     devices_by_kernel: dict[str, set[int]] = {}
     if use_run_devices:
         for run in runs:
-            devices_by_kernel.setdefault(str(run.get("debug_kernel_name") or ""), set()).add(
-                _run_device_id(run, device_id))
+            devices_by_kernel.setdefault(
+                str(run.get("debug_kernel_name") or ""),
+                set()).add(_run_device_id(run, device_id))
     changed = False
     for run_index, run in enumerate(runs):
-        run_device = _run_device_id(run, device_id) if use_run_devices else device_id
+        run_device = _run_device_id(
+            run, device_id) if use_run_devices else device_id
         metrics_by_op = _internal_hatchet_metrics_for_run(run)
         if not metrics_by_op:
             continue
@@ -793,7 +804,8 @@ def _augment_hatchet(path: Path, runs: list[dict], device_id: int = 0,
         # Keep IR metrics in distinct device children in that case.
         if use_run_devices and len(devices_by_kernel.get(kernel_name, ())) > 1:
             kernel_node = _upsert_child(kernel_node, f"IR device {run_device}")
-        kernel_node.setdefault("metrics", {}).setdefault("device_id", run_device)
+        kernel_node.setdefault("metrics",
+                               {}).setdefault("device_id", run_device)
         # FlagPrism end
         run_summary = _run_ir_summary(run)
         if run_summary:
@@ -843,7 +855,9 @@ def _augment_hatchet(path: Path, runs: list[dict], device_id: int = 0,
         path.write_text("\n" + json.dumps(database, indent=4, default=str) +
                         "\n")
 
+
 # FlagPrism end
+
 
 def _load_json_object(path: Path, default: dict) -> dict:
     if path.exists():
@@ -1071,11 +1085,14 @@ def _augment_ir_vendor(path: Path, runs: list[dict],
     # FlagPrism：IR events use the session device instead of assuming device 0.
     ir_associations = _ir_associations_for_runs(runs)
     if _is_metax_backend(backend):
-        meta = _load_json_object(path.with_name(path.name.removesuffix(".vendor.json") + ".meta.json"), {})
+        meta = _load_json_object(
+            path.with_name(
+                path.name.removesuffix(".vendor.json") + ".meta.json"), {})
         device_id = int((meta.get("device") or {}).get("id", 0))
         for association in ir_associations:
             run_index = int(association["runtime_event"]["correlation_id"])
-            association["runtime_event"]["device_id"] = _run_device_id(runs[run_index], device_id)
+            association["runtime_event"]["device_id"] = _run_device_id(
+                runs[run_index], device_id)
     associations.extend(ir_associations)
     # FlagPrism end
     _refresh_vendor_summary(vendor)
@@ -1115,8 +1132,11 @@ def _augment_instrumentation_artifacts(
     # FlagPrism：propagate the native session device to inserted IR tree nodes.
     meta = _load_json_object(base.with_suffix(".meta.json"), {})
     device_id = int((meta.get("device") or {}).get("id", 0))
-    _augment_hatchet(base.with_suffix(".hatchet"), runs, device_id=device_id,
-                     use_run_devices=_is_metax_backend(str(meta.get("backend") or "")))
+    _augment_hatchet(base.with_suffix(".hatchet"),
+                     runs,
+                     device_id=device_id,
+                     use_run_devices=_is_metax_backend(
+                         str(meta.get("backend") or "")))
     # FlagPrism end
     _augment_ir_meta(base.with_suffix(".meta.json"), runs,
                      ir_default_for_triton)
@@ -1276,11 +1296,11 @@ def start(
         hook == "triton" or (_is_mthreads_backend(backend) and hook is None)
         or (hook == "instrumentation" and
             (_is_cann_backend(backend) or _is_tianshu_backend(backend)
-                 or _is_metax_backend(backend))))
+             or _is_metax_backend(backend))))
     ir_default_for_triton = _uses_default_ir_triton_hook(backend, hook)
     use_instrumentation_hook = (
         (_is_cann_backend(backend) or _is_tianshu_backend(backend)
-                 or _is_metax_backend(backend))
+         or _is_metax_backend(backend))
         and (hook == "instrumentation" or ir_default_for_triton))
     use_native_instrumentation_hook = backend == "instrumentation" or (
         hook == "instrumentation"
@@ -1294,7 +1314,8 @@ def start(
             token.partition("=")[0].strip() == "device_id"
             for token in effective_mode.split(":")):
         device_id = triton.runtime.driver.active.get_current_device()
-        effective_mode = ":".join(filter(None, [effective_mode, f"device_id={device_id}"]))
+        effective_mode = ":".join(
+            filter(None, [effective_mode, f"device_id={device_id}"]))
     # FlagPrism end
     set_profiling_on()
     instrumentation_was_active = any(
