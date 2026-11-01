@@ -6,13 +6,31 @@ public:
     uint32_t device = 0;
     std::map<std::string, MetricValueType> metrics;
   };
+  // FlagPrism：counter groups belong to the configured device context.
+  int selectedDevice = -1;
+  struct DeviceGuard {
+    int original = -1;
+    MetaxCounters &owner;
+    explicit DeviceGuard(int target, MetaxCounters &owner) : owner(owner) {
+      if (mcGetDevice(&original) != mcSuccess)
+        throw std::runtime_error("counter device query failed");
+      if (target >= 0 && mcSetDevice(target) != mcSuccess)
+        throw std::runtime_error("counter device selection failed");
+    }
+    ~DeviceGuard() noexcept {
+      if (original >= 0)
+        owner.recordCleanupStatus("mcSetDevice(restore)", int(mcSetDevice(original)));
+    }
+  };
+  // FlagPrism end
   std::vector<std::string> names;
   std::string error;
   std::vector<Range> ranges;
   void prepare() {
-    release(); error.clear(); ranges.clear();
+    error.clear(); release(); ranges.clear();
     if (names.empty()) return;
     try {
+      DeviceGuard guard(selectedDevice, *this);
       int current = 0;
       if (mcGetDevice(&current) != mcSuccess)
         throw std::runtime_error("counter device query failed");
@@ -108,15 +126,39 @@ public:
       active = false;
     } catch (const std::exception &e) { error = e.what(); release(); }
   }
-  void release() {
+  // FlagPrism：cleanup is best effort, but every failure remains visible in artifacts.
+  void release() noexcept {
     if (sets) {
-      if (active) mcptiEventGroupSetDisable(&sets->sets[0]);
-      mcptiEventGroupSetsDestroy(sets);
+      int original = -1;
+      const auto get = mcGetDevice(&original);
+      const auto select = mcSetDevice(device);
+      const auto disable = active ? mcptiEventGroupSetDisable(&sets->sets[0]) : MCPTI_SUCCESS;
+      const auto destroy = mcptiEventGroupSetsDestroy(sets);
+      const auto restore = original >= 0 ? mcSetDevice(original) : mcSuccess;
+      // Attempt all cleanup operations before formatting any diagnostic.
+      recordCleanupStatus("mcGetDevice(cleanup)", int(get));
+      recordCleanupStatus("mcSetDevice(cleanup)", int(select));
+      recordCleanupStatus("mcptiEventGroupSetDisable(cleanup)", int(disable));
+      recordCleanupStatus("mcptiEventGroupSetsDestroy", int(destroy));
+      recordCleanupStatus("mcSetDevice(restore)", int(restore));
     }
     active = false; sets = nullptr;
   }
+  // FlagPrism end
   ~MetaxCounters() { release(); }
 private:
+  // FlagPrism：never throw a second exception during cleanup or destruction.
+  void recordCleanupStatus(const char *operation, int status) noexcept {
+    if (!status) return;
+    try {
+      if (!error.empty()) error += "; ";
+      error += std::string(operation) + " failed: status " + std::to_string(status);
+    } catch (...) {
+      std::fprintf(stderr, "FlagPrism: %s failed: status %d (diagnostic allocation failed)\n",
+                   operation, status);
+    }
+  }
+  // FlagPrism end
   std::map<MCpti_EventID, uint64_t> baseline;
   std::map<MCpti_EventID, uint64_t> readTotals() {
       std::map<MCpti_EventID, uint64_t> totals;

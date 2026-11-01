@@ -34,8 +34,18 @@ string for MCPTI grid/block dimensions, registers per thread, shared/local memor
 usage and device duration. These are activity-record properties, not hardware
 performance counters. Additional real counter ranges are described below;
 achieved-occupancy and utilization counters remain unsupported.
+<!-- FlagPrism：explicit device selection and per-launch IR attribution. -->
 Sessions use the current device for metadata unless `device_id` is explicitly
-provided. Failed hook/native initialization releases the session for retry.
+provided. Hardware counter groups use that selected device and its context,
+restoring the caller's device after setup, flush and cleanup. Invalid device
+indices are rejected before collection starts. Activity capture can still report
+kernels on other devices; counter ranges measure only the selected device.
+IR kernel/op associations use the device recorded for each launch. When the
+same kernel symbol runs on multiple devices, Hatchet places its IR metrics under
+separate `IR device <id>` children of the kernel scope. Native scope aggregation
+is unchanged; use the activity associations for individual kernel/device records.
+Failed hook/native initialization releases the session for retry.
+<!-- FlagPrism end -->
 
 An `all` build registers MetaX when MACA and MCPTI headers/libraries are found;
 the SDK remains optional on other machines. This does not remove the other
@@ -121,12 +131,27 @@ associations. Each association covers a session's active range on the device
 selected at session start. Pause/resume creates separate ranges and excludes
 paused work. These are **not per-kernel counter values**; a counter range on one
 device does not measure other devices used by that session.
+<!-- FlagPrism：MCPTI counter access requires exclusive process ownership. -->
+Use hardware counters from only one profiling process per GPU. MACA may retain
+its performance-counter channel until that process exits, even after a session
+ends. Concurrent or nested profiling processes on that GPU are not a validated
+counter configuration; activity-only collection is independent of this limit.
+<!-- FlagPrism end -->
 
 Counter deltas and SDK instance normalization are retained as `raw_event.*`
 fields. Throughput is derived explicitly from hardware byte counts divided by
 range duration, in bytes/second; the source and numerator are exported. Requests
 requiring multiple replay passes degrade with a reason and are removed from
 `enabled_metrics`. User kernels are never automatically replayed.
+
+<!-- FlagPrism：cleanup failures remain observable without throwing from destructors. -->
+Counter cleanup attempts every release operation and records failed API names and
+numeric status codes in the vendor degradation reasons. A cleanup failure removes
+the requested counter metrics from `enabled_metrics`; it is not silent success.
+Destructors and error-path cleanup do not throw a second exception. Device indices
+outside the visible range, malformed indices and integer overflow are rejected
+before starting collection.
+<!-- FlagPrism end -->
 
 `achieved_occupancy` is deliberately excluded: the installed SDK enumerates it,
 but its evaluated result failed the expected ratio bounds in hardware tests.
@@ -202,7 +227,7 @@ For an initial diagnostic subset:
 
 ```bash
 python test.py --ops abs,add,mm,softmax,sum --min-ops 1
-python -m pytest -q Profiler/test/test_metax.py Profiler/test/test_metax_extended.py Profiler/test/test_metax_occupancy.py
+python -m pytest -q Profiler/test/test_metax.py Profiler/test/test_metax_extended.py Profiler/test/test_metax_occupancy.py Profiler/test/test_metax_devices.py
 python -m pytest -q Debugger/test/python/runtime/test_metax_debugger_e2e.py
 ```
 
@@ -214,6 +239,21 @@ regression checks FP16, BF16 and FP32 values together with lane addresses.
 Extended tests cover runtime copy/set/API activities, repeated two-thread/two-GPU
 launches, graph replay, and hardware counter pause/resume ranges. Two visible
 MetaX devices are required for the multi-device tests.
+<!-- FlagPrism：regress the device combinations absent from the initial suite. -->
+`test_metax_devices.py` checks explicit counter-device selection while another
+device is current, caller-device restoration across pause/resume/finalize, both
+IR hooks across devices, per-device Hatchet IR children, and invalid-device
+startup recovery. `metax_cleanup_probe.py` injects a failed SDK cleanup return and
+checks the error artifact and successful collection in the following session.
+Run it in a separate process on a GPU with no other process using hardware
+counters: `python Profiler/test/metax_cleanup_probe.py /tmp/metax-cleanup-probe`.
+MACA can retain the perf-counter channel in a process after its counter groups
+are destroyed; launching this probe from a pytest process that already used
+hardware counters can deny the child access to that channel.
+Debugger MetaX regressions also cover NaN/Inf summaries (FP16/BF16/FP32), an
+actual L1 record-buffer overflow and recovery, and repeated enable/disable
+transitions with assertions on the hidden-argument ABI.
+<!-- FlagPrism end -->
 The MACA transfer regression covers device roundtrips, asynchronous memset,
 hidden pointers, header initialization/export and release on default and
 non-default streams, on device 0 only:

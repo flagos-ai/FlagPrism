@@ -754,8 +754,14 @@ def _upsert_child(node: dict, name: str) -> dict:
     return child
 
 
-# FlagPrism：preserve session device IDs on inserted IR tree nodes.
-def _augment_hatchet(path: Path, runs: list[dict], device_id: int = 0) -> None:
+# FlagPrism：preserve each launch's device instead of assigning the session device.
+def _run_device_id(run: dict, fallback: int = 0) -> int:
+    value = (run.get("meta") or {}).get("device_id")
+    return fallback if value is None else int(value)
+
+
+def _augment_hatchet(path: Path, runs: list[dict], device_id: int = 0,
+                     use_run_devices: bool = False) -> None:
     if not path.exists():
         return
     database = json.loads(path.read_text())
@@ -765,8 +771,14 @@ def _augment_hatchet(path: Path, runs: list[dict], device_id: int = 0) -> None:
     root = database[0]
     root_metrics = root.setdefault("metrics", {})
     root_metrics.setdefault("device_id", device_id)
+    devices_by_kernel: dict[str, set[int]] = {}
+    if use_run_devices:
+        for run in runs:
+            devices_by_kernel.setdefault(str(run.get("debug_kernel_name") or ""), set()).add(
+                _run_device_id(run, device_id))
     changed = False
     for run_index, run in enumerate(runs):
+        run_device = _run_device_id(run, device_id) if use_run_devices else device_id
         metrics_by_op = _internal_hatchet_metrics_for_run(run)
         if not metrics_by_op:
             continue
@@ -777,7 +789,12 @@ def _augment_hatchet(path: Path, runs: list[dict], device_id: int = 0) -> None:
         if kernel_node is None:
             kernel_node = _upsert_child(
                 root, kernel_name or f"instrumentation_run_{run_index}")
-        kernel_node.setdefault("metrics", {}).setdefault("device_id", device_id)
+        # FlagPrism：native tree scopes may aggregate one symbol across devices.
+        # Keep IR metrics in distinct device children in that case.
+        if use_run_devices and len(devices_by_kernel.get(kernel_name, ())) > 1:
+            kernel_node = _upsert_child(kernel_node, f"IR device {run_device}")
+        kernel_node.setdefault("metrics", {}).setdefault("device_id", run_device)
+        # FlagPrism end
         run_summary = _run_ir_summary(run)
         if run_summary:
             kernel_metrics = kernel_node.setdefault("metrics", {})
@@ -817,7 +834,7 @@ def _augment_hatchet(path: Path, runs: list[dict], device_id: int = 0) -> None:
             child_name = f"{op_id}:{_tracked_op_name(entry) if entry else f'op_{op_id}'}"
             child = _upsert_child(kernel_node, child_name)
             child_metrics = child.setdefault("metrics", {})
-            child_metrics.setdefault("device_id", device_id)
+            child_metrics.setdefault("device_id", run_device)
             for name, value in metrics_by_op[op_id].items():
                 child_metrics[name] = value
                 root_metrics.setdefault(name, 0)
@@ -1057,7 +1074,8 @@ def _augment_ir_vendor(path: Path, runs: list[dict],
         meta = _load_json_object(path.with_name(path.name.removesuffix(".vendor.json") + ".meta.json"), {})
         device_id = int((meta.get("device") or {}).get("id", 0))
         for association in ir_associations:
-            association["runtime_event"]["device_id"] = device_id
+            run_index = int(association["runtime_event"]["correlation_id"])
+            association["runtime_event"]["device_id"] = _run_device_id(runs[run_index], device_id)
     associations.extend(ir_associations)
     # FlagPrism end
     _refresh_vendor_summary(vendor)
@@ -1097,7 +1115,8 @@ def _augment_instrumentation_artifacts(
     # FlagPrism：propagate the native session device to inserted IR tree nodes.
     meta = _load_json_object(base.with_suffix(".meta.json"), {})
     device_id = int((meta.get("device") or {}).get("id", 0))
-    _augment_hatchet(base.with_suffix(".hatchet"), runs, device_id=device_id)
+    _augment_hatchet(base.with_suffix(".hatchet"), runs, device_id=device_id,
+                     use_run_devices=_is_metax_backend(str(meta.get("backend") or "")))
     # FlagPrism end
     _augment_ir_meta(base.with_suffix(".meta.json"), runs,
                      ir_default_for_triton)

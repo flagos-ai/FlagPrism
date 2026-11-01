@@ -3,6 +3,7 @@
 #include "Context/Context.h"
 #include "Profiler/Profiler.h"
 #include <cstdlib>
+#include <cstdio>
 #include <algorithm>
 #include <mutex>
 #include <set>
@@ -28,10 +29,11 @@ class MetaxProfiler final : public Profiler,
                               public OpInterface,
                               public Singleton<MetaxProfiler> {
 public:
-  void configure(bool runtimeEvents, bool occupancy, std::vector<std::string> counterNames) {
+  void configure(bool runtimeEvents, bool occupancy, int device, std::vector<std::string> counterNames) {
     captureOccupancy = occupancy;
     captureRuntimeEvents = runtimeEvents;
     counters.names = std::move(counterNames);
+    counters.selectedDevice = device;
   }
   VendorProfileArtifact collect(const SessionProfileMetadata &metadata,
                                 const VendorProfilePlan &plan) {
@@ -541,7 +543,27 @@ void MetaxAdapter::configureRuntimeProfiler(const std::string &,
       hardware.push_back(name);
   const bool occupancy = std::find(plan.enabledVendorMetrics.begin(),
       plan.enabledVendorMetrics.end(), "theoretical_occupancy") != plan.enabledVendorMetrics.end();
-  MetaxProfiler::instance().configure(value == "true" || value == "1", occupancy, std::move(hardware));
+  // FlagPrism：validate explicit device selection before acquiring SDK resources.
+  int device = -1;
+  auto selected = plan.requested.adapterOptions.find("device_id");
+  if (selected != plan.requested.adapterOptions.end()) {
+    const auto &text = selected->second;
+    if (text.empty() || text.find_first_not_of("0123456789") != std::string::npos)
+      throw std::invalid_argument("device_id must be a non-negative integer");
+    size_t consumed = 0;
+    uint64_t parsed = 0;
+    try {
+      parsed = std::stoull(text, &consumed);
+    } catch (const std::exception &) {
+      throw std::invalid_argument("device_id is outside the supported integer range");
+    }
+    int count = 0;
+    if (consumed != text.size() || mcGetDeviceCount(&count) != mcSuccess || parsed >= uint64_t(count))
+      throw std::invalid_argument("device_id is outside the visible MetaX device range");
+    device = static_cast<int>(parsed);
+  }
+  MetaxProfiler::instance().configure(value == "true" || value == "1", occupancy, device, std::move(hardware));
+  // FlagPrism end
 }
 Profiler *MetaxAdapter::getRuntimeProfiler() const {
   return &MetaxProfiler::instance();
