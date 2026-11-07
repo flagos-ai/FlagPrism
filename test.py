@@ -282,9 +282,12 @@ def worker(args):
         base = args.result.parent / "profile"
         session = None
         if stage == "profiler":
+            is_hcu = ".hcu." in type(triton.runtime.driver.active).__module__
+            hip_profiler = "hcu" if is_hcu else "roctracer"
             backend = args.profiler_backend or {
                 "cuda": "cupti",
-                "hip": "roctracer",
+                "hip": hip_profiler,
+                "hcu": "hcu",
                 "ascend": "cann",
                 "npu": "cann",
                 "cann": "cann",

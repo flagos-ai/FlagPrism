@@ -144,6 +144,11 @@ FlagTree Profiler supports `nvidia`, `cupti`, `roctracer`, `instrumentation`,
   `pcsampling` (instruction sampling) or compatibility with existing traces.
   The NVIDIA vendor backend also accepts `pcsampling` as a mode token when
   combined with `vendor_metrics`.
+- **`hcu`** (alias `hygon`): Native DTK ROCtracer device timing, session
+  attribution, module launch/resource metrics, theoretical occupancy, and
+  memory/API activities. Shared IR hooks add operation and logical byte counts.
+  `--rocprof` separately captures per-dispatch hardware counters in one process
+  run. See [HCU setup, limits and validation](../docs/hcu.md).
 - **`roctracer`**: Used for AMD GPUs. It supports only the default profiling mode.
 - **`instrumentation`**: Available on both NVIDIA and AMD GPUs, this backend enables collection of custom metrics and advanced instrumentation.
 - **`cann`**: Uses the Ascend vendor adapter and CANN runtime/import path.
@@ -160,7 +165,7 @@ FlagTree Profiler supports `nvidia`, `cupti`, `roctracer`, `instrumentation`,
   driver and imports ixKN CSV output. Use the `flagtree-profiler --ixkn` CLI
   wrapper because ixKN profiles the target process from startup.
 
-By default, FlagTree Profiler automatically selects `nvidia`, `roctracer`,
+By default, FlagTree Profiler automatically selects `nvidia`, `hcu`, `roctracer`,
 `cann`, `mthreads`, `tianshu`, or `metax` based on the active target backend. The `instrumentation`
 backend offers a wide range of mode options for fine-grained profiling, as
 detailed in the `mode.py` file.

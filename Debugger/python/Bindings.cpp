@@ -132,7 +132,8 @@ BackendKind parseBackendKind(std::string_view backendName) {
   if (lowered == "cuda" || lowered == "nvidia") {
     return BackendKind::CUDA;
   }
-  if (lowered == "hip" || lowered == "rocm" || lowered == "amd") {
+  if (lowered == "hcu" || lowered == "hip" || lowered == "rocm" ||
+      lowered == "amd") {
     return BackendKind::HIP;
   }
   if (lowered == "musa" || lowered == "mthreads") {

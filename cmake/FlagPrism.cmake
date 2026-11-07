@@ -21,7 +21,7 @@ option(TRITON_BUILD_FLAGPRISM
        ${_flagprism_default})
 
 # FlagPrism：register the MetaX backend and MACA alias.
-set(_flagprism_supported_backends all ascend mthreads tianshu enflame nvidia metax)
+set(_flagprism_supported_backends all ascend mthreads tianshu enflame nvidia metax hcu)
 if(FLAGTREE_BACKEND STREQUAL "metax" OR FLAGTREE_BACKEND STREQUAL "maca")
   set(FLAGPRISM_BACKEND "metax" CACHE STRING "FlagPrism backend" )
 endif()
@@ -30,7 +30,9 @@ if(FLAGPRISM_BACKEND STREQUAL "maca")
 endif()
 # FlagPrism end
 set(_flagprism_backend_default "all")
-if(FLAGTREE_BACKEND STREQUAL "enflame")
+if(FLAGTREE_BACKEND STREQUAL "hcu")
+  set(_flagprism_backend_default "hcu")
+elseif(FLAGTREE_BACKEND STREQUAL "enflame")
   set(_flagprism_backend_default "enflame")
 elseif(FLAGTREE_BACKEND STREQUAL "ascend")
   set(_flagprism_backend_default "ascend")
@@ -47,7 +49,7 @@ elseif(FLAGTREE_BACKEND STREQUAL "nvidia" OR
 endif()
 if(NOT FLAGPRISM_BACKEND)
   set(FLAGPRISM_BACKEND "${_flagprism_backend_default}" CACHE STRING
-      "FlagPrism vendor backend to compile (all, ascend, mthreads, tianshu, enflame, or nvidia)" FORCE)
+      "FlagPrism vendor backend to compile (all, ascend, mthreads, tianshu, enflame, nvidia, metax, or hcu)" FORCE)
 endif()
 string(TOLOWER "${FLAGPRISM_BACKEND}" FLAGPRISM_BACKEND)
 # FlagPrism: accept the CUDA spelling used by existing FlagTree build
@@ -56,12 +58,12 @@ if(FLAGPRISM_BACKEND STREQUAL "cuda")
   set(FLAGPRISM_BACKEND "nvidia")
 endif()
 # FlagPrism：expose MetaX in CMake configuration tools.
-set_property(CACHE FLAGPRISM_BACKEND PROPERTY STRINGS all ascend mthreads tianshu enflame nvidia metax)
+set_property(CACHE FLAGPRISM_BACKEND PROPERTY STRINGS all ascend mthreads tianshu enflame nvidia metax hcu)
 # FlagPrism end
 if(NOT FLAGPRISM_BACKEND IN_LIST _flagprism_supported_backends)
   message(FATAL_ERROR
     "Unsupported FLAGPRISM_BACKEND='${FLAGPRISM_BACKEND}'. "
-    "Choose all, ascend, mthreads, tianshu, enflame, nvidia, or metax.")
+    "Choose all, ascend, mthreads, tianshu, enflame, nvidia, metax, or hcu.")
 endif()
 set(FLAGPRISM_BUILD_VENDOR_LOWERING OFF)
 if(FLAGPRISM_BACKEND STREQUAL "all" OR
@@ -84,7 +86,12 @@ if(FLAGPRISM_BACKEND STREQUAL "all" OR FLAGPRISM_BACKEND STREQUAL "metax")
 endif()
 # FlagPrism end
 
+include("${FLAGPRISM_SOURCE_DIR}/Debugger/lib/Runtime/HIP.cmake")
+
 function(flagprism_apply_backend_compile_definitions target)
+  if(FLAGPRISM_BACKEND STREQUAL "hcu")
+    target_compile_definitions(${target} PRIVATE FLAGPRISM_BACKEND_HCU=1)
+  endif()
   # FlagPrism：availability is independent of vendor-only build selection.
   if(FLAGPRISM_HAS_METAX)
     target_compile_definitions(${target} PRIVATE FLAGPRISM_HAS_METAX=1)
@@ -117,6 +124,10 @@ function(flagprism_apply_backend_compile_definitions target)
 endfunction()
 
 function(flagprism_enable_debugger_runtime target)
+  if(FLAGPRISM_BACKEND STREQUAL "hcu")
+    flagtree_debugger_enable_hip(${target})
+    return()
+  endif()
   # FlagPrism：select native MACA transfers.
   if(FLAGPRISM_BACKEND STREQUAL "metax")
     flagtree_debugger_enable_maca(${target})

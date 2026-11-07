@@ -1,5 +1,8 @@
 #include "Debugger/Runtime/TransferEngine.h"
 #include "BackendAdapter.h"
+#if FLAGTREE_DEBUGGER_HAS_HIP_RUNTIME
+#include <hip/hip_runtime_api.h>
+#endif
 // FlagPrism：use the native MACA runtime rather than CUDA symbols.
 #if FLAGTREE_DEBUGGER_HAS_MACA_RUNTIME
 #include <mcr/mc_runtime_api.h>
@@ -42,6 +45,8 @@ namespace {
 
 const char *getDriverKindName(TransferDriverKind driverKind) {
   switch (driverKind) {
+  case TransferDriverKind::HIP:
+    return "hip";
   case TransferDriverKind::TOPS:
     return "tops";
   case TransferDriverKind::HOST:
@@ -114,6 +119,7 @@ aclrtStream toAclrtStream(uint64_t streamHandle) {
 #endif
 
 // FlagPrism：keep the MACA implementation separate from other vendors.
+#include "HipAdapter.inc"
 #include "MacaAdapter.inc"
 // FlagPrism end
 
@@ -1439,6 +1445,11 @@ private:
           "tops transfer driver requires BufferMeta.backendKind == ENFLAME");
     }
     // FlagPrism：reject backend mismatches before touching device pointers.
+    if (options_.driverKind == TransferDriverKind::HIP) {
+      if (meta.backendKind != BackendKind::HIP)
+        failRuntime("HIP transfer requires HIP backend metadata");
+      adapter_->setDevice(meta.deviceId);
+    }
     if (options_.driverKind == TransferDriverKind::MACA) {
       if (meta.backendKind != BackendKind::METAX)
         failRuntime("maca transfer driver requires METAX metadata");
@@ -1512,8 +1523,9 @@ TransferDriverKind resolveTransferDriverKind(BackendKind backendKind) {
   case BackendKind::TIANSHU:
     return TransferDriverKind::COREX;
   case BackendKind::UNKNOWN:
-  case BackendKind::HIP:
     return TransferDriverKind::HOST;
+  case BackendKind::HIP:
+    return TransferDriverKind::HIP;
   case BackendKind::CUDA:
     return TransferDriverKind::CUDA;
   case BackendKind::MUSA:
@@ -1533,6 +1545,12 @@ TransferEngineOptions makeTransferEngineOptions(BackendKind backendKind,
 std::unique_ptr<RuntimeBackendAdapter>
 createRuntimeBackendAdapter(const TransferEngineOptions &options) {
   switch (options.driverKind) {
+  case TransferDriverKind::HIP:
+#if FLAGTREE_DEBUGGER_HAS_HIP_RUNTIME
+    return std::make_unique<HipRuntimeBackendAdapter>();
+#else
+    failRuntime("HIP runtime support is not compiled in");
+#endif
   // FlagPrism：fail explicitly when MACA was not compiled.
   case TransferDriverKind::MACA:
 #if FLAGTREE_DEBUGGER_HAS_MACA_RUNTIME

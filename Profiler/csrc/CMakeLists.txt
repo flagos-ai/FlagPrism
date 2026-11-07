@@ -3,7 +3,14 @@ add_profiler_library(FlagTreeProfilerBindings
 )
 
 # FlagPrism：compile the native MACA collector with the installed SDK ABI.
-if(FLAGPRISM_BACKEND STREQUAL "metax")
+if(FLAGPRISM_BACKEND STREQUAL "hcu")
+  find_library(FLAGPRISM_HCU_RUNTIME amdhip64 HINTS /opt/dtk/lib REQUIRED)
+  add_profiler_library(FlagTreeProfilerHcu
+    lib/Profiler/Vendor/HcuProfiler.cpp
+    lib/Profiler/Vendor/Adapter.cpp
+    lib/Profiler/Vendor/Mode.cpp)
+  target_link_libraries(FlagTreeProfilerHcu PUBLIC "${FLAGPRISM_HCU_RUNTIME}")
+elseif(FLAGPRISM_BACKEND STREQUAL "metax")
   find_path(FLAGPRISM_MACA_INCLUDE_DIR mcpti/mcpti.h HINTS "$ENV{MACA_PATH}/include" /opt/maca/include REQUIRED)
   find_library(FLAGPRISM_MCPTI_LIBRARY mcpti HINTS "$ENV{MACA_PATH}/lib" /opt/maca/lib REQUIRED)
   find_library(FLAGPRISM_MACA_RUNTIME mcruntime HINTS "$ENV{MACA_PATH}/lib" /opt/maca/lib REQUIRED)

@@ -41,7 +41,7 @@ and accelerator backends.
 
 | NVIDIA | Huawei Ascend | T-Head | Hygon | Moore Threads | MetaX | ILUVATAR | Enflame |
 |:--:|:--:|:--:|:--:|:--:|:--:|:--:|:--:|
-| In progress<br>Target: Sep 2026 | ✅ | — | — | Merging | [✅](docs/metax.md) | ✅ | In progress<br>Target: Sep 2026 |
+| In progress<br>Target: Sep 2026 | ✅ | — | [✅](docs/hcu.md) | Merging | [✅](docs/metax.md) | ✅ | In progress<br>Target: Sep 2026 |
 
 <!-- FlagPrism end -->
 

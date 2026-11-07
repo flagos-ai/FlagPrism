@@ -37,6 +37,8 @@ def parse_arguments():
             "cupti",
             "cupti_pcsampling",
             "roctracer",
+            "hcu",
+            "hygon",
             "instrumentation",
             "cann",
             # FlagPrism：MetaX profiler aliases.
@@ -75,6 +77,13 @@ def parse_arguments():
                         help="Profiling hook",
                         default=None,
                         choices=["triton", "instrumentation"])
+    parser.add_argument(
+        "--rocprof",
+        action="store_true",
+        help="Run one DTK hardware-counter capture (may serialize dispatches)")
+    parser.add_argument("--rocprof-cli", default=None)
+    parser.add_argument("--rocprof-counters",
+                        default="SQ_WAVES,SQ_INSTS_VALU,SQ_INSTS_SALU")
     parser.add_argument("--ixkn",
                         action="store_true",
                         help="Wrap the target process with Tianshu ixKN")
@@ -164,6 +173,18 @@ def do_setup_and_execute(target_args):
 
 def run_profiling(args, target_args):
     backend = args.backend if args.backend else _select_backend()
+
+    if getattr(args, "rocprof", False):
+        if backend not in {"hcu", "hygon"}:
+            raise ValueError("--rocprof is only valid with the hcu backend")
+        if args.hook or args.mode:
+            raise ValueError(
+                "--rocprof is a separate process capture; --hook and --mode are not supported"
+            )
+        from .hcu import run_rocprof
+        run_rocprof(args.name or "flagtree_profiler", target_args,
+                    args.rocprof_counters.split(","), args.rocprof_cli)
+        return
 
     if getattr(args, "mcu", False):
         if not MCU_INTEGRATION_ENABLED:

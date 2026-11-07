@@ -1628,8 +1628,8 @@ def launch_context(
                 import torch_npu
 
                 torch_npu.npu.synchronize()
-            # FlagPrism：MACA transfers synchronize the exact launch stream.
-            elif backend in {"metax", "maca"}:
+            # Native HIP/MACA transfers synchronize the exact launch stream.
+            elif backend in {"metax", "maca", "hip", "hcu"}:
                 pass
             # FlagPrism end
             elif backend in {"tianshu", "corex", "iluvatar"}:
