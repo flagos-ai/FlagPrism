@@ -52,7 +52,8 @@ namespace proton {
 const VendorAdapter *VendorAdapterRegistry::find(const std::string &name) {
   auto lower = toLower(name);
 #ifdef FLAGPRISM_BACKEND_HCU
-  if (lower == "hcu" || lower == "hygon") return &HcuAdapter::instance();
+  if (lower == "hcu" || lower == "hygon")
+    return &HcuAdapter::instance();
 #endif
   // FlagPrism：accept Triton and vendor spellings.
 #if defined(FLAGPRISM_BACKEND_METAX) || defined(FLAGPRISM_HAS_METAX)
