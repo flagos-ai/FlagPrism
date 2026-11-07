@@ -83,6 +83,8 @@ def _target_backend(metadata: dict) -> str:
 
 def _debug_launch_hidden_arg_enabled(metadata: dict) -> bool:
     if _target_backend(metadata) not in {
+            "hip",
+            "hcu",
             "ascend",
             "cann",
             "npu",

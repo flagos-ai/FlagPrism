@@ -508,8 +508,10 @@ size_t overlayVendorRuntimeMetrics(Data *treeData, Data *timelineData,
     // FlagPrism：API/copy/synchronization intervals belong only in the
     // timeline; inserting them as KernelMetric tree entries would inflate
     // kernel totals.
-    const bool metaxRuntimeOnly = association.source.rfind("mcpti_", 0) == 0 &&
-                                  association.source != "mcpti_activity";
+    const bool runtimeOnly = (association.source.rfind("mcpti_", 0) == 0 &&
+                              association.source != "mcpti_activity") ||
+                             (association.source.rfind("hcu_", 0) == 0 &&
+                              association.source != "hcu_activity");
     // FlagPrism end
     bool syntheticTimelineEvent = false;
 
@@ -538,7 +540,7 @@ size_t overlayVendorRuntimeMetrics(Data *treeData, Data *timelineData,
       scopeId = Scope::getNewScopeId();
       auto opName = syntheticTimelineEvent ? event.opName
                                            : makeUniqueRuntimeOpName(event);
-      if (!syntheticTimelineEvent && !metaxRuntimeOnly) {
+      if (!syntheticTimelineEvent && !runtimeOnly) {
         treeData->addOp(scopeId, opName);
       }
       if (timelineData) {
@@ -567,7 +569,7 @@ size_t overlayVendorRuntimeMetrics(Data *treeData, Data *timelineData,
          association.source == "nvidia_nvpw_hardware_counter") &&
         association.runtimeEvent.scopeId != 0;
     // FlagPrism：preserve kernel-only aggregation for MetaX runtime events.
-    if (!syntheticTimelineEvent && !metaxRuntimeOnly) {
+    if (!syntheticTimelineEvent && !runtimeOnly) {
       if (!mergeOpSummaryIntoExistingScope &&
           !mergeNvidiaActivityIntoExistingScope) {
         treeData->addMetric(scopeId, metric);
@@ -723,7 +725,7 @@ void Session::finalize(const std::string &outputFormat) {
 
     auto vendorArtifact = importer->import(metadata, vendorPlan);
     // FlagPrism：report actual counter availability after hardware collection.
-    if (metadata.backend == "metax")
+    if (metadata.backend == "metax" || metadata.backend == "hcu")
       metadata.vendorMetricsEnabled = vendorArtifact.enabledMetrics;
     // FlagPrism end
     appendUnique(metadata.degradeReasons, vendorArtifact.degradeReasons);
@@ -740,7 +742,7 @@ void Session::finalize(const std::string &outputFormat) {
         // FlagPrism：count MCPTI device intervals as native runtime
         // associations.
         {"aclprof_op_summary", "aclprof_task_time", "topspti_activity",
-         "mcpti_activity"} // FlagPrism end
+         "mcpti_activity", "hcu_activity"} // FlagPrism end
     );
     metadata.config["vendor_runtime_metric_overlays"] =
         std::to_string(overlayCount);
@@ -808,6 +810,19 @@ std::unique_ptr<Session> SessionManager::makeSession(
     const std::string &profilerPath, const std::string &contextSourceName,
     const std::string &dataName, const std::string &mode,
     const std::string &hookName) {
+#ifdef FLAGPRISM_BACKEND_HCU
+  // The vendor and legacy HIP collectors share ROCtracer's default pool.
+  const auto name = toLower(profilerName);
+  if (name == "hcu" || name == "hygon" || name == "roctracer") {
+    auto *legacy = &RoctracerProfiler::instance();
+    auto *hcu = VendorAdapterRegistry::find("hcu")->getRuntimeProfiler();
+    for (const auto &[existingId, existing] : sessions)
+      if ((name == "roctracer" && existing->getProfiler() == hcu) ||
+          (name != "roctracer" && existing->getProfiler() == legacy))
+        throw std::runtime_error(
+            "HCU and legacy ROCtracer do not support overlapping sessions");
+  }
+#endif
   if (const auto *vendorAdapter = VendorAdapterRegistry::find(profilerName)) {
     auto vendorOptions = parseVendorProfileMode(mode);
     auto vendorPlan = vendorAdapter->makePlan(vendorOptions);

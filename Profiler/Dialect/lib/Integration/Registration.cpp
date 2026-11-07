@@ -2,7 +2,7 @@
 
 #include "Conversion/ProtonGPUToLLVM/Passes.h"
 // FlagPrism：MACA does not compile CUDA or AMD device-counter lowering.
-#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
+#if !defined(FLAGPRISM_BACKEND_HCU) && !defined(FLAGPRISM_BACKEND_METAX) &&    \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
@@ -25,7 +25,7 @@ namespace mlir::triton::proton {
 void registerFlagTreeProtonPassesAndDialects(mlir::DialectRegistry &registry) {
   registerConvertProtonToProtonGPU();
 // FlagPrism：MACA does not compile CUDA or AMD device-counter lowering.
-#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
+#if !defined(FLAGPRISM_BACKEND_HCU) && !defined(FLAGPRISM_BACKEND_METAX) &&    \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
@@ -40,7 +40,7 @@ void registerFlagTreeProtonPassesAndDialects(mlir::DialectRegistry &registry) {
   gpu::registerAllocateProtonGlobalScratchBufferPass();
   gpu::registerScheduleBufferStorePass();
 // FlagPrism：MACA does not compile CUDA or AMD device-counter lowering.
-#if !defined(FLAGPRISM_BACKEND_METAX) &&                                       \
+#if !defined(FLAGPRISM_BACKEND_HCU) && !defined(FLAGPRISM_BACKEND_METAX) &&    \
     !defined(FLAGPRISM_BACKEND_ENFLAME) &&                                     \
     !defined(FLAGPRISM_BACKEND_TIANSHU) &&                                     \
     !defined(FLAGPRISM_BACKEND_ASCEND) &&                                      \
