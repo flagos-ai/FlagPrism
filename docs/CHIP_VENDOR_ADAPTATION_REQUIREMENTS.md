@@ -2,6 +2,8 @@
 
 ## 1. 目标
 
+环境准备使用 FlagTree 对应芯片的开发容器，具体步骤见该后端的使用手册。LLVM 和 SDK 环境沿用对应 FlagTree 容器的配置。
+
 芯片适配完成后，需要支持：
 
 - Profiler 启动和停止芯片性能采集，获取 kernel 执行信息和硬件指标；
@@ -20,7 +22,7 @@
 | 数值摘要 | 元素数量、NaN 数量、Inf 数量、零值数量、有限值均值、最小值、最大值、L2 Norm | 否 |
 | 芯片性能信息 | kernel 设备执行时间、计算单元利用率、带宽、Cache、指令统计、硬件计数器 | 是 |
 
-只要芯片支持 Debugger 的隐藏参数和调试记录写入，基础插桩信息和数值摘要就可以由 FlagPrism 自己获得。
+完成 Debugger 的插桩、编译和运行时接入后，FlagPrism 可以采集基础插桩信息和数值摘要，具体要求见第 3 节。
 
 芯片性能指标由厂商决定支持范围。厂商未提供的指标会标记为不支持或不可用，不影响基础插桩信息和数值摘要的采集。
 
@@ -36,10 +38,10 @@ Profiler 适配分为三个步骤：
 3. 解析厂商输出，生成统一的 kernel 性能结果
 ```
 
-三个步骤分别对应 2.1、2.2 和 2.3。完整调用顺序为：
+三个步骤分别对应 2.1、2.2 和 2.3。运行时采集的主要流程为：
 
 ```text
-makePlan → doSetMode → doStart → startOp/stopOp → doStop → import
+makePlan → 配置采集器 → doStart → startOp/stopOp → doFlush → doStop → import
 ```
 
 ### 2.1 声明能力并生成采集配置
@@ -76,19 +78,11 @@ public:
 
 其中，`getRuntimeProfiler()` 返回 2.2 中的采集对象，`createImporter()` 返回 2.3 中的解析对象。
 
+需要把采集计划传给运行时采集器时，可重写 `configureRuntimeProfiler(profilerPath, plan)`；该接口默认已有实现。
+
 #### 采集计划（VendorProfilePlan）
 
-`VendorProfilePlan` 不是 kernel 执行计划，而是本次 Profiler 实际使用的采集配置。
-
-生成过程如下：
-
-```text
-用户请求的指标和参数
-        ↓
-makePlan() 检查厂商 Profiler 的能力
-        ↓
-生成实际启用的指标、未启用的指标和原因
-```
+`makePlan()` 根据用户请求和厂商支持范围，生成本次采集配置 `VendorProfilePlan`。
 
 用户请求 `VendorProfileOptions` 包含：
 
@@ -150,11 +144,13 @@ public:
 };
 ```
 
-运行过程为：设置采集参数、启动厂商 Profiler、标记算子开始和结束、停止厂商 Profiler。停止后需要保证原始性能数据已经完整生成。
+停止采集前应刷新数据，确保已采集的事件可供后续导入。
 
 ### 2.3 解析厂商性能数据
 
 该接口的作用是把厂商 Profiler 的原始结果转换成 FlagPrism 可以读取的统一结果。
+
+原始结果可以来自运行时采集的内存数据，也可以来自厂商工具导出的文件。使用外部工具时，需完成工具调用和结果导入，并在执行失败时报告错误。
 
 实现以下接口：
 
@@ -169,7 +165,7 @@ public:
 };
 ```
 
-这三个结构体由 FlagPrism 定义。省略默认值后，结构如下：
+导入接口使用的三个结构体由 FlagPrism 定义。省略默认值后，结构如下：
 
 ```cpp
 // 本次采集的基本信息，由 FlagPrism 传给厂商 Importer。
@@ -220,9 +216,7 @@ struct VendorProfileArtifact {
 - `VendorMetricAssociation` 包含一个 kernel 事件、采集状态、指标列表和错误说明；
 - kernel 事件包含 kernel 名称、device ID、stream ID、task/correlation ID，以及开始和结束时间。
 
-返回结果中的每条 kernel 记录包含：kernel 名称、device ID、stream ID、开始时间、结束时间、指标列表、采集状态和错误说明。
-
-其中 `metrics` 保存厂商能够提供的性能数据，例如：
+`metrics` 保存厂商提供的性能数据，例如：
 
 ```text
 ai_core_utilization = 85.2
@@ -232,21 +226,13 @@ cache_hit_rate = 0.91
 
 `import()` 内需要完成：
 
-- 读取芯片 Profiler 输出；
+- 读取运行时采集数据或厂商工具导出的文件；
 - 将时间统一转换为纳秒；
 - 将指标与 kernel 或算子关联；
 - 标记指标是否采集成功；
 - 对不支持、未采集到或无法关联的数据给出原因。
 
-解析结果至少包含：
-
-- kernel 或算子名称；
-- device ID 和 stream ID；
-- 开始时间和结束时间，单位为纳秒；
-- 芯片支持的硬件指标；
-- 算子与芯片性能事件之间的关联信息。
-
-厂商可以提供的性能信息包括 kernel 执行时间、计算单元利用率、内存带宽、Cache、指令统计和硬件计数器。厂商没有提供的数据会标记为不支持或不可用。
+每项指标应说明来源、单位和统计范围，区分 Host 耗时与设备耗时、理论 occupancy 与实测利用率，以及单个 kernel 与整个采集范围的统计值。
 
 ### 2.4 昇腾实现思路
 
@@ -308,6 +294,8 @@ public:
 };
 ```
 
+多设备场景下，如运行时需要显式切换设备，还应重写 `setDevice(uint32_t deviceId)`，确保内存分配和传输使用 kernel 所在的设备。
+
 接口需要满足：
 
 - 设备内存可以被 kernel 直接读写；
@@ -328,7 +316,7 @@ public:
 6. 未开启 Debugger 时，不增加该参数；
 7. 调试缓冲区满时记录溢出状态，不能越界写入。
 
-第一阶段只需要支持数值摘要采集，包括 NaN、Inf、最大值、最小值、均值等统计信息。
+接入初期可先实现 L1 数值摘要，包括 NaN、Inf、最大值、最小值、均值等统计信息；L2 还需支持完整张量的采集和回传。
 
 如果需要支持访存地址采集，还需要将 kernel 中的指针转换为实际设备地址，并输出有效线程的地址摘要或完整地址列表。
 
@@ -363,10 +351,19 @@ public:
 - 错误信息需要包含失败的接口名称和错误码；
 - 不支持的性能指标需要明确标记为不支持；
 - 无法关联到 kernel 的指标需要明确标记为未关联；
-- 不得使用全 0 数据表示采集成功；
+- 不得用占位零值伪装采集成功；
 - 内存分配、数据传输或 kernel 参数不一致时，应停止本次调试并返回错误。
 
 ## 5. 接口与代码文件对应关系
+
+以下代码可作为参考。Profiler 文件展示各厂商的采集实现；四个 Debugger Runtime Adapter 均位于 [TransferEngine.cpp](../Debugger/lib/Runtime/TransferEngine.cpp)，可按表中的类名查找。
+
+| 芯片 | Profiler 参考代码 | Debugger Runtime 类名 |
+| --- | --- | --- |
+| 燧原 | [EnflameProfiler.cpp](../Profiler/csrc/lib/Profiler/Vendor/EnflameProfiler.cpp)：TOPSPTI 采集 | `EnflameRuntimeBackendAdapter` |
+| 摩尔线程 | [MthreadsProfiler.cpp](../Profiler/csrc/lib/Profiler/Vendor/MthreadsProfiler.cpp)：运行时采集 | `MusaRuntimeBackendAdapter` |
+| 昇腾 | [CannProfiler.cpp](../Profiler/csrc/lib/Profiler/Vendor/CannProfiler.cpp)：CANN/MSTX 采集与 msprof 导出 | `CannRuntimeBackendAdapter` |
+| 英伟达 | [CuptiProfiler.cpp](../Profiler/csrc/lib/Profiler/Cupti/CuptiProfiler.cpp)：CUPTI 采集；[NvidiaHardwareCounters.cpp](../Profiler/csrc/lib/Profiler/Cupti/NvidiaHardwareCounters.cpp)：硬件计数器 | `CudaRuntimeBackendAdapter` |
 
 ### 5.1 Profiler
 
@@ -380,7 +377,7 @@ public:
 | 设备类型 | `Profiler/common/include/Device.h` | 增加厂商设备类型，并在设备查询实现中接入 |
 | Adapter 注册 | `Profiler/csrc/include/Profiler/Vendor/Adapter.h` 中的 `VendorAdapterRegistry` | 修改 `Profiler/csrc/lib/Profiler/Vendor/Adapter.cpp` |
 | 自动选择 Profiler 后端 | Python `backend` 选择逻辑 | 修改 `Profiler/python/flagtree_profiler/profile.py` |
-| 编译接入 | CMake 源文件列表 | 修改 `Profiler/csrc/CMakeLists.txt` |
+| 编译接入 | `cmake/FlagPrism.cmake` 中的后端注册、CMake 源文件列表 | 注册新后端，并按源文件归属修改 `Profiler/csrc/CMakeLists.txt` 或 `Profiler/csrc/lib/Profiler/CMakeLists.txt` |
 
 ### 5.2 Debugger
 
@@ -396,3 +393,21 @@ public:
 | FlagTree 通用 launch 接口 | FlagTree Host gateway | `FlagTree/python/triton/_flagprism.py` |
 | 芯片 launcher 接线 | 各芯片 backend driver | 在芯片 backend 的 `driver.py` 中调用 Debugger launch context；昇腾对应 `FlagTree/third_party/ascend/backend/driver.py` |
 | 厂商 SDK 探测和链接 | Debugger Runtime CMake | 新增厂商 CMake 文件，并修改 `Debugger/lib/Runtime/CMakeLists.txt` 和 `Debugger/lib/CMakeLists.txt`；昇腾对应 `Debugger/lib/Runtime/CANN.cmake` |
+
+已有的 FlagTree 编译回调和 launch 接口应优先复用；新后端尚未接入时，在 FlagTree 侧补齐相应的编译和启动接入，采集和解析逻辑放在 FlagPrism。
+
+## 6. 验证
+
+适配后，在目标芯片上进入 FlagPrism 仓库根目录，运行统一算子验收：
+
+```bash
+python3 test.py
+```
+
+测试依次运行 Debugger L1、Debugger L2 和 Profiler，每个阶段都将算子输出与 CPU 参考结果比较，并检查对应的采集结果。Profiler 验收要求真实的 kernel 设备耗时。
+
+多卡测试可使用 `python3 test.py --devices 0,1 --jobs 2`。
+
+默认至少覆盖 100 个算子族。采集失败时，测试会补跑未开启工具的同一算子：普通执行也失败记为 WARNING，普通执行成功则记为 ERROR；环境初始化或设备异常等错误直接记为 ERROR。达到覆盖要求且没有 ERROR 时，统一验收通过，但 WARNING 不代表采集成功。
+
+结果默认保存在 `test-results/<运行时间>/`，查看 `summary.json` 中的 PASS、WARNING 和 ERROR 数量，以及对应测试日志。为新增能力补充专项测试，检查实际采集的数值和关联结果；提交适配时说明实际通过的范围和已知限制。
