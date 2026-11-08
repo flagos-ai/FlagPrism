@@ -35,11 +35,16 @@ class DeviceInfo : public Singleton<DeviceInfo> {
 public:
   DeviceInfo() = default;
   int mapDeviceId(int id) {
+#ifdef FLAGPRISM_BACKEND_HCU
+    // DTK activity records already use HIP device ordinals.
+    return id;
+#else
     // Lazy initialization of device offset by calling hip API.
     // Otherwise on nvidia platforms, the HSA call will fail because of no
     // available libraries.
     std::call_once(deviceOffsetFlag, [this]() { initDeviceOffset(); });
     return id - deviceOffset;
+#endif
   }
 
 private:
@@ -70,27 +75,29 @@ private:
   int deviceOffset = 0x7fffffff;
 };
 
+bool isKernelActivity(const roctracer_record_t *activity) {
+#ifdef FLAGPRISM_BACKEND_HCU
+  // DTK reports dispatch in `op`; `kind` is not the ROCm VDI command enum.
+  // In particular, do not mistake copies or barriers for measured kernels.
+  return activity->domain == ACTIVITY_DOMAIN_HIP_OPS &&
+         activity->op == HIP_OP_ID_DISPATCH;
+#else
+  return activity->kind == kHipVdiCommandTask ||
+         activity->kind == kHipVdiCommandKernel;
+#endif
+}
+
 std::shared_ptr<Metric>
 convertActivityToMetric(const roctracer_record_t *activity) {
-  std::shared_ptr<Metric> metric;
-  switch (activity->kind) {
-  case kHipVdiCommandTask:
-  case kHipVdiCommandKernel: {
-    if (activity->begin_ns < activity->end_ns) {
-      metric = std::make_shared<KernelMetric>(
-          static_cast<uint64_t>(activity->begin_ns),
-          static_cast<uint64_t>(activity->end_ns), 1,
-          static_cast<uint64_t>(
-              DeviceInfo::instance().mapDeviceId(activity->device_id)),
-          static_cast<uint64_t>(DeviceType::HIP),
-          static_cast<uint64_t>(activity->queue_id));
-    }
-    break;
-  }
-  default:
-    break;
-  }
-  return metric;
+  if (!isKernelActivity(activity) || activity->begin_ns >= activity->end_ns)
+    return nullptr;
+  return std::make_shared<KernelMetric>(
+      static_cast<uint64_t>(activity->begin_ns),
+      static_cast<uint64_t>(activity->end_ns), 1,
+      static_cast<uint64_t>(
+          DeviceInfo::instance().mapDeviceId(activity->device_id)),
+      static_cast<uint64_t>(DeviceType::HIP),
+      static_cast<uint64_t>(activity->queue_id));
 }
 
 void processActivityKernel(
@@ -136,16 +143,9 @@ void processActivity(RoctracerProfiler::CorrIdToExternIdMap &corrIdToExternId,
                      size_t externId, std::set<Data *> &dataSet,
                      const roctracer_record_t *record, bool isAPI,
                      bool isGraph) {
-  switch (record->kind) {
-  case kHipVdiCommandTask:
-  case kHipVdiCommandKernel: {
+  if (isKernelActivity(record))
     processActivityKernel(corrIdToExternId, externId, dataSet, record, isAPI,
                           isGraph);
-    break;
-  }
-  default:
-    break;
-  }
 }
 
 } // namespace

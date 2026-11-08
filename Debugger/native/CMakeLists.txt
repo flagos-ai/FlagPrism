@@ -58,6 +58,8 @@ add_triton_plugin(TritonDebugger
 
   DEPENDS
   FlagPrismDebuggerComponentTableGen
+  TritonIR
+  TritonGPUIR
 
   LINK_LIBS
   MLIRIR

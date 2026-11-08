@@ -84,6 +84,7 @@ enum class TransferDriverKind : uint16_t {
   CUDA = 6,
   // FlagPrism：select the MACA runtime adapter explicitly.
   MACA = 7,
+  HIP = 8,
   // FlagPrism end
 };
 

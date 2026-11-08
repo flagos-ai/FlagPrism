@@ -66,12 +66,22 @@ endif()
 set(FLAGTREE_PROFILER_CUDA_RUNTIME OFF)
 set(FLAGTREE_PROFILER_ROCTRACER_RUNTIME OFF)
 if(FLAGTREE_PROFILER_GPU_RUNTIME)
-  if(FLAGPRISM_BACKEND STREQUAL "nvidia")
+  if(FLAGPRISM_BACKEND STREQUAL "hcu")
+    set(FLAGTREE_PROFILER_ROCTRACER_RUNTIME ON)
+  elseif(FLAGPRISM_BACKEND STREQUAL "nvidia")
     set(FLAGTREE_PROFILER_CUDA_RUNTIME ON)
   else()
     set(FLAGTREE_PROFILER_CUDA_RUNTIME ON)
     set(FLAGTREE_PROFILER_ROCTRACER_RUNTIME ON)
   endif()
+endif()
+
+if(FLAGPRISM_BACKEND STREQUAL "hcu")
+  find_path(ROCTRACER_INCLUDE_DIR roctracer/roctracer.h
+    HINTS "$ENV{DTKROOT}/include" "$ENV{ROCM_PATH}/include" /opt/dtk/include REQUIRED)
+  find_path(FLAGPRISM_HCU_INCLUDE_DIR hip/hip_runtime_api.h
+    HINTS "$ENV{DTKROOT}/include" "$ENV{ROCM_PATH}/include" /opt/dtk/include REQUIRED)
+  include_directories("${FLAGPRISM_HCU_INCLUDE_DIR}")
 endif()
 
 # ============ Check for includes =============
@@ -265,6 +275,9 @@ if(FLAGPRISM_PYTHON_DIR)
 endif()
 
 target_link_libraries(flagtree_profiler_native PRIVATE Python3::Module)
+if(FLAGPRISM_BACKEND STREQUAL "hcu")
+  target_link_libraries(flagtree_profiler_native PRIVATE ${FLAGPRISM_HCU_RUNTIME})
+endif()
 # FlagPrism：object-library usage requirements do not propagate via TARGET_OBJECTS.
 if(FLAGPRISM_BACKEND STREQUAL "metax" OR FLAGPRISM_HAS_METAX)
   target_link_libraries(flagtree_profiler_native PRIVATE ${FLAGPRISM_MCPTI_LIBRARY} ${FLAGPRISM_MACA_RUNTIME})

@@ -2,7 +2,8 @@ set(PROFILER_DRIVER_SOURCES
   Device.cpp
 )
 # FlagPrism：MetaX builds do not require CoreX device queries.
-if(NOT FLAGPRISM_BACKEND STREQUAL "metax" AND
+if(NOT FLAGPRISM_BACKEND STREQUAL "hcu" AND
+   NOT FLAGPRISM_BACKEND STREQUAL "metax" AND
    NOT FLAGPRISM_BACKEND STREQUAL "enflame" AND
 # FlagPrism end
    NOT FLAGPRISM_BACKEND STREQUAL "ascend" AND

@@ -41,6 +41,14 @@ def _is_metax_backend(backend: Optional[str]) -> bool:
 # FlagPrism end
 
 
+def _is_hcu_backend(backend: Optional[str]) -> bool:
+    return str(backend or "").lower() in {"hcu", "hygon"}
+
+
+def _uses_native_ir_backend(backend: Optional[str]) -> bool:
+    return _is_metax_backend(backend) or _is_hcu_backend(backend)
+
+
 def _is_mthreads_backend(backend: Optional[str]) -> bool:
     return str(backend or "").lower() in {"mthreads", "musa"}
 
@@ -50,7 +58,7 @@ def _uses_default_ir_triton_hook(backend: Optional[str],
                                  hook: Optional[str]) -> bool:
     return (hook == "triton"
             and (_is_cann_backend(backend) or _is_tianshu_backend(backend)
-                 or _is_metax_backend(backend))
+                 or _uses_native_ir_backend(backend))
             and (not _is_cann_backend(backend)
                  or not _env_flag_enabled(_CANN_TRITON_LEGACY_ENV)))
 
@@ -95,8 +103,8 @@ def _activate_instrumentation(backend: Optional[str] = None) -> None:
     debugger.clear_exported_runs()
     debugger.activate(
         record_level=1,
-        addr_level=1 if
-        (_is_tianshu_backend(backend) or _is_metax_backend(backend)) else 0,
+        addr_level=1 if (_is_tianshu_backend(backend)
+                         or _uses_native_ir_backend(backend)) else 0,
         record_capacity=record_capacity,
         output_dir=None,
     )
@@ -1084,7 +1092,7 @@ def _augment_ir_vendor(path: Path, runs: list[dict],
     associations = vendor.setdefault("associations", [])
     # FlagPrism：IR events use the session device instead of assuming device 0.
     ir_associations = _ir_associations_for_runs(runs)
-    if _is_metax_backend(backend):
+    if _uses_native_ir_backend(backend):
         meta = _load_json_object(
             path.with_name(
                 path.name.removesuffix(".vendor.json") + ".meta.json"), {})
@@ -1132,11 +1140,12 @@ def _augment_instrumentation_artifacts(
     # FlagPrism：propagate the native session device to inserted IR tree nodes.
     meta = _load_json_object(base.with_suffix(".meta.json"), {})
     device_id = int((meta.get("device") or {}).get("id", 0))
-    _augment_hatchet(base.with_suffix(".hatchet"),
-                     runs,
-                     device_id=device_id,
-                     use_run_devices=_is_metax_backend(
-                         str(meta.get("backend") or "")))
+    _augment_hatchet(
+        base.with_suffix(".hatchet"),
+        runs,
+        device_id=device_id,
+        use_run_devices=(_is_metax_backend(str(meta.get("backend") or ""))
+                         or _is_hcu_backend(str(meta.get("backend") or ""))))
     # FlagPrism end
     _augment_ir_meta(base.with_suffix(".meta.json"), runs,
                      ir_default_for_triton)
@@ -1181,7 +1190,8 @@ def _select_backend() -> str:
         return "metax"
     # FlagPrism end
     elif backend == "hip":
-        return "roctracer"
+        driver_module = type(triton.runtime.driver.active).__module__
+        return "hcu" if ".hcu." in driver_module else "roctracer"
     elif backend in {"ascend", "npu"}:
         return "cann"
     elif backend in {"tianshu", "corex", "iluvatar"}:
@@ -1254,7 +1264,7 @@ def start(
         name (str, optional): The name (with path) of the profiling session.
                               If not provided, the default name is "~/profiler.hatchet".
         backend (str, optional): The backend to use for profiling.
-        Available options are [None, "cupti", "nvidia", "cuda", "cupti_pcsampling", "roctracer", "cann", "mthreads", "tianshu"].
+        Available options are [None, "cupti", "nvidia", "cuda", "cupti_pcsampling", "roctracer", "hcu", "cann", "mthreads", "tianshu"].
                                  Defaults to None, which automatically selects the backend matching the current active runtime.
         context (str, optional): The context to use for profiling.
                                  Available options are ["shadow", "python"].
@@ -1296,21 +1306,21 @@ def start(
         hook == "triton" or (_is_mthreads_backend(backend) and hook is None)
         or (hook == "instrumentation" and
             (_is_cann_backend(backend) or _is_tianshu_backend(backend)
-             or _is_metax_backend(backend))))
+             or _uses_native_ir_backend(backend))))
     ir_default_for_triton = _uses_default_ir_triton_hook(backend, hook)
     use_instrumentation_hook = (
         (_is_cann_backend(backend) or _is_tianshu_backend(backend)
-         or _is_metax_backend(backend))
+         or _uses_native_ir_backend(backend))
         and (hook == "instrumentation" or ir_default_for_triton))
     use_native_instrumentation_hook = backend == "instrumentation" or (
         hook == "instrumentation"
         and not (_is_cann_backend(backend) or _is_tianshu_backend(backend)
-                 or _is_metax_backend(backend)))
+                 or _uses_native_ir_backend(backend)))
     # FlagPrism end
     effective_mode = (_mode_with_ir_triton_overrides(mode, backend) if
                       ir_default_for_triton else _get_mode_str(backend, mode))
     # FlagPrism：record the actual current device unless explicitly selected.
-    if _is_metax_backend(backend) and not any(
+    if _uses_native_ir_backend(backend) and not any(
             token.partition("=")[0].strip() == "device_id"
             for token in effective_mode.split(":")):
         device_id = triton.runtime.driver.active.get_current_device()
