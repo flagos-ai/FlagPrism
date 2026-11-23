@@ -13,9 +13,11 @@
 #include "mlir/Transforms/Passes.h"
 #include "triton/Dialect/Triton/IR/Dialect.h"
 #include "triton/Dialect/TritonGPU/IR/Dialect.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include <algorithm>
+#include <utility>
 
 namespace mlir {
 namespace triton {
@@ -58,18 +60,49 @@ template <typename T, typename OP> bool hasOperator(T *o) {
   return exist;
 }
 
+template <typename Encoding>
+using CGALayout = decltype(std::declval<Encoding>().getCGALayout());
+
+template <typename Layout>
+using FromSplitParams = decltype(Layout::fromSplitParams(
+    std::declval<MLIRContext *>(), {1}, {1}, {0}));
+
+// Vendor dialects can expose different layout APIs within one FlagTree release.
+template <typename Encoding>
+auto makeCTALayout(MLIRContext *context, ArrayRef<unsigned> ctasPerCGA,
+                   ArrayRef<unsigned> ctaSplitNum,
+                   ArrayRef<unsigned> ctaOrder) {
+  if constexpr (llvm::is_detected<CGALayout, Encoding>::value) {
+    return CGALayout<Encoding>::fromSplitParams(context, ctasPerCGA,
+                                                ctaSplitNum, ctaOrder);
+  } else {
+    using Layout = decltype(std::declval<Encoding>().getCTALayout());
+    if constexpr (llvm::is_detected<FromSplitParams, Layout>::value)
+      return Layout::fromSplitParams(context, ctasPerCGA, ctaSplitNum,
+                                     ctaOrder);
+    else
+      return Layout::get(context, ctasPerCGA, ctaSplitNum, ctaOrder);
+  }
+}
+
+template <typename Op>
+using ExplicitCaptures =
+    decltype(std::declval<Op>().getExplicitCapturesMutable());
+
+// The explicit captures moved from warp_specialize to its partitions op.
+template <typename WarpOp> Operation *getCaptureOwner(WarpOp &op) {
+  if constexpr (llvm::is_detected<ExplicitCaptures, WarpOp>::value)
+    return op.getOperation();
+  else
+    return op.getPartitionOp().getOperation();
+}
+
 void instrumentWarpSpecializeOps(FuncOp func, Value buffer, Value profileMem) {
   for (auto wsOp : func.getOps<triton::gpu::WarpSpecializeOp>()) {
     auto loc = wsOp.getLoc();
     if (hasOperator<Operation, proton::RecordOp>(wsOp.getOperation())) {
-#if defined(FLAGPRISM_BACKEND_MTHREADS)
-      // MThreads stores explicit captures on the nested partitions op.
-      auto partitions = wsOp.getPartitionOp();
-      partitions->insertOperands(partitions->getNumOperands(),
-                                 {buffer, profileMem});
-#else
-      wsOp->insertOperands(wsOp->getNumOperands(), {buffer, profileMem});
-#endif
+      Operation *owner = getCaptureOwner(wsOp);
+      owner->insertOperands(owner->getNumOperands(), {buffer, profileMem});
       for (Region *region : wsOp.getPartitionRegions()) {
         region->addArgument(buffer.getType(), loc);
         region->addArgument(profileMem.getType(), loc);
@@ -279,15 +312,10 @@ public:
     llvm::SmallVector<unsigned, 1> ctasPerCGA{1};
     llvm::SmallVector<unsigned, 1> ctaSplitNum{1};
     llvm::SmallVector<unsigned, 1> ctaOrder{0};
-#if defined(FLAGPRISM_BACKEND_MTHREADS)
-    auto ctaLayout = triton::gpu::CGAEncodingAttr::fromSplitParams(
-        context, ctasPerCGA, ctaSplitNum, ctaOrder);
-#else
-    auto ctaLayout = triton::gpu::CTAEncodingAttr::fromSplitParams(
-        context, ctasPerCGA, ctaSplitNum, ctaOrder);
-#endif
-    auto encoding = triton::gpu::SwizzledSharedEncodingAttr::get(
-        context, 1, 1, 1, {0}, ctaLayout);
+    using SharedEncoding = triton::gpu::SwizzledSharedEncodingAttr;
+    auto ctaLayout = makeCTALayout<SharedEncoding>(context, ctasPerCGA,
+                                                   ctaSplitNum, ctaOrder);
+    auto encoding = SharedEncoding::get(context, 1, 1, 1, {0}, ctaLayout);
 
     if (bufferType == gpu::BufferType::SHARED) {
       Attribute sharedMemorySpace =
